@@ -5,13 +5,13 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductGeneratedInfoDto } from './dto/create-product-generated-info.dto';
-import { FieldsService } from '../fields/fields.service';
+import { TechnicalCharacteristicsService } from '../technical-characteristics/technical-characteristics.service';
 
 @Injectable()
 export class ProductGeneratedInfoService {
   constructor(
     private prisma: PrismaService,
-    private fieldsService: FieldsService,
+    private technicalCharacteristicsService: TechnicalCharacteristicsService,
   ) {}
 
   async create(createDto: CreateProductGeneratedInfoDto) {
@@ -79,18 +79,18 @@ export class ProductGeneratedInfoService {
     );
 
     // Récupérer les caractéristiques techniques applicables AVANT de vérifier les doublons
-    const allFields = await this.fieldsService.findAll();
+    const allTechnicalCharacteristics = await this.technicalCharacteristicsService.findAll();
 
     // Filtrer pour avoir les caractéristiques techniques de la famille ou des variantes sélectionnées
-    const applicableFields = allFields.filter(
-      (field: any) =>
-        (field.familyId === product.familyId && !field.variantId) || // Caractéristiques techniques de la famille
-        (field.variantId && createDto.variantIds.includes(field.variantId)), // Caractéristiques techniques des variantes sélectionnées
+    const applicableTechnicalCharacteristics = allTechnicalCharacteristics.filter(
+      (technicalCharacteristic: any) =>
+        (technicalCharacteristic.familyId === product.familyId && !technicalCharacteristic.variantId) || // Caractéristiques techniques de la famille
+        (technicalCharacteristic.variantId && createDto.variantIds.includes(technicalCharacteristic.variantId)), // Caractéristiques techniques des variantes sélectionnées
     );
 
     // Dédupliquer par ID et trier par position
-    const uniqueFields = Array.from(
-      new Map(applicableFields.map((field: any) => [field.id, field])).values(),
+    const uniqueTechnicalCharacteristics = Array.from(
+      new Map(applicableTechnicalCharacteristics.map((technicalCharacteristic: any) => [technicalCharacteristic.id, technicalCharacteristic])).values(),
     ).sort((a: any, b: any) => a.position - b.position);
 
     // Compter combien de ProductGeneratedInfo existent déjà avec cette combinaison produit+variantes
@@ -126,13 +126,13 @@ export class ProductGeneratedInfoService {
       // Préparer les valeurs des caractéristiques techniques de la requête
       // On doit vérifier TOUTES les caractéristiques techniques applicables
       const requestValues: Record<string, string | null> = {};
-      for (const field of uniqueFields) {
-        const value = createDto.values?.[(field as any).id];
+      for (const technicalCharacteristic of uniqueTechnicalCharacteristics) {
+        const value = createDto.values?.[(technicalCharacteristic as any).id];
         if (value !== undefined && value !== null && value !== '') {
-          requestValues[(field as any).id] = String(value);
+          requestValues[(technicalCharacteristic as any).id] = String(value);
         } else {
           // Marquer comme null si non fournie
-          requestValues[(field as any).id] = null;
+          requestValues[(technicalCharacteristic as any).id] = null;
         }
       }
 
@@ -141,15 +141,15 @@ export class ProductGeneratedInfoService {
         // Préparer les valeurs des caractéristiques techniques de ce match
         const matchValues: Record<string, string | null> = {};
         // Initialiser toutes les caractéristiques techniques applicables
-        for (const field of uniqueFields) {
-          matchValues[(field as any).id] = null;
+        for (const technicalCharacteristic of uniqueTechnicalCharacteristics) {
+          matchValues[(technicalCharacteristic as any).id] = null;
         }
         // Remplir avec les valeurs existantes
         if (match.technicalCharacteristics) {
           for (const tc of match.technicalCharacteristics) {
-            const fieldId = tc.technicalCharacteristic.id;
-            if (matchValues.hasOwnProperty(fieldId)) {
-              matchValues[fieldId] = tc.value;
+            const technicalCharacteristicId = tc.technicalCharacteristic.id;
+            if (matchValues.hasOwnProperty(technicalCharacteristicId)) {
+              matchValues[technicalCharacteristicId] = tc.value;
             }
           }
         }
@@ -158,7 +158,7 @@ export class ProductGeneratedInfoService {
         let allValuesMatch = true;
 
         // Si aucune caractéristique technique n'est applicable, vérifier que le match n'a pas non plus de caractéristiques techniques
-        if (uniqueFields.length === 0) {
+        if (uniqueTechnicalCharacteristics.length === 0) {
           // Pas de caractéristiques techniques applicables, vérifier si le match n'a pas non plus de caractéristiques techniques
           const matchHasNoTechChars =
             !match.technicalCharacteristics ||
@@ -177,10 +177,10 @@ export class ProductGeneratedInfoService {
           // Comparer toutes les caractéristiques techniques applicables
           // Si une caractéristique n'est pas fournie dans la requête, elle est null
           // Si une caractéristique n'existe pas dans le match, elle est aussi null
-          for (const field of uniqueFields) {
-            const fieldId = (field as any).id;
-            const requestValue = requestValues[fieldId] ?? null; // S'assurer que c'est null si non défini
-            const matchValue = matchValues[fieldId] ?? null; // S'assurer que c'est null si non défini
+          for (const technicalCharacteristic of uniqueTechnicalCharacteristics) {
+            const technicalCharacteristicId = (technicalCharacteristic as any).id;
+            const requestValue = requestValues[technicalCharacteristicId] ?? null; // S'assurer que c'est null si non défini
+            const matchValue = matchValues[technicalCharacteristicId] ?? null; // S'assurer que c'est null si non défini
 
             // Les deux doivent être null ou avoir la même valeur (comparaison stricte)
             if (requestValue !== matchValue) {
@@ -208,18 +208,18 @@ export class ProductGeneratedInfoService {
 
     // Valider que toutes les caractéristiques techniques définies sont fournies (si des caractéristiques techniques existent et des valeurs sont fournies)
     if (
-      uniqueFields.length > 0 &&
+      uniqueTechnicalCharacteristics.length > 0 &&
       createDto.values &&
       Object.keys(createDto.values).length > 0
     ) {
-      for (const field of uniqueFields) {
-        const value = createDto.values[(field as any).id];
+      for (const technicalCharacteristic of uniqueTechnicalCharacteristics) {
+        const value = createDto.values[(technicalCharacteristic as any).id];
         if (
-          createDto.values.hasOwnProperty((field as any).id) &&
+          createDto.values.hasOwnProperty((technicalCharacteristic as any).id) &&
           (value === null || value === '')
         ) {
           throw new BadRequestException(
-            `La valeur pour la caractéristique technique ${(field as any).name} (${(field as any).id}) ne peut pas être vide`,
+            `La valeur pour la caractéristique technique ${(technicalCharacteristic as any).name} (${(technicalCharacteristic as any).id}) ne peut pas être vide`,
           );
         }
       }
@@ -251,14 +251,14 @@ export class ProductGeneratedInfoService {
     });
 
     // Sauvegarder les valeurs des caractéristiques techniques (seulement si des valeurs sont fournies)
-    if (uniqueFields.length > 0 && createDto.values) {
-      for (const field of uniqueFields) {
-        const value = createDto.values[(field as any).id];
+    if (uniqueTechnicalCharacteristics.length > 0 && createDto.values) {
+      for (const technicalCharacteristic of uniqueTechnicalCharacteristics) {
+        const value = createDto.values[(technicalCharacteristic as any).id];
         if (value !== undefined && value !== null && value !== '') {
           await this.prisma.productTechnicalCharacteristic.create({
             data: {
               generatedInfoId: generatedInfo.id,
-              technicalCharacteristicId: (field as any).id,
+              technicalCharacteristicId: (technicalCharacteristic as any).id,
               value: String(value),
             },
           });

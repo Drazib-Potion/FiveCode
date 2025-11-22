@@ -18,9 +18,9 @@
 -- INSERT INTO variants (id, "familyId", name, "createdAt", "updatedAt")
 -- VALUES ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001', 'Variante Test', NOW(), NOW());
 
--- Insertion d'un champ de test
--- INSERT INTO fields (id, name, type, "familyId", "variantId", position, "createdAt", "updatedAt")
--- VALUES ('00000000-0000-0000-0000-000000000003', 'Champ Test', 'string', '00000000-0000-0000-0000-000000000001', NULL, 0, NOW(), NOW());
+-- Insertion d'une caractéristique technique de test
+-- INSERT INTO technical_characteristics (id, name, type, "familyId", "variantId", position, "createdAt", "updatedAt")
+-- VALUES ('00000000-0000-0000-0000-000000000003', 'Caractéristique Technique Test', 'string', '00000000-0000-0000-0000-000000000001', NULL, 0, NOW(), NOW());
 
 -- Insertion d'une règle de test
 -- INSERT INTO rules (id, "fieldId", "ruleType", config, "createdAt", "updatedAt")

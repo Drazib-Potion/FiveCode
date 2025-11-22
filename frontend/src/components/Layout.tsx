@@ -47,7 +47,7 @@ export default function Layout() {
           </NavLink>
           <span className="nav-separator">|</span>
           <NavLink 
-            to="/fields" 
+            to="/technical-characteristics" 
             className={({ isActive }) => isActive ? 'active' : ''}
           >
             Caractéristiques techniques

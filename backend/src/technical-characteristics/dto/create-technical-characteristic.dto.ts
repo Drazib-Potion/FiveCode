@@ -1,6 +1,6 @@
 import { IsString, IsNotEmpty, IsOptional, IsUUID, IsInt, Min } from 'class-validator';
 
-export class CreateFieldDto {
+export class CreateTechnicalCharacteristicDto {
   @IsString()
   @IsNotEmpty()
   name: string;

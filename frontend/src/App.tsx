@@ -3,7 +3,7 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import FamiliesPage from './pages/FamiliesPage';
 import VariantsPage from './pages/VariantsPage';
-import FieldsPage from './pages/FieldsPage';
+import TechnicalCharacteristicsPage from './pages/TechnicalCharacteristicsPage';
 import ProductsPage from './pages/ProductsPage';
 import GeneratorPage from './pages/GeneratorPage';
 import GeneratedCodesPage from './pages/GeneratedCodesPage';
@@ -39,7 +39,7 @@ function AppRoutes() {
         <Route path="product-types" element={<ProductTypesPage />} />
         <Route path="products" element={<ProductsPage />} />
         <Route path="variants" element={<VariantsPage />} />
-        <Route path="fields" element={<FieldsPage />} />
+        <Route path="technical-characteristics" element={<TechnicalCharacteristicsPage />} />
         <Route path="generated-codes" element={<GeneratedCodesPage />} />
         <Route path="generator" element={<GeneratorPage />} />
       </Route>

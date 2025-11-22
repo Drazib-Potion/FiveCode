@@ -99,18 +99,18 @@ export const variantsService = {
   },
 };
 
-// Fields Service
-export const fieldsService = {
+// Technical Characteristics Service
+export const technicalCharacteristicsService = {
   getAll: async (familyId?: string, variantId?: string) => {
     const params = new URLSearchParams();
     if (familyId) params.append('familyId', familyId);
     if (variantId) params.append('variantId', variantId);
-    const url = params.toString() ? `/fields?${params}` : '/fields';
+    const url = params.toString() ? `/technical-characteristics?${params}` : '/technical-characteristics';
     const response = await apiClient.get(url);
     return response.data;
   },
   getById: async (id: string) => {
-    const response = await apiClient.get(`/fields/${id}`);
+    const response = await apiClient.get(`/technical-characteristics/${id}`);
     return response.data;
   },
   create: async (data: {
@@ -120,15 +120,15 @@ export const fieldsService = {
     variantId?: string;
     position?: number;
   }) => {
-    const response = await apiClient.post('/fields', data);
+    const response = await apiClient.post('/technical-characteristics', data);
     return response.data;
   },
   update: async (id: string, data: any) => {
-    const response = await apiClient.patch(`/fields/${id}`, data);
+    const response = await apiClient.patch(`/technical-characteristics/${id}`, data);
     return response.data;
   },
   delete: async (id: string) => {
-    const response = await apiClient.delete(`/fields/${id}`);
+    const response = await apiClient.delete(`/technical-characteristics/${id}`);
     return response.data;
   },
 };
@@ -180,7 +180,7 @@ export const productGeneratedInfoService = {
   },
 };
 
-// Rules Service
+// Product Types Service
 export const productTypesService = {
   getAll: async () => {
     const response = await apiClient.get('/product-types');
@@ -204,26 +204,4 @@ export const productTypesService = {
   },
 };
 
-export const rulesService = {
-  getAll: async () => {
-    const response = await apiClient.get('/rules');
-    return response.data;
-  },
-  getById: async (id: string) => {
-    const response = await apiClient.get(`/rules/${id}`);
-    return response.data;
-  },
-  create: async (data: { fieldId: string; ruleType: string; config: any }) => {
-    const response = await apiClient.post('/rules', data);
-    return response.data;
-  },
-  update: async (id: string, data: { fieldId?: string; ruleType?: string; config?: any }) => {
-    const response = await apiClient.patch(`/rules/${id}`, data);
-    return response.data;
-  },
-  delete: async (id: string) => {
-    const response = await apiClient.delete(`/rules/${id}`);
-    return response.data;
-  },
-};
 

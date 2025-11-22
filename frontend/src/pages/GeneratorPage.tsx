@@ -3,7 +3,7 @@ import {
   productsService,
   productGeneratedInfoService,
   variantsService,
-  fieldsService,
+  technicalCharacteristicsService,
 } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import { formatFieldType } from '../utils/fieldTypeFormatter';
@@ -27,7 +27,7 @@ interface Variant {
   excludedVariantIds?: string[];
 }
 
-interface Field {
+interface TechnicalCharacteristic {
   id: string;
   name: string;
   type: string;
@@ -38,7 +38,7 @@ export default function GeneratorPage() {
   const { showAlert } = useModal();
   const [products, setProducts] = useState<Product[]>([]);
   const [variants, setVariants] = useState<Variant[]>([]);
-  const [fields, setFields] = useState<Field[]>([]);
+  const [technicalCharacteristics, setTechnicalCharacteristics] = useState<TechnicalCharacteristic[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedVariantIds, setSelectedVariantIds] = useState<string[]>([]);
@@ -63,16 +63,16 @@ export default function GeneratorPage() {
       setSelectedProduct(null);
       setVariants([]);
       setSelectedVariantIds([]);
-      setFields([]);
+      setTechnicalCharacteristics([]);
       setValues({});
     }
   }, [selectedProductId, products]);
 
   useEffect(() => {
     if (selectedProduct && selectedVariantIds.length > 0) {
-      loadFields(selectedProduct.family.id, selectedVariantIds);
+      loadTechnicalCharacteristics(selectedProduct.family.id, selectedVariantIds);
     } else {
-      setFields([]);
+      setTechnicalCharacteristics([]);
       setValues({});
     }
   }, [selectedProduct, selectedVariantIds]);
@@ -95,31 +95,31 @@ export default function GeneratorPage() {
     }
   };
 
-  const loadFields = async (familyId: string, variantIds: string[]) => {
+  const loadTechnicalCharacteristics = async (familyId: string, variantIds: string[]) => {
     try {
       // Charger les caractéristiques techniques pour toutes les variantes sélectionnées
-      const allFields: Field[] = [];
+      const allTechnicalCharacteristics: TechnicalCharacteristic[] = [];
       for (const variantId of variantIds) {
-        const data = await fieldsService.getAll(familyId, variantId);
-        allFields.push(...data);
+        const data = await technicalCharacteristicsService.getAll(familyId, variantId);
+        allTechnicalCharacteristics.push(...data);
       }
       // Charger aussi les caractéristiques techniques de la famille
-      const familyFields = await fieldsService.getAll(familyId);
-      allFields.push(...familyFields.filter((f: any) => !f.variantId));
+      const familyTechnicalCharacteristics = await technicalCharacteristicsService.getAll(familyId);
+      allTechnicalCharacteristics.push(...familyTechnicalCharacteristics.filter((f: any) => !f.variantId));
 
       // Dédupliquer par ID et trier par position
-      const uniqueFields = Array.from(
-        new Map(allFields.map((field) => [field.id, field])).values(),
+      const uniqueTechnicalCharacteristics = Array.from(
+        new Map(allTechnicalCharacteristics.map((technicalCharacteristic) => [technicalCharacteristic.id, technicalCharacteristic])).values(),
       ).sort((a, b) => a.position - b.position);
 
-      setFields(uniqueFields);
+      setTechnicalCharacteristics(uniqueTechnicalCharacteristics);
     } catch (error) {
-      console.error('Error loading fields:', error);
+      console.error('Error loading technical characteristics:', error);
     }
   };
 
-  const handleValueChange = (fieldId: string, value: any) => {
-    setValues({ ...values, [fieldId]: value });
+  const handleValueChange = (technicalCharacteristicId: string, value: any) => {
+    setValues({ ...values, [technicalCharacteristicId]: value });
   };
 
   const handleVariantToggle = async (variantId: string) => {
@@ -174,7 +174,7 @@ export default function GeneratorPage() {
     }
 
     const valuesToSend =
-      fields.length > 0 && Object.keys(values).length > 0 ? values : undefined;
+      technicalCharacteristics.length > 0 && Object.keys(values).length > 0 ? values : undefined;
 
     try {
       setLoading(true);
@@ -204,16 +204,16 @@ export default function GeneratorPage() {
     }
   };
 
-  const renderFieldInput = (field: Field) => {
-    const value = values[field.id] || '';
+  const renderTechnicalCharacteristicInput = (technicalCharacteristic: TechnicalCharacteristic) => {
+    const value = values[technicalCharacteristic.id] || '';
 
-    switch (field.type) {
+    switch (technicalCharacteristic.type) {
       case 'boolean':
         return (
           <input
             type="checkbox"
             checked={value === true || value === 'true'}
-            onChange={(e) => handleValueChange(field.id, e.target.checked)}
+            onChange={(e) => handleValueChange(technicalCharacteristic.id, e.target.checked)}
           />
         );
 
@@ -222,7 +222,7 @@ export default function GeneratorPage() {
           <input
             type="number"
             value={value}
-            onChange={(e) => handleValueChange(field.id, parseFloat(e.target.value) || 0)}
+            onChange={(e) => handleValueChange(technicalCharacteristic.id, parseFloat(e.target.value) || 0)}
             required
           />
         );
@@ -232,7 +232,7 @@ export default function GeneratorPage() {
           <input
             type="text"
             value={value}
-            onChange={(e) => handleValueChange(field.id, e.target.value)}
+            onChange={(e) => handleValueChange(technicalCharacteristic.id, e.target.value)}
             required
           />
         );
@@ -242,7 +242,7 @@ export default function GeneratorPage() {
           <input
             type="text"
             value={value}
-            onChange={(e) => handleValueChange(field.id, e.target.value)}
+            onChange={(e) => handleValueChange(technicalCharacteristic.id, e.target.value)}
             required
           />
         );
@@ -294,16 +294,16 @@ export default function GeneratorPage() {
 
         {selectedProduct && selectedVariantIds.length > 0 && (
           <div className="fields-section">
-            {fields.length > 0 ? (
+            {technicalCharacteristics.length > 0 ? (
               <>
                 <h2>Caractéristiques techniques (optionnelles)</h2>
                 <div className="fields-form">
-                  {fields.map((field) => (
-                    <div key={field.id} className="form-group">
+                  {technicalCharacteristics.map((technicalCharacteristic) => (
+                    <div key={technicalCharacteristic.id} className="form-group">
                       <label>
-                        {field.name} ({formatFieldType(field.type)})
+                        {technicalCharacteristic.name} ({formatFieldType(technicalCharacteristic.type)})
                       </label>
-                      {renderFieldInput(field)}
+                      {renderTechnicalCharacteristicInput(technicalCharacteristic)}
                     </div>
                   ))}
                 </div>

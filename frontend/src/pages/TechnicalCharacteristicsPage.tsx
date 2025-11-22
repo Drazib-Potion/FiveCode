@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { fieldsService, familiesService, variantsService } from '../services/api';
+import { technicalCharacteristicsService, familiesService, variantsService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import { formatFieldType, getFieldTypeOptions } from '../utils/fieldTypeFormatter';
 import './CRUDPage.css';
 
-interface Field {
+interface TechnicalCharacteristic {
   id: string;
   name: string;
   type: string;
@@ -26,9 +26,9 @@ interface Variant {
   familyId: string;
 }
 
-export default function FieldsPage() {
+export default function TechnicalCharacteristicsPage() {
   const { showAlert, showConfirm } = useModal();
-  const [fields, setFields] = useState<Field[]>([]);
+  const [technicalCharacteristics, setTechnicalCharacteristics] = useState<TechnicalCharacteristic[]>([]);
   const [families, setFamilies] = useState<Family[]>([]);
   const [variants, setVariants] = useState<Variant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,12 +49,12 @@ export default function FieldsPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [fieldsData, familiesData, variantsData] = await Promise.all([
-        fieldsService.getAll(),
+      const [technicalCharacteristicsData, familiesData, variantsData] = await Promise.all([
+        technicalCharacteristicsService.getAll(),
         familiesService.getAll(),
         variantsService.getAll(),
       ]);
-      setFields(fieldsData);
+      setTechnicalCharacteristics(technicalCharacteristicsData);
       setFamilies(familiesData);
       setVariants(variantsData);
     } catch (error) {
@@ -76,29 +76,29 @@ export default function FieldsPage() {
       if (formData.variantId) submitData.variantId = formData.variantId;
 
       if (editingId) {
-        await fieldsService.update(editingId, submitData);
+        await technicalCharacteristicsService.update(editingId, submitData);
       } else {
-        await fieldsService.create(submitData);
+        await technicalCharacteristicsService.create(submitData);
       }
       setFormData({ name: '', type: 'string', familyId: '', variantId: '', position: 0 });
       setShowForm(false);
       setEditingId(null);
       loadData();
     } catch (error) {
-      console.error('Error saving field:', error);
+      console.error('Error saving technical characteristic:', error);
       await showAlert('Erreur lors de la sauvegarde', 'error');
     }
   };
 
-  const handleEdit = (field: Field) => {
+  const handleEdit = (technicalCharacteristic: TechnicalCharacteristic) => {
     setFormData({
-      name: field.name,
-      type: field.type,
-      familyId: field.familyId || '',
-      variantId: field.variantId || '',
-      position: field.position,
+      name: technicalCharacteristic.name,
+      type: technicalCharacteristic.type,
+      familyId: technicalCharacteristic.familyId || '',
+      variantId: technicalCharacteristic.variantId || '',
+      position: technicalCharacteristic.position,
     });
-    setEditingId(field.id);
+    setEditingId(technicalCharacteristic.id);
     setShowForm(true);
   };
 
@@ -106,10 +106,10 @@ export default function FieldsPage() {
     const confirmed = await showConfirm('Êtes-vous sûr de vouloir supprimer cette caractéristique technique ?');
     if (!confirmed) return;
     try {
-      await fieldsService.delete(id);
+      await technicalCharacteristicsService.delete(id);
       loadData();
     } catch (error) {
-      console.error('Error deleting field:', error);
+      console.error('Error deleting technical characteristic:', error);
       await showAlert('Erreur lors de la suppression', 'error');
     }
   };
@@ -200,7 +200,7 @@ export default function FieldsPage() {
       )}
 
       <div className="table-container">
-        {fields.length === 0 ? (
+        {technicalCharacteristics.length === 0 ? (
           <div className="empty-state-placeholder">
             <h3>Aucune caractéristique technique</h3>
             <p>Créez votre première caractéristique technique pour commencer</p>
@@ -218,16 +218,16 @@ export default function FieldsPage() {
               </tr>
             </thead>
             <tbody>
-              {fields.map((field) => (
-                <tr key={field.id}>
-                  <td>{field.name}</td>
-                  <td>{formatFieldType(field.type)}</td>
-                  <td>{field.family?.name || 'N/A'}</td>
-                  <td>{field.variant?.name || 'N/A'}</td>
-                  <td>{field.position}</td>
+              {technicalCharacteristics.map((technicalCharacteristic) => (
+                <tr key={technicalCharacteristic.id}>
+                  <td>{technicalCharacteristic.name}</td>
+                  <td>{formatFieldType(technicalCharacteristic.type)}</td>
+                  <td>{technicalCharacteristic.family?.name || 'N/A'}</td>
+                  <td>{technicalCharacteristic.variant?.name || 'N/A'}</td>
+                  <td>{technicalCharacteristic.position}</td>
                   <td>
-                    <button onClick={() => handleEdit(field)}>Modifier</button>
-                    <button onClick={() => handleDelete(field.id)} className="delete">
+                    <button onClick={() => handleEdit(technicalCharacteristic)}>Modifier</button>
+                    <button onClick={() => handleDelete(technicalCharacteristic.id)} className="delete">
                       Supprimer
                     </button>
                   </td>

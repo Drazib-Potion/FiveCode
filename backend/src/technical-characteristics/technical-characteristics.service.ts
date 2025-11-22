@@ -1,46 +1,46 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateFieldDto } from './dto/create-field.dto';
-import { UpdateFieldDto } from './dto/update-field.dto';
+import { CreateTechnicalCharacteristicDto } from './dto/create-technical-characteristic.dto';
+import { UpdateTechnicalCharacteristicDto } from './dto/update-technical-characteristic.dto';
 
 @Injectable()
-export class FieldsService {
+export class TechnicalCharacteristicsService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createFieldDto: CreateFieldDto) {
+  async create(createTechnicalCharacteristicDto: CreateTechnicalCharacteristicDto) {
     // Valider le type
     const validTypes = ['string', 'number', 'boolean', 'select'];
-    if (!validTypes.includes(createFieldDto.type)) {
+    if (!validTypes.includes(createTechnicalCharacteristicDto.type)) {
       throw new BadRequestException(`Type de caractéristique technique invalide. Doit être l'un de : ${validTypes.join(', ')}`);
     }
 
     // Vérifier que familyId ou variantId est fourni
-    if (!createFieldDto.familyId && !createFieldDto.variantId) {
+    if (!createTechnicalCharacteristicDto.familyId && !createTechnicalCharacteristicDto.variantId) {
       throw new BadRequestException('Une famille ou une variante doit être fournie');
     }
 
     // Vérifier que la famille existe si fournie
-    if (createFieldDto.familyId) {
+    if (createTechnicalCharacteristicDto.familyId) {
       const family = await this.prisma.family.findUnique({
-        where: { id: createFieldDto.familyId },
+        where: { id: createTechnicalCharacteristicDto.familyId },
       });
       if (!family) {
-        throw new NotFoundException(`Family with ID ${createFieldDto.familyId} not found`);
+        throw new NotFoundException(`Family with ID ${createTechnicalCharacteristicDto.familyId} not found`);
       }
     }
 
     // Vérifier que la variante existe si fournie
-    if (createFieldDto.variantId) {
+    if (createTechnicalCharacteristicDto.variantId) {
       const variant = await this.prisma.variant.findUnique({
-        where: { id: createFieldDto.variantId },
+        where: { id: createTechnicalCharacteristicDto.variantId },
       });
       if (!variant) {
-        throw new NotFoundException(`Variant with ID ${createFieldDto.variantId} not found`);
+        throw new NotFoundException(`Variant with ID ${createTechnicalCharacteristicDto.variantId} not found`);
       }
     }
 
     return this.prisma.technicalCharacteristic.create({
-      data: createFieldDto,
+      data: createTechnicalCharacteristicDto,
       include: {
         family: true,
         variant: true,
@@ -110,7 +110,7 @@ export class FieldsService {
   }
 
   async findOne(id: string) {
-    const field = await this.prisma.technicalCharacteristic.findUnique({
+    const technicalCharacteristic = await this.prisma.technicalCharacteristic.findUnique({
       where: { id },
       include: {
         family: true,
@@ -118,26 +118,26 @@ export class FieldsService {
       },
     });
 
-    if (!field) {
+    if (!technicalCharacteristic) {
       throw new NotFoundException(`Caractéristique technique avec l'ID ${id} introuvable`);
     }
 
-    return field;
+    return technicalCharacteristic;
   }
 
-  async update(id: string, updateFieldDto: UpdateFieldDto) {
+  async update(id: string, updateTechnicalCharacteristicDto: UpdateTechnicalCharacteristicDto) {
     await this.findOne(id);
 
-    if (updateFieldDto.type) {
+    if (updateTechnicalCharacteristicDto.type) {
       const validTypes = ['string', 'number', 'boolean', 'select'];
-      if (!validTypes.includes(updateFieldDto.type)) {
+      if (!validTypes.includes(updateTechnicalCharacteristicDto.type)) {
         throw new BadRequestException(`Type de caractéristique technique invalide. Doit être l'un de : ${validTypes.join(', ')}`);
       }
     }
 
     return this.prisma.technicalCharacteristic.update({
       where: { id },
-      data: updateFieldDto,
+      data: updateTechnicalCharacteristicDto,
       include: {
         family: true,
         variant: true,

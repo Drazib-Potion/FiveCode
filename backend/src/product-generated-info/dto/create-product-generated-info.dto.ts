@@ -12,6 +12,6 @@ export class CreateProductGeneratedInfoDto {
 
   @IsObject()
   @IsOptional()
-  values?: Record<string, any>; // { fieldId: value } - Optionnel
+  values?: Record<string, any>; // { technicalCharacteristicId: value } - Optionnel
 }
 
