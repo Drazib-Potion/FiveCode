@@ -33,13 +33,6 @@ apiClient.interceptors.response.use(
 
 // Auth Service
 export const authService = {
-  setToken: (token: string | null) => {
-    if (token) {
-      apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    } else {
-      delete apiClient.defaults.headers.common['Authorization'];
-    }
-  },
   login: async (email: string, password: string) => {
     const response = await apiClient.post('/auth/login', { email, password });
     return response.data;
@@ -156,7 +149,7 @@ export const productsService = {
 export const productGeneratedInfoService = {
   create: async (data: {
     productId: string;
-    variantIds: string[];
+    variantId?: string;
     values?: Record<string, any>;
   }) => {
     const response = await apiClient.post('/product-generated-infos', data);

@@ -55,7 +55,7 @@ model Variant {
 
   family                           Family                          @relation(fields: [familyId], references: [id], onDelete: Cascade)
   technicalCharacteristicVariants TechnicalCharacteristicVariant[]
-  generatedInfos                   ProductVariant[] // Via ProductGeneratedInfo
+  generatedInfos                   ProductGeneratedInfo[] // Infos générées utilisant cette variante
 
   // Relations pour les exclusions
   exclusionsAsVariant1 VariantExclusion[] @relation("VariantExclusions1")
@@ -79,6 +79,69 @@ model TechnicalCharacteristic {
   generatedInfos  ProductTechnicalCharacteristic[] // Via ProductGeneratedInfo
 
   @@map("technical_characteristics")
+}
+
+model Product {
+  id            String   @id @default(uuid())
+  name          String
+  code          String   @unique // Code du produit défini par l'utilisateur
+  familyId      String
+  productTypeId String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  family         Family                 @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  productType    ProductType            @relation(fields: [productTypeId], references: [id], onDelete: Cascade)
+  generatedInfos ProductGeneratedInfo[] // Un produit peut avoir plusieurs infos générées
+
+  @@map("products")
+}
+
+// Informations générées (code généré + variante + champs)
+model ProductGeneratedInfo {
+  id            String   @id @default(uuid())
+  productId     String
+  variantId     String?  // Variante de cette info générée (optionnel)
+  generatedCode String   @unique // Le code généré unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  product                  Product                          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant                  Variant?                         @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  technicalCharacteristics ProductTechnicalCharacteristic[] // Caractéristiques techniques avec valeurs de cette info générée
+
+  @@map("product_generated_infos")
+}
+
+
+// Table d'exclusions entre variantes
+model VariantExclusion {
+  id         String   @id @default(uuid())
+  variantId1 String
+  variantId2 String
+  createdAt  DateTime @default(now())
+
+  variant1 Variant @relation("VariantExclusions1", fields: [variantId1], references: [id], onDelete: Cascade)
+  variant2 Variant @relation("VariantExclusions2", fields: [variantId2], references: [id], onDelete: Cascade)
+
+  @@unique([variantId1, variantId2])
+  @@map("variant_exclusions")
+}
+
+
+// Table de liaison pour ProductGeneratedInfo <-> TechnicalCharacteristic avec valeurs
+model ProductTechnicalCharacteristic {
+  id                        String   @id @default(uuid())
+  generatedInfoId           String // Pointe vers ProductGeneratedInfo au lieu de Product
+  technicalCharacteristicId String
+  value                     String
+  createdAt                 DateTime @default(now())
+
+  generatedInfo           ProductGeneratedInfo    @relation(fields: [generatedInfoId], references: [id], onDelete: Cascade)
+  technicalCharacteristic TechnicalCharacteristic @relation(fields: [technicalCharacteristicId], references: [id], onDelete: Cascade)
+
+  @@unique([generatedInfoId, technicalCharacteristicId])
+  @@map("product_technical_characteristics")
 }
 
 // Table de liaison pour TechnicalCharacteristic <-> Family (many-to-many)
@@ -107,78 +170,4 @@ model TechnicalCharacteristicVariant {
 
   @@unique([technicalCharacteristicId, variantId])
   @@map("technical_characteristic_variants")
-}
-
-model Product {
-  id            String   @id @default(uuid())
-  name          String
-  code          String   @unique // Code du produit défini par l'utilisateur
-  familyId      String
-  productTypeId String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  family         Family                 @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  productType    ProductType            @relation(fields: [productTypeId], references: [id], onDelete: Cascade)
-  generatedInfos ProductGeneratedInfo[] // Un produit peut avoir plusieurs infos générées
-
-  @@map("products")
-}
-
-// Informations générées (code généré + variantes + champs)
-model ProductGeneratedInfo {
-  id            String   @id @default(uuid())
-  productId     String
-  generatedCode String   @unique // Le code généré unique
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  product                  Product                          @relation(fields: [productId], references: [id], onDelete: Cascade)
-  variants                 ProductVariant[] // Variantes de cette info générée
-  technicalCharacteristics ProductTechnicalCharacteristic[] // Caractéristiques techniques avec valeurs de cette info générée
-
-  @@map("product_generated_infos")
-}
-
-// Table de liaison pour ProductGeneratedInfo <-> Variant (many-to-many)
-model ProductVariant {
-  id              String   @id @default(uuid())
-  generatedInfoId String // Pointe vers ProductGeneratedInfo au lieu de Product
-  variantId       String
-  createdAt       DateTime @default(now())
-
-  generatedInfo ProductGeneratedInfo @relation(fields: [generatedInfoId], references: [id], onDelete: Cascade)
-  variant       Variant              @relation(fields: [variantId], references: [id], onDelete: Cascade)
-
-  @@unique([generatedInfoId, variantId])
-  @@map("product_variants")
-}
-
-// Table de liaison pour ProductGeneratedInfo <-> TechnicalCharacteristic avec valeurs
-model ProductTechnicalCharacteristic {
-  id                        String   @id @default(uuid())
-  generatedInfoId           String // Pointe vers ProductGeneratedInfo au lieu de Product
-  technicalCharacteristicId String
-  value                     String
-  createdAt                 DateTime @default(now())
-
-  generatedInfo           ProductGeneratedInfo    @relation(fields: [generatedInfoId], references: [id], onDelete: Cascade)
-  technicalCharacteristic TechnicalCharacteristic @relation(fields: [technicalCharacteristicId], references: [id], onDelete: Cascade)
-
-  @@unique([generatedInfoId, technicalCharacteristicId])
-  @@map("product_technical_characteristics")
-}
-
-// Table d'exclusions entre variantes
-model VariantExclusion {
-  id         String   @id @default(uuid())
-  variantId1 String
-  variantId2 String
-  createdAt  DateTime @default(now())
-
-  variant1 Variant @relation("VariantExclusions1", fields: [variantId1], references: [id], onDelete: Cascade)
-  variant2 Variant @relation("VariantExclusions2", fields: [variantId2], references: [id], onDelete: Cascade)
-
-  @@unique([variantId1, variantId2])
-  @@map("variant_exclusions")
 }

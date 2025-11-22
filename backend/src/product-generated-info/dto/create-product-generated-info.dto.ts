@@ -1,8 +1,6 @@
 import {
   IsUUID,
   IsNotEmpty,
-  IsArray,
-  ArrayMinSize,
   IsObject,
   IsOptional,
 } from 'class-validator';
@@ -12,10 +10,9 @@ export class CreateProductGeneratedInfoDto {
   @IsNotEmpty()
   productId: string;
 
-  @IsArray()
-  @ArrayMinSize(1, { message: 'At least one variant is required' })
-  @IsUUID(undefined, { each: true })
-  variantIds: string[]; // Tableau de variantIds
+  @IsUUID()
+  @IsOptional()
+  variantId?: string; // Une seule variante (optionnelle)
 
   @IsObject()
   @IsOptional()

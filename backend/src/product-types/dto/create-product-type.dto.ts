@@ -9,4 +9,3 @@ export class CreateProductTypeDto {
   @IsNotEmpty()
   code: string;
 }
-

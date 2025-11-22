@@ -42,7 +42,7 @@ export default function GeneratorPage() {
   const [technicalCharacteristics, setTechnicalCharacteristics] = useState<TechnicalCharacteristic[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [selectedVariantIds, setSelectedVariantIds] = useState<string[]>([]);
+  const [selectedVariantId, setSelectedVariantId] = useState<string>('');
   const [values, setValues] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [variantSearch, setVariantSearch] = useState('');
@@ -59,14 +59,14 @@ export default function GeneratorPage() {
       if (product) {
         loadVariants(product.family.id);
         // Réinitialiser les sélections
-        setSelectedVariantIds([]);
+        setSelectedVariantId('');
         setValues({});
         setVariantSearch('');
       }
     } else {
       setSelectedProduct(null);
       setVariants([]);
-      setSelectedVariantIds([]);
+      setSelectedVariantId('');
       setTechnicalCharacteristics([]);
       setValues({});
       setVariantSearch('');
@@ -74,13 +74,13 @@ export default function GeneratorPage() {
   }, [selectedProductId, products]);
 
   useEffect(() => {
-    if (selectedProduct && selectedVariantIds.length > 0) {
-      loadTechnicalCharacteristics(selectedProduct.family.id, selectedVariantIds);
+    if (selectedProduct && selectedVariantId) {
+      loadTechnicalCharacteristics(selectedProduct.family.id, [selectedVariantId]);
     } else {
       setTechnicalCharacteristics([]);
       setValues({});
     }
-  }, [selectedProduct, selectedVariantIds]);
+  }, [selectedProduct, selectedVariantId]);
 
   const loadProducts = async () => {
     try {
@@ -103,7 +103,7 @@ export default function GeneratorPage() {
   const loadTechnicalCharacteristics = async (familyId: string, variantIds: string[]) => {
     try {
       // Utiliser findByFamilyAndVariant avec le tableau de variantIds
-      const variantIdsParam = variantIds.join(',');
+      const variantIdsParam = variantIds.length > 0 ? variantIds.join(',') : '';
       const data = await technicalCharacteristicsService.getAll(familyId, variantIdsParam);
 
       // Dédupliquer par ID
@@ -121,54 +121,20 @@ export default function GeneratorPage() {
     setValues({ ...values, [technicalCharacteristicId]: value });
   };
 
-  const handleVariantToggle = async (variantId: string) => {
+  const handleVariantToggle = (variantId: string) => {
     // Si la variante est déjà sélectionnée, la désélectionner
-    if (selectedVariantIds.includes(variantId)) {
-      setSelectedVariantIds((prev) => prev.filter((id) => id !== variantId));
+    if (selectedVariantId === variantId) {
+      setSelectedVariantId('');
       return;
     }
 
-    // Vérifier les conflits avant d'ajouter la variante
-    const variant = variants.find((v) => v.id === variantId);
-    if (!variant) return;
-
-    // Vérifier si cette variante exclut des variantes déjà sélectionnées
-    if (variant.excludedVariantIds) {
-      const conflictingVariants = selectedVariantIds.filter((id) =>
-        variant.excludedVariantIds?.includes(id),
-      );
-      if (conflictingVariants.length > 0) {
-        const conflictingNames = conflictingVariants
-          .map((id) => variants.find((v) => v.id === id)?.name)
-          .filter(Boolean)
-          .join(', ');
-        await showAlert(
-          `La variante "${variant.name}" ne peut pas être sélectionnée avec : ${conflictingNames}`,
-          'warning',
-        );
-        return;
-      }
-    }
-
-    // Vérifier si une variante déjà sélectionnée exclut cette variante
-    const selectedVariants = variants.filter((v) => selectedVariantIds.includes(v.id));
-    for (const selectedVariant of selectedVariants) {
-      if (selectedVariant.excludedVariantIds?.includes(variantId)) {
-        await showAlert(
-          `La variante "${variant.name}" ne peut pas être sélectionnée avec "${selectedVariant.name}"`,
-          'warning',
-        );
-        return;
-      }
-    }
-
-    // Aucun conflit, ajouter la variante
-    setSelectedVariantIds((prev) => [...prev, variantId]);
+    // Sinon, sélectionner cette variante (remplace la précédente si elle existe)
+    setSelectedVariantId(variantId);
   };
 
   const handleGenerate = async () => {
-    if (!selectedProductId || selectedVariantIds.length === 0) {
-      await showAlert('Veuillez sélectionner un produit et au moins une variante', 'warning');
+    if (!selectedProductId) {
+      await showAlert('Veuillez sélectionner un produit', 'warning');
       return;
     }
 
@@ -203,7 +169,7 @@ export default function GeneratorPage() {
       setLoading(true);
       const result = await productGeneratedInfoService.create({
         productId: selectedProductId,
-        variantIds: selectedVariantIds,
+        variantId: selectedVariantId || undefined,
         values: valuesToSend,
       });
       
@@ -214,7 +180,7 @@ export default function GeneratorPage() {
       );
       
       // Réinitialiser les sélections après génération
-      setSelectedVariantIds([]);
+      setSelectedVariantId('');
       setValues({});
       setVariantSearch('');
     } catch (error: any) {
@@ -401,7 +367,7 @@ export default function GeneratorPage() {
 
           {selectedProduct && (
             <div className="form-group">
-              <label>Variantes (sélection multiple)</label>
+              <label>Variante (sélection unique)</label>
               <input
                 type="text"
                 placeholder="Rechercher une variante..."
@@ -427,8 +393,9 @@ export default function GeneratorPage() {
                   getFilteredVariants().map((variant) => (
                     <label key={variant.id} className="checkbox-label">
                       <input
-                        type="checkbox"
-                        checked={selectedVariantIds.includes(variant.id)}
+                        type="radio"
+                        name="variant-selection"
+                        checked={selectedVariantId === variant.id}
                         onChange={() => handleVariantToggle(variant.id)}
                       />
                       <span>{variant.name}</span>
@@ -440,7 +407,7 @@ export default function GeneratorPage() {
           )}
         </div>
 
-        {selectedProduct && selectedVariantIds.length > 0 && (
+        {selectedProduct && selectedVariantId && (
           <div className="fields-section">
             {technicalCharacteristics.length > 0 ? (
               <>
@@ -476,9 +443,9 @@ export default function GeneratorPage() {
           </div>
         )}
 
-        {selectedProduct && selectedVariantIds.length === 0 && (
+        {selectedProduct && !selectedVariantId && (
           <div className="empty-state">
-            <p>Sélectionnez au moins une variante pour continuer</p>
+            <p>Sélectionnez une variante pour continuer</p>
           </div>
         )}
       </div>

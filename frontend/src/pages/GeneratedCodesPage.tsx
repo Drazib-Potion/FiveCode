@@ -16,13 +16,11 @@ interface ProductGeneratedInfo {
       name: string;
     };
   };
-  variants: Array<{
-    variant: {
-      id: string;
-      name: string;
-      code: string;
-    };
-  }>;
+  variant: {
+    id: string;
+    name: string;
+    code: string;
+  } | null;
   technicalCharacteristics: Array<{
     technicalCharacteristic: {
       id: string;
@@ -109,7 +107,7 @@ export default function GeneratedCodesPage() {
         'Nom produit': info.product.name,
         'Code généré': info.generatedCode,
         'Famille': info.product.family.name,
-        'Variantes': info.variants.map((pv) => pv.variant.name).join(', '),
+        'Variante': info.variant ? info.variant.name : 'Aucune',
         'Date de création': formatDate(info.createdAt),
       };
 
@@ -208,14 +206,10 @@ export default function GeneratedCodesPage() {
                     <strong>{info.product.family.name}</strong>
                   </td>
                   <td>
-                    {info.variants.length > 0 ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        {info.variants.map((pv) => (
-                          <span key={pv.variant.id} style={{ fontSize: '0.9em' }}>
-                            {pv.variant.name} ({pv.variant.code})
-                          </span>
-                        ))}
-                      </div>
+                    {info.variant ? (
+                      <span style={{ fontSize: '0.9em' }}>
+                        {info.variant.name} ({info.variant.code})
+                      </span>
                     ) : (
                       <span style={{ color: '#7f8c8d', fontStyle: 'italic' }}>Aucune</span>
                     )}

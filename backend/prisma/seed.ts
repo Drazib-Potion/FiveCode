@@ -133,12 +133,8 @@ async function main() {
   await prisma.productGeneratedInfo.create({
     data: {
       productId: product1.id,
+      variantId: variantVentilo1.id,
       generatedCode: 'PROD-VENTILO-001-GEN1',
-      variants: {
-        create: {
-          variantId: variantVentilo1.id,
-        },
-      },
     },
   });
 

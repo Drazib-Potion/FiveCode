@@ -9,4 +9,3 @@ export class UpdateProductTypeDto {
   @IsOptional()
   code?: string;
 }
-

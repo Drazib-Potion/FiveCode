@@ -51,7 +51,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (storedToken && storedUser) {
       setToken(storedToken);
       setUser(JSON.parse(storedUser));
-      authService.setToken(storedToken);
     }
     setIsInitialized(true);
   }, []);
@@ -62,7 +61,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(response.user);
     localStorage.setItem('token', response.access_token);
     localStorage.setItem('user', JSON.stringify(response.user));
-    authService.setToken(response.access_token);
   };
 
   const register = async (email: string, password: string) => {
@@ -71,7 +69,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(response.user);
     localStorage.setItem('token', response.access_token);
     localStorage.setItem('user', JSON.stringify(response.user));
-    authService.setToken(response.access_token);
   };
 
   const logout = () => {
@@ -79,7 +76,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    authService.setToken(null);
   };
 
   return (
