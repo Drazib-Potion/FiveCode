@@ -1,0 +1,157 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model ProductType {
+  id        String   @id @default(uuid())
+  name       String
+  code       String   @unique // Code du type de produit (ex: "A", "B")
+  createdAt  DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+
+  @@map("product_types")
+}
+
+model Family {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  variants                 Variant[]
+  technicalCharacteristics TechnicalCharacteristic[]
+  products                 Product[]
+
+  @@map("families")
+}
+
+model Variant {
+  id        String   @id @default(uuid())
+  familyId  String
+  name      String
+  code      String // Code de la variante (ex: "1")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  family                   Family                    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  technicalCharacteristics TechnicalCharacteristic[]
+  generatedInfos           ProductVariant[] // Via ProductGeneratedInfo
+
+  // Relations pour les exclusions
+  exclusionsAsVariant1 VariantExclusion[] @relation("VariantExclusions1")
+  exclusionsAsVariant2 VariantExclusion[] @relation("VariantExclusions2")
+
+  @@unique([familyId, code]) // Le code doit être unique par famille
+  @@map("variants")
+}
+
+model TechnicalCharacteristic {
+  id        String   @id @default(uuid())
+  name      String
+  type      String // "string" | "number" | "boolean" | "select"
+  familyId  String?
+  variantId String?
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  family         Family?                          @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  variant        Variant?                         @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  generatedInfos ProductTechnicalCharacteristic[] // Via ProductGeneratedInfo
+
+  @@map("technical_characteristics")
+}
+
+model Product {
+  id            String   @id @default(uuid())
+  name          String
+  code          String   @unique // Code du produit défini par l'utilisateur
+  familyId      String
+  productTypeId String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  family         Family                 @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  productType    ProductType            @relation(fields: [productTypeId], references: [id], onDelete: Cascade)
+  generatedInfos ProductGeneratedInfo[] // Un produit peut avoir plusieurs infos générées
+
+  @@map("products")
+}
+
+// Informations générées (code généré + variantes + champs)
+model ProductGeneratedInfo {
+  id            String   @id @default(uuid())
+  productId     String
+  generatedCode String   @unique // Le code généré unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  product                  Product                          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variants                 ProductVariant[] // Variantes de cette info générée
+  technicalCharacteristics ProductTechnicalCharacteristic[] // Caractéristiques techniques avec valeurs de cette info générée
+
+  @@map("product_generated_infos")
+}
+
+// Table de liaison pour ProductGeneratedInfo <-> Variant (many-to-many)
+model ProductVariant {
+  id              String   @id @default(uuid())
+  generatedInfoId String // Pointe vers ProductGeneratedInfo au lieu de Product
+  variantId       String
+  createdAt       DateTime @default(now())
+
+  generatedInfo ProductGeneratedInfo @relation(fields: [generatedInfoId], references: [id], onDelete: Cascade)
+  variant       Variant              @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([generatedInfoId, variantId])
+  @@map("product_variants")
+}
+
+// Table de liaison pour ProductGeneratedInfo <-> TechnicalCharacteristic avec valeurs
+model ProductTechnicalCharacteristic {
+  id                        String   @id @default(uuid())
+  generatedInfoId           String // Pointe vers ProductGeneratedInfo au lieu de Product
+  technicalCharacteristicId String
+  value                     String
+  createdAt                 DateTime @default(now())
+
+  generatedInfo           ProductGeneratedInfo    @relation(fields: [generatedInfoId], references: [id], onDelete: Cascade)
+  technicalCharacteristic TechnicalCharacteristic @relation(fields: [technicalCharacteristicId], references: [id], onDelete: Cascade)
+
+  @@unique([generatedInfoId, technicalCharacteristicId])
+  @@map("product_technical_characteristics")
+}
+
+// Table d'exclusions entre variantes
+model VariantExclusion {
+  id         String   @id @default(uuid())
+  variantId1 String
+  variantId2 String
+  createdAt  DateTime @default(now())
+
+  variant1 Variant @relation("VariantExclusions1", fields: [variantId1], references: [id], onDelete: Cascade)
+  variant2 Variant @relation("VariantExclusions2", fields: [variantId2], references: [id], onDelete: Cascade)
+
+  @@unique([variantId1, variantId2])
+  @@map("variant_exclusions")
+}
