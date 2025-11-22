@@ -9,9 +9,35 @@ export class TechnicalCharacteristicsService {
 
   async create(createTechnicalCharacteristicDto: CreateTechnicalCharacteristicDto) {
     // Valider le type
-    const validTypes = ['string', 'number', 'boolean', 'select'];
+    const validTypes = ['string', 'number', 'boolean', 'select', 'enum'];
     if (!validTypes.includes(createTechnicalCharacteristicDto.type)) {
       throw new BadRequestException(`Type de caractéristique technique invalide. Doit être l'un de : ${validTypes.join(', ')}`);
+    }
+
+    // Si le type est "enum", vérifier que enumOptions est fourni et non vide
+    if (createTechnicalCharacteristicDto.type === 'enum') {
+      if (!createTechnicalCharacteristicDto.enumOptions || createTechnicalCharacteristicDto.enumOptions.length === 0) {
+        throw new BadRequestException('Les options enum sont requises pour le type "enum"');
+      }
+      // Filtrer les options vides
+      const filteredOptions = createTechnicalCharacteristicDto.enumOptions.filter(opt => opt.trim().length > 0);
+      if (filteredOptions.length === 0) {
+        throw new BadRequestException('Au moins une option enum valide est requise');
+      }
+    }
+
+    // Récupérer toutes les caractéristiques techniques pour comparaison case-insensitive
+    const allTechnicalCharacteristics = await this.prisma.technicalCharacteristic.findMany();
+
+    // Vérifier que le nom n'existe pas déjà (insensible à la casse)
+    const existing = allTechnicalCharacteristics.find(
+      (tc) => tc.name.toLowerCase() === createTechnicalCharacteristicDto.name.toLowerCase(),
+    );
+
+    if (existing) {
+      throw new BadRequestException(
+        `Une caractéristique technique avec le nom "${createTechnicalCharacteristicDto.name}" existe déjà`,
+      );
     }
 
     // Vérifier qu'au moins une famille ou une variante est fournie
@@ -46,6 +72,12 @@ export class TechnicalCharacteristicsService {
       data: {
         name: createTechnicalCharacteristicDto.name,
         type: createTechnicalCharacteristicDto.type,
+        enumOptions: createTechnicalCharacteristicDto.type === 'enum' && createTechnicalCharacteristicDto.enumOptions
+          ? createTechnicalCharacteristicDto.enumOptions.filter(opt => opt.trim().length > 0)
+          : null,
+        enumMultiple: createTechnicalCharacteristicDto.type === 'enum' 
+          ? (createTechnicalCharacteristicDto.enumMultiple ?? false)
+          : null,
         families: hasFamilies ? {
           create: createTechnicalCharacteristicDto.familyIds!.map(familyId => ({ familyId }))
         } : undefined,
@@ -201,12 +233,47 @@ export class TechnicalCharacteristicsService {
   }
 
   async update(id: string, updateTechnicalCharacteristicDto: UpdateTechnicalCharacteristicDto) {
-    await this.findOne(id);
+    const technicalCharacteristic = await this.findOne(id);
 
     if (updateTechnicalCharacteristicDto.type) {
-      const validTypes = ['string', 'number', 'boolean', 'select'];
+      const validTypes = ['string', 'number', 'boolean', 'select', 'enum'];
       if (!validTypes.includes(updateTechnicalCharacteristicDto.type)) {
         throw new BadRequestException(`Type de caractéristique technique invalide. Doit être l'un de : ${validTypes.join(', ')}`);
+      }
+    }
+
+    // Si le type est "enum", vérifier que enumOptions est fourni et non vide
+    const finalType = updateTechnicalCharacteristicDto.type || technicalCharacteristic.type;
+    if (finalType === 'enum') {
+      const enumOptions = updateTechnicalCharacteristicDto.enumOptions !== undefined 
+        ? updateTechnicalCharacteristicDto.enumOptions 
+        : (technicalCharacteristic.enumOptions as string[] | null);
+      
+      if (!enumOptions || enumOptions.length === 0) {
+        throw new BadRequestException('Les options enum sont requises pour le type "enum"');
+      }
+      // Filtrer les options vides
+      const filteredOptions = enumOptions.filter(opt => opt.trim().length > 0);
+      if (filteredOptions.length === 0) {
+        throw new BadRequestException('Au moins une option enum valide est requise');
+      }
+    }
+
+    // Récupérer toutes les caractéristiques techniques (sauf la caractéristique actuelle) pour comparaison case-insensitive
+    const allTechnicalCharacteristics = await this.prisma.technicalCharacteristic.findMany({
+      where: { id: { not: id } },
+    });
+
+    // Si le nom est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse)
+    if (updateTechnicalCharacteristicDto.name && updateTechnicalCharacteristicDto.name.toLowerCase() !== technicalCharacteristic.name.toLowerCase()) {
+      const existing = allTechnicalCharacteristics.find(
+        (tc) => tc.name.toLowerCase() === updateTechnicalCharacteristicDto.name.toLowerCase(),
+      );
+
+      if (existing) {
+        throw new BadRequestException(
+          `Une caractéristique technique avec le nom "${updateTechnicalCharacteristicDto.name}" existe déjà`,
+        );
       }
     }
 
@@ -238,6 +305,24 @@ export class TechnicalCharacteristicsService {
       name: updateTechnicalCharacteristicDto.name,
       type: updateTechnicalCharacteristicDto.type,
     };
+
+    // Gérer enumOptions
+    if (updateTechnicalCharacteristicDto.type === 'enum' || (finalType === 'enum' && updateTechnicalCharacteristicDto.enumOptions !== undefined)) {
+      const enumOptions = updateTechnicalCharacteristicDto.enumOptions || (technicalCharacteristic.enumOptions as string[] | null) || [];
+      updateData.enumOptions = enumOptions.filter(opt => opt.trim().length > 0);
+    } else if (updateTechnicalCharacteristicDto.type && updateTechnicalCharacteristicDto.type !== 'enum') {
+      // Si on change le type vers autre chose que enum, supprimer enumOptions et enumMultiple
+      updateData.enumOptions = null;
+      updateData.enumMultiple = null;
+    }
+
+    // Gérer enumMultiple
+    if (updateTechnicalCharacteristicDto.type === 'enum' || (finalType === 'enum' && updateTechnicalCharacteristicDto.enumMultiple !== undefined)) {
+      updateData.enumMultiple = updateTechnicalCharacteristicDto.enumMultiple ?? false;
+    } else if (updateTechnicalCharacteristicDto.type && updateTechnicalCharacteristicDto.type !== 'enum') {
+      // Si on change le type vers autre chose que enum, supprimer enumMultiple
+      updateData.enumMultiple = null;
+    }
 
     // Mettre à jour les familles si fournies
     if (hasFamilies !== undefined) {

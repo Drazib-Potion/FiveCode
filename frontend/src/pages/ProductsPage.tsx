@@ -41,6 +41,7 @@ export default function ProductsPage() {
   const [formData, setFormData] = useState({ name: '', code: '', familyId: '', productTypeId: '' });
   const [familySearch, setFamilySearch] = useState('');
   const [productTypeSearch, setProductTypeSearch] = useState('');
+  const [tableSearchTerm, setTableSearchTerm] = useState('');
 
   useEffect(() => {
     loadProducts();
@@ -124,6 +125,28 @@ export default function ProductsPage() {
     );
   };
 
+  // Gérer la sélection d'un type de produit (une seule sélection)
+  const handleProductTypeToggle = (productTypeId: string) => {
+    setFormData({ ...formData, productTypeId: formData.productTypeId === productTypeId ? '' : productTypeId });
+  };
+
+  // Gérer la sélection d'une famille (une seule sélection)
+  const handleFamilyToggle = (familyId: string) => {
+    setFormData({ ...formData, familyId: formData.familyId === familyId ? '' : familyId }    );
+  };
+
+  // Filtrer les produits du tableau selon la recherche
+  const getFilteredProducts = () => {
+    if (!tableSearchTerm) return products;
+    const searchLower = tableSearchTerm.toLowerCase();
+    return products.filter((product) => 
+      product.name.toLowerCase().includes(searchLower) ||
+      product.code.toLowerCase().includes(searchLower) ||
+      product.family.name.toLowerCase().includes(searchLower) ||
+      (product.productType && product.productType.name.toLowerCase().includes(searchLower)) ||
+      (product.productType && product.productType.code.toLowerCase().includes(searchLower))
+    );
+  };
 
   if (loading) return <div className="loading">Chargement...</div>;
 
@@ -184,23 +207,52 @@ export default function ProductsPage() {
                   fontSize: '14px',
                 }}
               />
-              <select
-                value={formData.productTypeId}
-                onChange={(e) => setFormData({ ...formData, productTypeId: e.target.value })}
-                required
-              >
-                <option value="">Sélectionner un type de produit</option>
-                {getFilteredProductTypes().map((productType) => (
-                  <option key={productType.id} value={productType.id}>
-                    {productType.name} ({productType.code})
-                  </option>
-                ))}
-              </select>
-              {productTypeSearch && getFilteredProductTypes().length === 0 && (
-                <p style={{ color: '#666', fontStyle: 'italic', marginTop: '5px', fontSize: '0.9em' }}>
-                  Aucun type de produit ne correspond à votre recherche
-                </p>
-              )}
+              <div style={{ 
+                border: '1px solid #ddd', 
+                borderRadius: '4px', 
+                padding: '10px', 
+                maxHeight: '200px', 
+                overflowY: 'auto',
+                backgroundColor: '#f9f9f9'
+              }}>
+                {getFilteredProductTypes().length === 0 ? (
+                  <p style={{ color: '#666', fontStyle: 'italic', margin: 0 }}>
+                    {productTypeSearch ? 'Aucun type de produit ne correspond à votre recherche' : 'Aucun type de produit disponible'}
+                  </p>
+                ) : (
+                  getFilteredProductTypes().map((productType) => (
+                    <label
+                      key={productType.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '8px',
+                        cursor: 'pointer',
+                        borderRadius: '4px',
+                        marginBottom: '4px',
+                        transition: 'background-color 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#f0f0f0';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.productTypeId === productType.id}
+                        onChange={() => handleProductTypeToggle(productType.id)}
+                        style={{ marginRight: '8px', cursor: 'pointer' }}
+                      />
+                      <span>{productType.name} ({productType.code})</span>
+                    </label>
+                  ))
+                )}
+              </div>
+              <small style={{ display: 'block', marginTop: '5px', color: '#666' }}>
+                {formData.productTypeId ? '1 type de produit sélectionné' : 'Aucun type de produit sélectionné'}
+              </small>
             </div>
             <div className="form-group">
               <label>Famille</label>
@@ -218,23 +270,52 @@ export default function ProductsPage() {
                   fontSize: '14px',
                 }}
               />
-              <select
-                value={formData.familyId}
-                onChange={(e) => setFormData({ ...formData, familyId: e.target.value })}
-                required
-              >
-                <option value="">Sélectionner une famille</option>
-                {getFilteredFamilies().map((family) => (
-                  <option key={family.id} value={family.id}>
-                    {family.name}
-                  </option>
-                ))}
-              </select>
-              {familySearch && getFilteredFamilies().length === 0 && (
-                <p style={{ color: '#666', fontStyle: 'italic', marginTop: '5px', fontSize: '0.9em' }}>
-                  Aucune famille ne correspond à votre recherche
-                </p>
-              )}
+              <div style={{ 
+                border: '1px solid #ddd', 
+                borderRadius: '4px', 
+                padding: '10px', 
+                maxHeight: '200px', 
+                overflowY: 'auto',
+                backgroundColor: '#f9f9f9'
+              }}>
+                {getFilteredFamilies().length === 0 ? (
+                  <p style={{ color: '#666', fontStyle: 'italic', margin: 0 }}>
+                    {familySearch ? 'Aucune famille ne correspond à votre recherche' : 'Aucune famille disponible'}
+                  </p>
+                ) : (
+                  getFilteredFamilies().map((family) => (
+                    <label
+                      key={family.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '8px',
+                        cursor: 'pointer',
+                        borderRadius: '4px',
+                        marginBottom: '4px',
+                        transition: 'background-color 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#f0f0f0';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.familyId === family.id}
+                        onChange={() => handleFamilyToggle(family.id)}
+                        style={{ marginRight: '8px', cursor: 'pointer' }}
+                      />
+                      <span>{family.name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+              <small style={{ display: 'block', marginTop: '5px', color: '#666' }}>
+                {formData.familyId ? '1 famille sélectionnée' : 'Aucune famille sélectionnée'}
+              </small>
             </div>
             <div className="form-actions">
               <button type="submit">Enregistrer</button>
@@ -247,10 +328,51 @@ export default function ProductsPage() {
       )}
 
       <div className="table-container">
-        {products.length === 0 ? (
+        {products.length > 0 && (
+          <div style={{ 
+            marginBottom: '20px',
+            paddingTop: '10px',
+            paddingLeft: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+          }}>
+            <div style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: '400px',
+            }}>
+              <input
+                type="text"
+                placeholder="🔍 Rechercher par nom, code, famille ou type..."
+                value={tableSearchTerm}
+                onChange={(e) => setTableSearchTerm(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: '2px solid #e0e0e0',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  transition: 'all 0.3s ease',
+                  outline: 'none',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#4a90e2';
+                  e.target.style.boxShadow = '0 2px 8px rgba(74, 144, 226, 0.2)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#e0e0e0';
+                  e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+                }}
+              />
+            </div>
+          </div>
+        )}
+        {getFilteredProducts().length === 0 ? (
           <div className="empty-state-placeholder">
-            <h3>Aucun produit</h3>
-            <p>Créez votre premier produit pour commencer</p>
+            <h3>{tableSearchTerm ? 'Aucun résultat' : 'Aucun produit'}</h3>
+            <p>{tableSearchTerm ? 'Aucun produit ne correspond à votre recherche' : 'Créez votre premier produit pour commencer'}</p>
           </div>
         ) : (
           <table>
@@ -265,7 +387,7 @@ export default function ProductsPage() {
               </tr>
             </thead>
             <tbody>
-              {products.map((product) => (
+              {getFilteredProducts().map((product) => (
                 <tr key={product.id}>
                   <td>
                     <strong>{product.name}</strong>

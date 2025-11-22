@@ -15,6 +15,7 @@ export default function FamiliesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '' });
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     loadFamilies();
@@ -44,9 +45,10 @@ export default function FamiliesPage() {
       setShowForm(false);
       setEditingId(null);
       loadFamilies();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving family:', error);
-      await showAlert('Erreur lors de la sauvegarde', 'error');
+      const message = error.response?.data?.message || 'Erreur lors de la sauvegarde';
+      await showAlert(message, 'error');
     }
   };
 
@@ -66,6 +68,13 @@ export default function FamiliesPage() {
       console.error('Error deleting family:', error);
       await showAlert('Erreur lors de la suppression', 'error');
     }
+  };
+
+  // Filtrer les familles selon la recherche
+  const getFilteredFamilies = () => {
+    if (!searchTerm) return families;
+    const searchLower = searchTerm.toLowerCase();
+    return families.filter((family) => family.name.toLowerCase().includes(searchLower));
   };
 
   if (loading) return <div className="loading">Chargement...</div>;
@@ -103,10 +112,51 @@ export default function FamiliesPage() {
       )}
 
       <div className="table-container">
-        {families.length === 0 ? (
+        {families.length > 0 && (
+          <div style={{ 
+            marginBottom: '20px',
+            paddingTop: '10px',
+            paddingLeft: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+          }}>
+            <div style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: '400px',
+            }}>
+              <input
+                type="text"
+                placeholder="🔍 Rechercher par nom..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: '2px solid #e0e0e0',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  transition: 'all 0.3s ease',
+                  outline: 'none',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#4a90e2';
+                  e.target.style.boxShadow = '0 2px 8px rgba(74, 144, 226, 0.2)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#e0e0e0';
+                  e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+                }}
+              />
+            </div>
+          </div>
+        )}
+        {getFilteredFamilies().length === 0 ? (
           <div className="empty-state-placeholder">
-            <h3>Aucune famille</h3>
-            <p>Créez votre première famille pour commencer</p>
+            <h3>{searchTerm ? 'Aucun résultat' : 'Aucune famille'}</h3>
+            <p>{searchTerm ? 'Aucune famille ne correspond à votre recherche' : 'Créez votre première famille pour commencer'}</p>
           </div>
         ) : (
           <table>
@@ -117,7 +167,7 @@ export default function FamiliesPage() {
               </tr>
             </thead>
             <tbody>
-              {families.map((family) => (
+              {getFilteredFamilies().map((family) => (
                 <tr key={family.id}>
                   <td>{family.name}</td>
                   <td>

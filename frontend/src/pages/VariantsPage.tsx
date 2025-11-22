@@ -32,6 +32,7 @@ export default function VariantsPage() {
   });
   const [familySearch, setFamilySearch] = useState('');
   const [excludedVariantSearch, setExcludedVariantSearch] = useState('');
+  const [tableSearchTerm, setTableSearchTerm] = useState('');
 
   useEffect(() => {
     loadData();
@@ -67,9 +68,10 @@ export default function VariantsPage() {
       setShowForm(false);
       setEditingId(null);
       loadData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving variant:', error);
-      await showAlert('Erreur lors de la sauvegarde', 'error');
+      const message = error.response?.data?.message || 'Erreur lors de la sauvegarde';
+      await showAlert(message, 'error');
     }
   };
 
@@ -105,6 +107,11 @@ export default function VariantsPage() {
     return families.filter((family) => family.name.toLowerCase().includes(searchLower));
   };
 
+  // Gérer la sélection d'une famille (une seule sélection)
+  const handleFamilyToggle = (familyId: string) => {
+    setFormData({ ...formData, familyId: formData.familyId === familyId ? '' : familyId });
+  };
+
   // Filtrer les variantes exclues selon la recherche
   const getFilteredExcludedVariants = () => {
     let filtered = variants.filter(v => v.familyId === formData.familyId && v.id !== editingId);
@@ -118,6 +125,17 @@ export default function VariantsPage() {
     }
     
     return filtered;
+  };
+
+  // Filtrer les variantes du tableau selon la recherche
+  const getFilteredVariantsForTable = () => {
+    if (!tableSearchTerm) return variants;
+    const searchLower = tableSearchTerm.toLowerCase();
+    return variants.filter((variant) => 
+      variant.name.toLowerCase().includes(searchLower) ||
+      variant.code.toLowerCase().includes(searchLower) ||
+      (variant.family && variant.family.name.toLowerCase().includes(searchLower))
+    );
   };
 
   if (loading) return <div className="loading">Chargement...</div>;
@@ -151,23 +169,52 @@ export default function VariantsPage() {
                   fontSize: '14px',
                 }}
               />
-              <select
-                value={formData.familyId}
-                onChange={(e) => setFormData({ ...formData, familyId: e.target.value })}
-                required
-              >
-                <option value="">Sélectionner une famille</option>
-                {getFilteredFamilies().map((family) => (
-                  <option key={family.id} value={family.id}>
-                    {family.name}
-                  </option>
-                ))}
-              </select>
-              {familySearch && getFilteredFamilies().length === 0 && (
-                <p style={{ color: '#666', fontStyle: 'italic', marginTop: '5px', fontSize: '0.9em' }}>
-                  Aucune famille ne correspond à votre recherche
-                </p>
-              )}
+              <div style={{ 
+                border: '1px solid #ddd', 
+                borderRadius: '4px', 
+                padding: '10px', 
+                maxHeight: '200px', 
+                overflowY: 'auto',
+                backgroundColor: '#f9f9f9'
+              }}>
+                {getFilteredFamilies().length === 0 ? (
+                  <p style={{ color: '#666', fontStyle: 'italic', margin: 0 }}>
+                    {familySearch ? 'Aucune famille ne correspond à votre recherche' : 'Aucune famille disponible'}
+                  </p>
+                ) : (
+                  getFilteredFamilies().map((family) => (
+                    <label
+                      key={family.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '8px',
+                        cursor: 'pointer',
+                        borderRadius: '4px',
+                        marginBottom: '4px',
+                        transition: 'background-color 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#f0f0f0';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.familyId === family.id}
+                        onChange={() => handleFamilyToggle(family.id)}
+                        style={{ marginRight: '8px', cursor: 'pointer' }}
+                      />
+                      <span>{family.name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+              <small style={{ display: 'block', marginTop: '5px', color: '#666' }}>
+                {formData.familyId ? '1 famille sélectionnée' : 'Aucune famille sélectionnée'}
+              </small>
             </div>
             <div className="form-group">
               <label>Nom</label>
@@ -253,10 +300,51 @@ export default function VariantsPage() {
       )}
 
       <div className="table-container">
-        {variants.length === 0 ? (
+        {variants.length > 0 && (
+          <div style={{ 
+            marginBottom: '20px',
+            paddingTop: '10px',
+            paddingLeft: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+          }}>
+            <div style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: '400px',
+            }}>
+              <input
+                type="text"
+                placeholder="🔍 Rechercher par nom, code ou famille..."
+                value={tableSearchTerm}
+                onChange={(e) => setTableSearchTerm(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: '2px solid #e0e0e0',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  transition: 'all 0.3s ease',
+                  outline: 'none',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#4a90e2';
+                  e.target.style.boxShadow = '0 2px 8px rgba(74, 144, 226, 0.2)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#e0e0e0';
+                  e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+                }}
+              />
+            </div>
+          </div>
+        )}
+        {getFilteredVariantsForTable().length === 0 ? (
           <div className="empty-state-placeholder">
-            <h3>Aucune variante</h3>
-            <p>Créez votre première variante pour commencer</p>
+            <h3>{tableSearchTerm ? 'Aucun résultat' : 'Aucune variante'}</h3>
+            <p>{tableSearchTerm ? 'Aucune variante ne correspond à votre recherche' : 'Créez votre première variante pour commencer'}</p>
           </div>
         ) : (
           <table>
@@ -269,7 +357,7 @@ export default function VariantsPage() {
               </tr>
             </thead>
             <tbody>
-              {variants.map((variant) => (
+              {getFilteredVariantsForTable().map((variant) => (
                 <tr key={variant.id}>
                   <td>{variant.name}</td>
                   <td>{variant.code}</td>

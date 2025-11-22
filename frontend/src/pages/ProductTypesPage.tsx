@@ -19,6 +19,7 @@ export default function ProductTypesPage() {
     name: '',
     code: '',
   });
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     loadData();
@@ -77,6 +78,16 @@ export default function ProductTypesPage() {
     }
   };
 
+  // Filtrer les types de produit selon la recherche
+  const getFilteredProductTypes = () => {
+    if (!searchTerm) return productTypes;
+    const searchLower = searchTerm.toLowerCase();
+    return productTypes.filter((productType) => 
+      productType.name.toLowerCase().includes(searchLower) ||
+      productType.code.toLowerCase().includes(searchLower)
+    );
+  };
+
   if (loading) return <div className="loading">Chargement...</div>;
 
   return (
@@ -123,10 +134,51 @@ export default function ProductTypesPage() {
       )}
 
       <div className="table-container">
-        {productTypes.length === 0 ? (
+        {productTypes.length > 0 && (
+          <div style={{ 
+            marginBottom: '20px',
+            paddingTop: '10px',
+            paddingLeft: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+          }}>
+            <div style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: '400px',
+            }}>
+              <input
+                type="text"
+                placeholder="🔍 Rechercher par nom ou code..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: '2px solid #e0e0e0',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  transition: 'all 0.3s ease',
+                  outline: 'none',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#4a90e2';
+                  e.target.style.boxShadow = '0 2px 8px rgba(74, 144, 226, 0.2)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#e0e0e0';
+                  e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+                }}
+              />
+            </div>
+          </div>
+        )}
+        {getFilteredProductTypes().length === 0 ? (
           <div className="empty-state-placeholder">
-            <h3>Aucun type de produit</h3>
-            <p>Créez votre premier type de produit pour commencer</p>
+            <h3>{searchTerm ? 'Aucun résultat' : 'Aucun type de produit'}</h3>
+            <p>{searchTerm ? 'Aucun type de produit ne correspond à votre recherche' : 'Créez votre premier type de produit pour commencer'}</p>
           </div>
         ) : (
           <table>
@@ -138,7 +190,7 @@ export default function ProductTypesPage() {
               </tr>
             </thead>
             <tbody>
-              {productTypes.map((productType) => (
+              {getFilteredProductTypes().map((productType) => (
                 <tr key={productType.id}>
                   <td>{productType.name}</td>
                   <td>{productType.code}</td>

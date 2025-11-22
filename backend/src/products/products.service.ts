@@ -31,14 +31,28 @@ export class ProductsService {
       );
     }
 
-    // Vérifier que le code n'existe pas déjà
-    const existingProduct = await this.prisma.product.findUnique({
-      where: { code: createProductDto.code },
-    });
+    // Récupérer tous les produits pour comparaison case-insensitive
+    const allProducts = await this.prisma.product.findMany();
 
-    if (existingProduct) {
+    // Vérifier que le code n'existe pas déjà (insensible à la casse)
+    const existingByCode = allProducts.find(
+      (p) => p.code.toLowerCase() === createProductDto.code.toLowerCase(),
+    );
+
+    if (existingByCode) {
       throw new BadRequestException(
-        `A product with code "${createProductDto.code}" already exists`,
+        `Un produit avec le code "${createProductDto.code}" existe déjà`,
+      );
+    }
+
+    // Vérifier que le nom n'existe pas déjà (insensible à la casse)
+    const existingByName = allProducts.find(
+      (p) => p.name.toLowerCase() === createProductDto.name.toLowerCase(),
+    );
+
+    if (existingByName) {
+      throw new BadRequestException(
+        `Un produit avec le nom "${createProductDto.name}" existe déjà`,
       );
     }
 

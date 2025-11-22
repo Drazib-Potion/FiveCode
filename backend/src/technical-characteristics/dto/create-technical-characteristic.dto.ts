@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsUUID, IsArray } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsUUID, IsArray, IsBoolean } from 'class-validator';
 
 export class CreateTechnicalCharacteristicDto {
   @IsString()
@@ -7,7 +7,16 @@ export class CreateTechnicalCharacteristicDto {
 
   @IsString()
   @IsNotEmpty()
-  type: string; // "string" | "number" | "boolean" | "select"
+  type: string; // "string" | "number" | "boolean" | "select" | "enum"
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  enumOptions?: string[]; // Tableau de strings pour les options enum
+
+  @IsBoolean()
+  @IsOptional()
+  enumMultiple?: boolean; // true = sélection multiple, false = sélection unique
 
   @IsArray()
   @IsUUID(undefined, { each: true })

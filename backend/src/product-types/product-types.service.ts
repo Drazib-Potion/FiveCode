@@ -8,14 +8,28 @@ export class ProductTypesService {
   constructor(private prisma: PrismaService) {}
 
   async create(createProductTypeDto: CreateProductTypeDto) {
-    // Vérifier que le code n'existe pas déjà
-    const existing = await this.prisma.productType.findUnique({
-      where: { code: createProductTypeDto.code },
-    });
+    // Récupérer tous les types de produit pour comparaison case-insensitive
+    const allProductTypes = await this.prisma.productType.findMany();
 
-    if (existing) {
+    // Vérifier que le code n'existe pas déjà (insensible à la casse)
+    const existingByCode = allProductTypes.find(
+      (pt) => pt.code.toLowerCase() === createProductTypeDto.code.toLowerCase(),
+    );
+
+    if (existingByCode) {
       throw new BadRequestException(
         `Un type de produit avec le code "${createProductTypeDto.code}" existe déjà`,
+      );
+    }
+
+    // Vérifier que le nom n'existe pas déjà (insensible à la casse)
+    const existingByName = allProductTypes.find(
+      (pt) => pt.name.toLowerCase() === createProductTypeDto.name.toLowerCase(),
+    );
+
+    if (existingByName) {
+      throw new BadRequestException(
+        `Un type de produit avec le nom "${createProductTypeDto.name}" existe déjà`,
       );
     }
 
@@ -45,20 +59,35 @@ export class ProductTypesService {
   }
 
   async update(id: string, updateProductTypeDto: UpdateProductTypeDto) {
-    await this.findOne(id);
+    const productType = await this.findOne(id);
 
-    // Si le code est modifié, vérifier qu'il n'existe pas déjà
-    if (updateProductTypeDto.code) {
-      const existing = await this.prisma.productType.findFirst({
-        where: {
-          code: updateProductTypeDto.code,
-          id: { not: id },
-        },
-      });
+    // Récupérer tous les types de produit pour comparaison case-insensitive
+    const allProductTypes = await this.prisma.productType.findMany({
+      where: { id: { not: id } },
+    });
 
-      if (existing) {
+    // Si le code est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse)
+    if (updateProductTypeDto.code && updateProductTypeDto.code.toLowerCase() !== productType.code.toLowerCase()) {
+      const existingByCode = allProductTypes.find(
+        (pt) => pt.code.toLowerCase() === updateProductTypeDto.code.toLowerCase(),
+      );
+
+      if (existingByCode) {
         throw new BadRequestException(
           `Un type de produit avec le code "${updateProductTypeDto.code}" existe déjà`,
+        );
+      }
+    }
+
+    // Si le nom est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse)
+    if (updateProductTypeDto.name && updateProductTypeDto.name.toLowerCase() !== productType.name.toLowerCase()) {
+      const existingByName = allProductTypes.find(
+        (pt) => pt.name.toLowerCase() === updateProductTypeDto.name.toLowerCase(),
+      );
+
+      if (existingByName) {
+        throw new BadRequestException(
+          `Un type de produit avec le nom "${updateProductTypeDto.name}" existe déjà`,
         );
       }
     }

@@ -7,6 +7,7 @@ export function formatFieldType(type: string): string {
     number: 'Nombre',
     boolean: 'Booléen',
     select: 'Sélection',
+    enum: 'Énumération',
   };
   return typeMap[type] || type;
 }
@@ -20,6 +21,7 @@ export function getFieldTypeOptions(): Array<{ value: string; label: string }> {
     { value: 'number', label: 'Nombre' },
     { value: 'boolean', label: 'Booléen' },
     { value: 'select', label: 'Sélection' },
+    { value: 'enum', label: 'Énumération' },
   ];
 }
 

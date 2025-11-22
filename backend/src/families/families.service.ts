@@ -8,6 +8,20 @@ export class FamiliesService {
   constructor(private prisma: PrismaService) {}
 
   async create(createFamilyDto: CreateFamilyDto) {
+    // Récupérer toutes les familles pour comparaison case-insensitive
+    const allFamilies = await this.prisma.family.findMany();
+
+    // Vérifier que le nom n'existe pas déjà (insensible à la casse)
+    const existing = allFamilies.find(
+      (f) => f.name.toLowerCase() === createFamilyDto.name.toLowerCase(),
+    );
+
+    if (existing) {
+      throw new BadRequestException(
+        `Une famille avec le nom "${createFamilyDto.name}" existe déjà`,
+      );
+    }
+
     return this.prisma.family.create({
       data: createFamilyDto,
     });
@@ -50,7 +64,25 @@ export class FamiliesService {
   }
 
   async update(id: string, updateFamilyDto: UpdateFamilyDto) {
-    await this.findOne(id);
+    const family = await this.findOne(id);
+
+    // Récupérer toutes les familles pour comparaison case-insensitive
+    const allFamilies = await this.prisma.family.findMany({
+      where: { id: { not: id } },
+    });
+
+    // Si le nom est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse)
+    if (updateFamilyDto.name && updateFamilyDto.name.toLowerCase() !== family.name.toLowerCase()) {
+      const existing = allFamilies.find(
+        (f) => f.name.toLowerCase() === updateFamilyDto.name.toLowerCase(),
+      );
+
+      if (existing) {
+        throw new BadRequestException(
+          `Une famille avec le nom "${updateFamilyDto.name}" existe déjà`,
+        );
+      }
+    }
 
     return this.prisma.family.update({
       where: { id },

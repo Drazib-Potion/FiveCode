@@ -31,6 +31,8 @@ interface TechnicalCharacteristic {
   id: string;
   name: string;
   type: string;
+  enumOptions?: string[] | null;
+  enumMultiple?: boolean | null;
 }
 
 export default function GeneratorPage() {
@@ -44,6 +46,7 @@ export default function GeneratorPage() {
   const [values, setValues] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [variantSearch, setVariantSearch] = useState('');
+  const [enumSearch, setEnumSearch] = useState<Record<string, string>>({});
 
   useEffect(() => {
     loadProducts();
@@ -169,8 +172,32 @@ export default function GeneratorPage() {
       return;
     }
 
-    const valuesToSend =
-      technicalCharacteristics.length > 0 && Object.keys(values).length > 0 ? values : undefined;
+    // Convertir les valeurs enum (tableaux pour multiple, string pour unique) en JSON strings
+    const processedValues: Record<string, any> = {};
+    if (technicalCharacteristics.length > 0 && Object.keys(values).length > 0) {
+      for (const [key, value] of Object.entries(values)) {
+        const technicalCharacteristic = technicalCharacteristics.find(tc => tc.id === key);
+        if (technicalCharacteristic?.type === 'enum') {
+          const isMultiple = technicalCharacteristic.enumMultiple ?? false;
+          if (Array.isArray(value)) {
+            if (isMultiple) {
+              // Pour les enums multiples, convertir le tableau en JSON string
+              processedValues[key] = JSON.stringify(value);
+            } else {
+              // Pour les enums uniques, prendre le premier élément du tableau comme string
+              processedValues[key] = value.length > 0 ? value[0] : '';
+            }
+          } else {
+            // Fallback pour compatibilité
+            processedValues[key] = value;
+          }
+        } else {
+          processedValues[key] = value;
+        }
+      }
+    }
+
+    const valuesToSend = Object.keys(processedValues).length > 0 ? processedValues : undefined;
 
     try {
       setLoading(true);
@@ -233,6 +260,101 @@ export default function GeneratorPage() {
             required
           />
         );
+
+      case 'enum': {
+        const enumOptions = technicalCharacteristic.enumOptions || [];
+        const isMultiple = technicalCharacteristic.enumMultiple ?? false;
+        const searchTerm = enumSearch[technicalCharacteristic.id] || '';
+        const filteredOptions = enumOptions.filter(opt => 
+          opt.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+        // Normaliser les valeurs : toujours utiliser un tableau pour faciliter la gestion
+        const selectedValues = Array.isArray(value) 
+          ? value 
+          : (value ? [value] : []);
+        return (
+          <div>
+            <input
+              type="text"
+              placeholder="🔍 Rechercher une option..."
+              value={searchTerm}
+              onChange={(e) => setEnumSearch({ ...enumSearch, [technicalCharacteristic.id]: e.target.value })}
+              style={{
+                width: '100%',
+                padding: '8px',
+                marginBottom: '10px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px',
+              }}
+            />
+            <div style={{
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              padding: '10px',
+              maxHeight: '200px',
+              overflowY: 'auto',
+              backgroundColor: '#f9f9f9',
+            }}>
+              {filteredOptions.length === 0 ? (
+                <p style={{ color: '#666', fontStyle: 'italic', margin: 0 }}>
+                  {searchTerm ? 'Aucune option ne correspond à votre recherche' : 'Aucune option disponible'}
+                </p>
+              ) : (
+                filteredOptions.map((option) => (
+                  <label
+                    key={option}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '8px',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      marginBottom: '4px',
+                      transition: 'background-color 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#f0f0f0';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedValues.includes(option)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          if (isMultiple) {
+                            // Sélection multiple : ajouter à la liste
+                            handleValueChange(technicalCharacteristic.id, [...selectedValues, option]);
+                          } else {
+                            // Sélection unique : remplacer la sélection précédente
+                            handleValueChange(technicalCharacteristic.id, [option]);
+                          }
+                        } else {
+                          // Décocher : retirer de la liste
+                          handleValueChange(technicalCharacteristic.id, selectedValues.filter(v => v !== option));
+                        }
+                      }}
+                      style={{ marginRight: '8px', cursor: 'pointer' }}
+                    />
+                    <span>{option}</span>
+                  </label>
+                ))
+              )}
+            </div>
+            {selectedValues.length > 0 && (
+              <small style={{ display: 'block', marginTop: '5px', color: '#666' }}>
+                {isMultiple 
+                  ? `${selectedValues.length} option(s) sélectionnée(s)`
+                  : `1 option sélectionnée`}
+              </small>
+            )}
+          </div>
+        );
+      }
 
       default:
         return (

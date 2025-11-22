@@ -223,11 +223,23 @@ export default function GeneratedCodesPage() {
                   <td>
                     {info.technicalCharacteristics && info.technicalCharacteristics.length > 0 ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        {info.technicalCharacteristics.map((pf) => (
-                          <span key={pf.technicalCharacteristic.id} style={{ fontSize: '0.9em' }}>
-                            <strong>{pf.technicalCharacteristic.name}:</strong> {pf.value}
-                          </span>
-                        ))}
+                        {info.technicalCharacteristics.map((pf) => {
+                          // Essayer de parser la valeur comme JSON (pour les enums)
+                          let displayValue = pf.value;
+                          try {
+                            const parsed = JSON.parse(pf.value);
+                            if (Array.isArray(parsed)) {
+                              displayValue = parsed.join(', ');
+                            }
+                          } catch {
+                            // Ce n'est pas du JSON, utiliser la valeur telle quelle
+                          }
+                          return (
+                            <span key={pf.technicalCharacteristic.id} style={{ fontSize: '0.9em' }}>
+                              <strong>{pf.technicalCharacteristic.name}:</strong> {displayValue}
+                            </span>
+                          );
+                        })}
                       </div>
                     ) : (
                       <span style={{ color: '#7f8c8d', fontStyle: 'italic' }}>Aucun</span>

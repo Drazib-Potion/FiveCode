@@ -17,17 +17,30 @@ export class VariantsService {
       throw new NotFoundException(`Family with ID ${createVariantDto.familyId} not found`);
     }
 
-    // Vérifier que le code n'existe pas déjà pour cette famille
-    const existingVariant = await this.prisma.variant.findFirst({
-      where: {
-        familyId: createVariantDto.familyId,
-        code: createVariantDto.code,
-      },
+    // Récupérer toutes les variantes de cette famille pour comparaison case-insensitive
+    const familyVariants = await this.prisma.variant.findMany({
+      where: { familyId: createVariantDto.familyId },
     });
 
-    if (existingVariant) {
+    // Vérifier que le code n'existe pas déjà pour cette famille (insensible à la casse)
+    const existingByCode = familyVariants.find(
+      (v) => v.code.toLowerCase() === createVariantDto.code.toLowerCase(),
+    );
+
+    if (existingByCode) {
       throw new BadRequestException(
-        `A variant with code "${createVariantDto.code}" already exists for this family`,
+        `Une variante avec le code "${createVariantDto.code}" existe déjà pour cette famille`,
+      );
+    }
+
+    // Vérifier que le nom n'existe pas déjà pour cette famille (insensible à la casse)
+    const existingByName = familyVariants.find(
+      (v) => v.name.toLowerCase() === createVariantDto.name.toLowerCase(),
+    );
+
+    if (existingByName) {
+      throw new BadRequestException(
+        `Une variante avec le nom "${createVariantDto.name}" existe déjà pour cette famille`,
       );
     }
 
@@ -194,19 +207,36 @@ export class VariantsService {
   async update(id: string, updateVariantDto: UpdateVariantDto) {
     const variant = await this.findOne(id);
 
-    // Si le code est modifié, vérifier qu'il n'existe pas déjà
-    if (updateVariantDto.code && updateVariantDto.code !== variant.code) {
-      const existingVariant = await this.prisma.variant.findFirst({
-        where: {
-          familyId: variant.familyId,
-          code: updateVariantDto.code,
-          id: { not: id }, // Exclure la variante actuelle
-        },
-      });
+    // Récupérer toutes les variantes de cette famille (sauf la variante actuelle) pour comparaison case-insensitive
+    const familyVariants = await this.prisma.variant.findMany({
+      where: {
+        familyId: variant.familyId,
+        id: { not: id }, // Exclure la variante actuelle
+      },
+    });
 
-      if (existingVariant) {
+    // Si le code est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse)
+    if (updateVariantDto.code && updateVariantDto.code.toLowerCase() !== variant.code.toLowerCase()) {
+      const existingByCode = familyVariants.find(
+        (v) => v.code.toLowerCase() === updateVariantDto.code.toLowerCase(),
+      );
+
+      if (existingByCode) {
         throw new BadRequestException(
-          `A variant with code "${updateVariantDto.code}" already exists for this family`,
+          `Une variante avec le code "${updateVariantDto.code}" existe déjà pour cette famille`,
+        );
+      }
+    }
+
+    // Si le nom est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse)
+    if (updateVariantDto.name && updateVariantDto.name.toLowerCase() !== variant.name.toLowerCase()) {
+      const existingByName = familyVariants.find(
+        (v) => v.name.toLowerCase() === updateVariantDto.name.toLowerCase(),
+      );
+
+      if (existingByName) {
+        throw new BadRequestException(
+          `Une variante avec le nom "${updateVariantDto.name}" existe déjà pour cette famille`,
         );
       }
     }

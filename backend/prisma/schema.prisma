@@ -66,11 +66,13 @@ model Variant {
 }
 
 model TechnicalCharacteristic {
-  id        String   @id @default(uuid())
-  name      String
-  type      String // "string" | "number" | "boolean" | "select"
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(uuid())
+  name         String
+  type         String // "string" | "number" | "boolean" | "select" | "enum"
+  enumOptions  Json?    // Tableau de strings pour les options enum
+  enumMultiple Boolean? @default(false) // true = sélection multiple, false = sélection unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   families        TechnicalCharacteristicFamily[]
   variants        TechnicalCharacteristicVariant[]

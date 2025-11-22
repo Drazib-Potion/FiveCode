@@ -8,6 +8,8 @@ interface TechnicalCharacteristic {
   id: string;
   name: string;
   type: string;
+  enumOptions?: string[] | null;
+  enumMultiple?: boolean | null;
   families?: Array<{ family: { id: string; name: string } }>;
   variants?: Array<{ variant: { id: string; name: string } }>;
 }
@@ -38,11 +40,15 @@ export default function TechnicalCharacteristicsPage() {
   const [formData, setFormData] = useState({
     name: '',
     type: 'string',
+    enumOptions: [] as string[],
+    enumMultiple: false,
     familyIds: [] as string[],
     variantIds: [] as string[],
   });
+  const [newEnumOption, setNewEnumOption] = useState('');
   const [familySearch, setFamilySearch] = useState('');
   const [variantSearch, setVariantSearch] = useState('');
+  const [tableSearchTerm, setTableSearchTerm] = useState('');
 
   useEffect(() => {
     loadData();
@@ -92,6 +98,18 @@ export default function TechnicalCharacteristicsPage() {
     return filtered;
   };
 
+  // Filtrer les caractéristiques techniques du tableau selon la recherche
+  const getFilteredTechnicalCharacteristics = () => {
+    if (!tableSearchTerm) return technicalCharacteristics;
+    const searchLower = tableSearchTerm.toLowerCase();
+    return technicalCharacteristics.filter((tc) => 
+      tc.name.toLowerCase().includes(searchLower) ||
+      tc.type.toLowerCase().includes(searchLower) ||
+      (tc.families && tc.families.some((f: any) => f.family.name.toLowerCase().includes(searchLower))) ||
+      (tc.variants && tc.variants.some((v: any) => v.variant.name.toLowerCase().includes(searchLower)))
+    );
+  };
+
   const handleFamilyToggle = (familyId: string) => {
     const isSelected = formData.familyIds.includes(familyId);
     if (isSelected) {
@@ -130,6 +148,10 @@ export default function TechnicalCharacteristicsPage() {
         name: formData.name,
         type: formData.type,
       };
+      if (formData.type === 'enum') {
+        submitData.enumOptions = formData.enumOptions.filter(opt => opt.trim().length > 0);
+        submitData.enumMultiple = formData.enumMultiple;
+      }
       if (formData.familyIds.length > 0) submitData.familyIds = formData.familyIds;
       if (formData.variantIds.length > 0) submitData.variantIds = formData.variantIds;
 
@@ -138,15 +160,17 @@ export default function TechnicalCharacteristicsPage() {
       } else {
         await technicalCharacteristicsService.create(submitData);
       }
-      setFormData({ name: '', type: 'string', familyIds: [], variantIds: [] });
+      setFormData({ name: '', type: 'string', enumOptions: [], enumMultiple: false, familyIds: [], variantIds: [] });
+      setNewEnumOption('');
       setFamilySearch('');
       setVariantSearch('');
       setShowForm(false);
       setEditingId(null);
       loadData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving technical characteristic:', error);
-      await showAlert('Erreur lors de la sauvegarde', 'error');
+      const message = error.response?.data?.message || 'Erreur lors de la sauvegarde';
+      await showAlert(message, 'error');
     }
   };
 
@@ -154,9 +178,12 @@ export default function TechnicalCharacteristicsPage() {
     setFormData({
       name: technicalCharacteristic.name,
       type: technicalCharacteristic.type,
+      enumOptions: technicalCharacteristic.enumOptions || [],
+      enumMultiple: technicalCharacteristic.enumMultiple ?? false,
       familyIds: technicalCharacteristic.families?.map(f => f.family.id) || [],
       variantIds: technicalCharacteristic.variants?.map(v => v.variant.id) || [],
     });
+    setNewEnumOption('');
     setEditingId(technicalCharacteristic.id);
     setShowForm(true);
   };
@@ -179,7 +206,7 @@ export default function TechnicalCharacteristicsPage() {
     <div className="crud-page">
       <div className="page-header">
         <h1>Gestion des Caractéristiques techniques</h1>
-        <button onClick={() => { setShowForm(true); setEditingId(null); setFormData({ name: '', type: 'string', familyIds: [], variantIds: [] }); setFamilySearch(''); setVariantSearch(''); }}>
+        <button onClick={() => { setShowForm(true); setEditingId(null); setFormData({ name: '', type: 'string', enumOptions: [], enumMultiple: false, familyIds: [], variantIds: [] }); setNewEnumOption(''); setFamilySearch(''); setVariantSearch(''); }}>
           + Nouvelle caractéristique technique
         </button>
       </div>
@@ -201,7 +228,15 @@ export default function TechnicalCharacteristicsPage() {
               <label>Type</label>
               <select
                 value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                onChange={(e) => {
+                  const newType = e.target.value;
+                  setFormData({ 
+                    ...formData, 
+                    type: newType,
+                    enumOptions: newType === 'enum' ? formData.enumOptions : [],
+                    enumMultiple: newType === 'enum' ? formData.enumMultiple : false
+                  });
+                }}
                 required
               >
                 {getFieldTypeOptions().map((option) => (
@@ -211,6 +246,155 @@ export default function TechnicalCharacteristicsPage() {
                 ))}
               </select>
             </div>
+            {formData.type === 'enum' && (
+              <>
+                <div className="form-group">
+                  <label>Type de sélection</label>
+                  <select
+                    value={formData.enumMultiple ? 'multiple' : 'unique'}
+                    onChange={(e) => setFormData({ ...formData, enumMultiple: e.target.value === 'multiple' })}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                    }}
+                  >
+                    <option value="unique">Sélection unique</option>
+                    <option value="multiple">Sélection multiple</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Options enum (une par ligne ou séparées par des virgules)</label>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                  <input
+                    type="text"
+                    placeholder="Ajouter une option..."
+                    value={newEnumOption}
+                    onChange={(e) => setNewEnumOption(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (newEnumOption.trim()) {
+                          setFormData({
+                            ...formData,
+                            enumOptions: [...formData.enumOptions, newEnumOption.trim()],
+                          });
+                          setNewEnumOption('');
+                        }
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '8px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newEnumOption.trim()) {
+                        setFormData({
+                          ...formData,
+                          enumOptions: [...formData.enumOptions, newEnumOption.trim()],
+                        });
+                        setNewEnumOption('');
+                      }
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: '#4a90e2',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Ajouter
+                  </button>
+                </div>
+                {formData.enumOptions.length > 0 && (
+                  <div style={{
+                    border: '1px solid #e0e0e0',
+                    borderRadius: '6px',
+                    padding: '8px',
+                    backgroundColor: '#f5f5f5',
+                    maxHeight: '150px',
+                    overflowY: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                  }}>
+                    {formData.enumOptions.map((option, index) => (
+                      <div
+                        key={index}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '8px 12px',
+                          border: '1px solid #d0d0d0',
+                          borderRadius: '4px',
+                          backgroundColor: '#ffffff',
+                          transition: 'all 0.2s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = '#4a90e2';
+                          e.currentTarget.style.backgroundColor = '#f0f7ff';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = '#d0d0d0';
+                          e.currentTarget.style.backgroundColor = '#ffffff';
+                        }}
+                      >
+                        <span style={{ 
+                          color: '#333',
+                          fontWeight: '500',
+                          fontSize: '14px',
+                        }}>{option}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData({
+                              ...formData,
+                              enumOptions: formData.enumOptions.filter((_, i) => i !== index),
+                            });
+                          }}
+                          style={{
+                            padding: '4px 10px',
+                            backgroundColor: '#e74c3c',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            transition: 'background-color 0.2s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#c0392b';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#e74c3c';
+                          }}
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <small style={{ display: 'block', marginTop: '5px', color: '#666' }}>
+                  {formData.enumOptions.length > 0 
+                    ? `${formData.enumOptions.length} option(s) définie(s)` 
+                    : 'Aucune option définie'}
+                </small>
+              </div>
+              </>
+            )}
             <div className="form-group">
               <label>Familles (optionnel)</label>
               <input
@@ -361,10 +545,51 @@ export default function TechnicalCharacteristicsPage() {
       )}
 
       <div className="table-container">
-        {technicalCharacteristics.length === 0 ? (
+        {technicalCharacteristics.length > 0 && (
+          <div style={{ 
+            marginBottom: '20px',
+            paddingTop: '10px',
+            paddingLeft: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+          }}>
+            <div style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: '400px',
+            }}>
+              <input
+                type="text"
+                placeholder="🔍 Rechercher par nom, type, famille ou variante..."
+                value={tableSearchTerm}
+                onChange={(e) => setTableSearchTerm(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: '2px solid #e0e0e0',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  transition: 'all 0.3s ease',
+                  outline: 'none',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#4a90e2';
+                  e.target.style.boxShadow = '0 2px 8px rgba(74, 144, 226, 0.2)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#e0e0e0';
+                  e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+                }}
+              />
+            </div>
+          </div>
+        )}
+        {getFilteredTechnicalCharacteristics().length === 0 ? (
           <div className="empty-state-placeholder">
-            <h3>Aucune caractéristique technique</h3>
-            <p>Créez votre première caractéristique technique pour commencer</p>
+            <h3>{tableSearchTerm ? 'Aucun résultat' : 'Aucune caractéristique technique'}</h3>
+            <p>{tableSearchTerm ? 'Aucune caractéristique technique ne correspond à votre recherche' : 'Créez votre première caractéristique technique pour commencer'}</p>
           </div>
         ) : (
           <table>
@@ -378,7 +603,7 @@ export default function TechnicalCharacteristicsPage() {
               </tr>
             </thead>
             <tbody>
-              {technicalCharacteristics.map((technicalCharacteristic) => (
+              {getFilteredTechnicalCharacteristics().map((technicalCharacteristic) => (
                 <tr key={technicalCharacteristic.id}>
                   <td>{technicalCharacteristic.name}</td>
                   <td>{formatFieldType(technicalCharacteristic.type)}</td>
