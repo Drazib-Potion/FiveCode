@@ -8,11 +8,8 @@ interface TechnicalCharacteristic {
   id: string;
   name: string;
   type: string;
-  familyId?: string;
-  variantId?: string;
-  position: number;
-  family?: { name: string };
-  variant?: { name: string };
+  families?: Array<{ family: { id: string; name: string } }>;
+  variants?: Array<{ variant: { id: string; name: string } }>;
 }
 
 interface Family {
@@ -24,6 +21,10 @@ interface Variant {
   id: string;
   name: string;
   familyId: string;
+  family?: {
+    id: string;
+    name: string;
+  };
 }
 
 export default function TechnicalCharacteristicsPage() {
@@ -37,10 +38,11 @@ export default function TechnicalCharacteristicsPage() {
   const [formData, setFormData] = useState({
     name: '',
     type: 'string',
-    familyId: '',
-    variantId: '',
-    position: 0,
+    familyIds: [] as string[],
+    variantIds: [] as string[],
   });
+  const [familySearch, setFamilySearch] = useState('');
+  const [variantSearch, setVariantSearch] = useState('');
 
   useEffect(() => {
     loadData();
@@ -64,23 +66,81 @@ export default function TechnicalCharacteristicsPage() {
     }
   };
 
+  // Filtrer les familles selon la recherche
+  const getFilteredFamilies = () => {
+    if (!familySearch) return families;
+    const searchLower = familySearch.toLowerCase();
+    return families.filter((family) => family.name.toLowerCase().includes(searchLower));
+  };
+
+  // Filtrer les variantes selon les familles sélectionnées et la recherche
+  const getFilteredVariants = () => {
+    if (formData.familyIds.length === 0) {
+      return []; // Aucune variante affichée si aucune famille n'est sélectionnée
+    }
+    let filtered = variants.filter((variant) => formData.familyIds.includes(variant.familyId));
+    
+    // Appliquer le filtre de recherche
+    if (variantSearch) {
+      const searchLower = variantSearch.toLowerCase();
+      filtered = filtered.filter((variant) => 
+        variant.name.toLowerCase().includes(searchLower) ||
+        (variant.family && variant.family.name.toLowerCase().includes(searchLower))
+      );
+    }
+    
+    return filtered;
+  };
+
+  const handleFamilyToggle = (familyId: string) => {
+    const isSelected = formData.familyIds.includes(familyId);
+    if (isSelected) {
+      // Désélectionner la famille et retirer les variantes de cette famille
+      const newFamilyIds = formData.familyIds.filter((id) => id !== familyId);
+      const newVariantIds = formData.variantIds.filter((variantId) => {
+        const variant = variants.find((v) => v.id === variantId);
+        return variant && variant.familyId !== familyId;
+      });
+      setFormData({ ...formData, familyIds: newFamilyIds, variantIds: newVariantIds });
+    } else {
+      // Sélectionner la famille
+      setFormData({ ...formData, familyIds: [...formData.familyIds, familyId] });
+    }
+  };
+
+  const handleVariantToggle = (variantId: string) => {
+    const isSelected = formData.variantIds.includes(variantId);
+    if (isSelected) {
+      setFormData({
+        ...formData,
+        variantIds: formData.variantIds.filter((id) => id !== variantId),
+      });
+    } else {
+      setFormData({
+        ...formData,
+        variantIds: [...formData.variantIds, variantId],
+      });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const submitData: any = {
         name: formData.name,
         type: formData.type,
-        position: formData.position,
       };
-      if (formData.familyId) submitData.familyId = formData.familyId;
-      if (formData.variantId) submitData.variantId = formData.variantId;
+      if (formData.familyIds.length > 0) submitData.familyIds = formData.familyIds;
+      if (formData.variantIds.length > 0) submitData.variantIds = formData.variantIds;
 
       if (editingId) {
         await technicalCharacteristicsService.update(editingId, submitData);
       } else {
         await technicalCharacteristicsService.create(submitData);
       }
-      setFormData({ name: '', type: 'string', familyId: '', variantId: '', position: 0 });
+      setFormData({ name: '', type: 'string', familyIds: [], variantIds: [] });
+      setFamilySearch('');
+      setVariantSearch('');
       setShowForm(false);
       setEditingId(null);
       loadData();
@@ -94,9 +154,8 @@ export default function TechnicalCharacteristicsPage() {
     setFormData({
       name: technicalCharacteristic.name,
       type: technicalCharacteristic.type,
-      familyId: technicalCharacteristic.familyId || '',
-      variantId: technicalCharacteristic.variantId || '',
-      position: technicalCharacteristic.position,
+      familyIds: technicalCharacteristic.families?.map(f => f.family.id) || [],
+      variantIds: technicalCharacteristic.variants?.map(v => v.variant.id) || [],
     });
     setEditingId(technicalCharacteristic.id);
     setShowForm(true);
@@ -120,7 +179,7 @@ export default function TechnicalCharacteristicsPage() {
     <div className="crud-page">
       <div className="page-header">
         <h1>Gestion des Caractéristiques techniques</h1>
-        <button onClick={() => { setShowForm(true); setEditingId(null); setFormData({ name: '', type: 'string', familyId: '', variantId: '', position: 0 }); }}>
+        <button onClick={() => { setShowForm(true); setEditingId(null); setFormData({ name: '', type: 'string', familyIds: [], variantIds: [] }); setFamilySearch(''); setVariantSearch(''); }}>
           + Nouvelle caractéristique technique
         </button>
       </div>
@@ -153,45 +212,147 @@ export default function TechnicalCharacteristicsPage() {
               </select>
             </div>
             <div className="form-group">
-              <label>Famille (optionnel)</label>
-              <select
-                value={formData.familyId}
-                onChange={(e) => setFormData({ ...formData, familyId: e.target.value })}
-              >
-                <option value="">Aucune</option>
-                {families.map((family) => (
-                  <option key={family.id} value={family.id}>
-                    {family.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Variante (optionnel)</label>
-              <select
-                value={formData.variantId}
-                onChange={(e) => setFormData({ ...formData, variantId: e.target.value })}
-              >
-                <option value="">Aucune</option>
-                {variants.map((variant) => (
-                  <option key={variant.id} value={variant.id}>
-                    {variant.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Position</label>
+              <label>Familles (optionnel)</label>
               <input
-                type="number"
-                value={formData.position}
-                onChange={(e) => setFormData({ ...formData, position: parseInt(e.target.value) || 0 })}
-                min="0"
+                type="text"
+                placeholder="Rechercher une famille..."
+                value={familySearch}
+                onChange={(e) => setFamilySearch(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  marginBottom: '10px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                }}
               />
+              <div style={{ 
+                border: '1px solid #ddd', 
+                borderRadius: '4px', 
+                padding: '10px', 
+                maxHeight: '200px', 
+                overflowY: 'auto',
+                backgroundColor: '#f9f9f9'
+              }}>
+                {getFilteredFamilies().length === 0 ? (
+                  <p style={{ color: '#666', fontStyle: 'italic', margin: 0 }}>
+                    {familySearch ? 'Aucune famille ne correspond à votre recherche' : 'Aucune famille disponible'}
+                  </p>
+                ) : (
+                  getFilteredFamilies().map((family) => (
+                    <label
+                      key={family.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '8px',
+                        cursor: 'pointer',
+                        borderRadius: '4px',
+                        marginBottom: '4px',
+                        transition: 'background-color 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#f0f0f0';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.familyIds.includes(family.id)}
+                        onChange={() => handleFamilyToggle(family.id)}
+                        style={{ marginRight: '8px', cursor: 'pointer' }}
+                      />
+                      <span>{family.name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+              <small style={{ display: 'block', marginTop: '5px', color: '#666' }}>
+                {formData.familyIds.length > 0 ? `${formData.familyIds.length} famille(s) sélectionnée(s)` : 'Aucune famille sélectionnée'}
+              </small>
+            </div>
+            <div className="form-group">
+              <label>Variantes (optionnel - filtrées selon les familles sélectionnées)</label>
+              <input
+                type="text"
+                placeholder="Rechercher une variante..."
+                value={variantSearch}
+                onChange={(e) => setVariantSearch(e.target.value)}
+                disabled={formData.familyIds.length === 0}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  marginBottom: '10px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  opacity: formData.familyIds.length === 0 ? 0.5 : 1,
+                }}
+              />
+              <div style={{ 
+                border: '1px solid #ddd', 
+                borderRadius: '4px', 
+                padding: '10px', 
+                maxHeight: '200px', 
+                overflowY: 'auto',
+                backgroundColor: '#f9f9f9'
+              }}>
+                {getFilteredVariants().length === 0 ? (
+                  <p style={{ color: '#666', fontStyle: 'italic', margin: 0 }}>
+                    {formData.familyIds.length === 0 
+                      ? 'Sélectionnez d\'abord une ou plusieurs familles pour voir les variantes'
+                      : variantSearch
+                      ? 'Aucune variante ne correspond à votre recherche'
+                      : 'Aucune variante disponible pour les familles sélectionnées'}
+                  </p>
+                ) : (
+                  getFilteredVariants().map((variant) => (
+                    <label
+                      key={variant.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '8px',
+                        cursor: 'pointer',
+                        borderRadius: '4px',
+                        marginBottom: '4px',
+                        transition: 'background-color 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#f0f0f0';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.variantIds.includes(variant.id)}
+                        onChange={() => handleVariantToggle(variant.id)}
+                        style={{ marginRight: '8px', cursor: 'pointer' }}
+                      />
+                      <span>
+                        {variant.name}
+                        {variant.family && (
+                          <span style={{ color: '#666', marginLeft: '4px' }}>
+                            ({variant.family.name})
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  ))
+                )}
+              </div>
+              <small style={{ display: 'block', marginTop: '5px', color: '#666' }}>
+                {formData.variantIds.length > 0 ? `${formData.variantIds.length} variante(s) sélectionnée(s)` : 'Aucune variante sélectionnée'}
+              </small>
             </div>
             <div className="form-actions">
               <button type="submit">Enregistrer</button>
-              <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }}>
+              <button type="button" onClick={() => { setShowForm(false); setEditingId(null); setFamilySearch(''); setVariantSearch(''); }}>
                 Annuler
               </button>
             </div>
@@ -211,9 +372,8 @@ export default function TechnicalCharacteristicsPage() {
               <tr>
                 <th>Nom</th>
                 <th>Type</th>
-                <th>Famille</th>
-                <th>Variante</th>
-                <th>Position</th>
+                <th>Familles</th>
+                <th>Variantes</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -222,9 +382,16 @@ export default function TechnicalCharacteristicsPage() {
                 <tr key={technicalCharacteristic.id}>
                   <td>{technicalCharacteristic.name}</td>
                   <td>{formatFieldType(technicalCharacteristic.type)}</td>
-                  <td>{technicalCharacteristic.family?.name || 'N/A'}</td>
-                  <td>{technicalCharacteristic.variant?.name || 'N/A'}</td>
-                  <td>{technicalCharacteristic.position}</td>
+                  <td>
+                    {technicalCharacteristic.families && technicalCharacteristic.families.length > 0
+                      ? technicalCharacteristic.families.map(f => f.family.name).join(', ')
+                      : 'N/A'}
+                  </td>
+                  <td>
+                    {technicalCharacteristic.variants && technicalCharacteristic.variants.length > 0
+                      ? technicalCharacteristic.variants.map(v => v.variant.name).join(', ')
+                      : 'N/A'}
+                  </td>
                   <td>
                     <button onClick={() => handleEdit(technicalCharacteristic)}>Modifier</button>
                     <button onClick={() => handleDelete(technicalCharacteristic.id)} className="delete">

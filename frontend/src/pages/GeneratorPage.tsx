@@ -31,7 +31,6 @@ interface TechnicalCharacteristic {
   id: string;
   name: string;
   type: string;
-  position: number;
 }
 
 export default function GeneratorPage() {
@@ -44,6 +43,7 @@ export default function GeneratorPage() {
   const [selectedVariantIds, setSelectedVariantIds] = useState<string[]>([]);
   const [values, setValues] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
+  const [variantSearch, setVariantSearch] = useState('');
 
   useEffect(() => {
     loadProducts();
@@ -58,6 +58,7 @@ export default function GeneratorPage() {
         // Réinitialiser les sélections
         setSelectedVariantIds([]);
         setValues({});
+        setVariantSearch('');
       }
     } else {
       setSelectedProduct(null);
@@ -65,6 +66,7 @@ export default function GeneratorPage() {
       setSelectedVariantIds([]);
       setTechnicalCharacteristics([]);
       setValues({});
+      setVariantSearch('');
     }
   }, [selectedProductId, products]);
 
@@ -97,20 +99,14 @@ export default function GeneratorPage() {
 
   const loadTechnicalCharacteristics = async (familyId: string, variantIds: string[]) => {
     try {
-      // Charger les caractéristiques techniques pour toutes les variantes sélectionnées
-      const allTechnicalCharacteristics: TechnicalCharacteristic[] = [];
-      for (const variantId of variantIds) {
-        const data = await technicalCharacteristicsService.getAll(familyId, variantId);
-        allTechnicalCharacteristics.push(...data);
-      }
-      // Charger aussi les caractéristiques techniques de la famille
-      const familyTechnicalCharacteristics = await technicalCharacteristicsService.getAll(familyId);
-      allTechnicalCharacteristics.push(...familyTechnicalCharacteristics.filter((f: any) => !f.variantId));
+      // Utiliser findByFamilyAndVariant avec le tableau de variantIds
+      const variantIdsParam = variantIds.join(',');
+      const data = await technicalCharacteristicsService.getAll(familyId, variantIdsParam);
 
-      // Dédupliquer par ID et trier par position
-      const uniqueTechnicalCharacteristics = Array.from(
-        new Map(allTechnicalCharacteristics.map((technicalCharacteristic) => [technicalCharacteristic.id, technicalCharacteristic])).values(),
-      ).sort((a, b) => a.position - b.position);
+      // Dédupliquer par ID
+      const uniqueTechnicalCharacteristics: TechnicalCharacteristic[] = Array.from(
+        new Map(data.map((technicalCharacteristic: any) => [technicalCharacteristic.id, technicalCharacteristic])).values(),
+      ) as TechnicalCharacteristic[];
 
       setTechnicalCharacteristics(uniqueTechnicalCharacteristics);
     } catch (error) {
@@ -193,6 +189,7 @@ export default function GeneratorPage() {
       // Réinitialiser les sélections après génération
       setSelectedVariantIds([]);
       setValues({});
+      setVariantSearch('');
     } catch (error: any) {
       console.error('Error generating info:', error);
       await showAlert(
@@ -249,6 +246,16 @@ export default function GeneratorPage() {
     }
   };
 
+  // Filtrer les variantes selon la recherche
+  const getFilteredVariants = () => {
+    if (!variantSearch) return variants;
+    const searchLower = variantSearch.toLowerCase();
+    return variants.filter((variant) => 
+      variant.name.toLowerCase().includes(searchLower) ||
+      variant.code.toLowerCase().includes(searchLower)
+    );
+  };
+
   return (
     <div className="generator-page">
       <h1>Générateur de Produits</h1>
@@ -273,21 +280,40 @@ export default function GeneratorPage() {
           {selectedProduct && (
             <div className="form-group">
               <label>Variantes (sélection multiple)</label>
+              <input
+                type="text"
+                placeholder="Rechercher une variante..."
+                value={variantSearch}
+                onChange={(e) => setVariantSearch(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  marginBottom: '10px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                }}
+              />
               <div className="variants-checkboxes">
-                {variants.map((variant) => (
-                  <label key={variant.id} className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={selectedVariantIds.includes(variant.id)}
-                      onChange={() => handleVariantToggle(variant.id)}
-                    />
-                    <span>{variant.name}</span>
-                  </label>
-                ))}
+                {getFilteredVariants().length === 0 ? (
+                  <p style={{ color: '#666', fontStyle: 'italic', margin: 0 }}>
+                    {variantSearch 
+                      ? 'Aucune variante ne correspond à votre recherche'
+                      : 'Aucune variante disponible pour cette famille'}
+                  </p>
+                ) : (
+                  getFilteredVariants().map((variant) => (
+                    <label key={variant.id} className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={selectedVariantIds.includes(variant.id)}
+                        onChange={() => handleVariantToggle(variant.id)}
+                      />
+                      <span>{variant.name}</span>
+                    </label>
+                  ))
+                )}
               </div>
-              {variants.length === 0 && (
-                <p className="no-variants">Aucune variante disponible pour cette famille</p>
-              )}
             </div>
           )}
         </div>

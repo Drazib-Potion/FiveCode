@@ -101,10 +101,10 @@ export const variantsService = {
 
 // Technical Characteristics Service
 export const technicalCharacteristicsService = {
-  getAll: async (familyId?: string, variantId?: string) => {
+  getAll: async (familyId?: string, variantIds?: string) => {
     const params = new URLSearchParams();
     if (familyId) params.append('familyId', familyId);
-    if (variantId) params.append('variantId', variantId);
+    if (variantIds) params.append('variantIds', variantIds);
     const url = params.toString() ? `/technical-characteristics?${params}` : '/technical-characteristics';
     const response = await apiClient.get(url);
     return response.data;
@@ -116,9 +116,8 @@ export const technicalCharacteristicsService = {
   create: async (data: {
     name: string;
     type: string;
-    familyId?: string;
-    variantId?: string;
-    position?: number;
+    familyIds?: string[];
+    variantIds?: string[];
   }) => {
     const response = await apiClient.post('/technical-characteristics', data);
     return response.data;

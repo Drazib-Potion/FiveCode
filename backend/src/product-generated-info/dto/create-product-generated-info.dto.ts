@@ -1,4 +1,11 @@
-import { IsUUID, IsNotEmpty, IsArray, ArrayMinSize, IsObject, IsOptional } from 'class-validator';
+import {
+  IsUUID,
+  IsNotEmpty,
+  IsArray,
+  ArrayMinSize,
+  IsObject,
+  IsOptional,
+} from 'class-validator';
 
 export class CreateProductGeneratedInfoDto {
   @IsUUID()
@@ -14,4 +21,3 @@ export class CreateProductGeneratedInfoDto {
   @IsOptional()
   values?: Record<string, any>; // { technicalCharacteristicId: value } - Optionnel
 }
-

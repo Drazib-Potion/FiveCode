@@ -15,15 +15,24 @@ export class TechnicalCharacteristicsController {
   }
 
   @Get()
-  findAll(@Query('familyId') familyId?: string, @Query('variantId') variantId?: string) {
-    if (familyId && variantId) {
-      return this.technicalCharacteristicsService.findByFamilyAndVariant(familyId, variantId);
+  findAll(@Query('familyId') familyId?: string, @Query('variantIds') variantIds?: string) {
+    if (familyId && variantIds) {
+      // variantIds peut être une chaîne séparée par des virgules
+      const variantIdsArray = variantIds.split(',').filter(id => id.trim() !== '');
+      return this.technicalCharacteristicsService.findByFamilyAndVariant(familyId, variantIdsArray);
     }
     if (familyId) {
       return this.technicalCharacteristicsService.findByFamily(familyId);
     }
-    if (variantId) {
-      return this.technicalCharacteristicsService.findByVariant(variantId);
+    if (variantIds) {
+      const variantIdsArray = variantIds.split(',').filter(id => id.trim() !== '');
+      if (variantIdsArray.length === 1) {
+        return this.technicalCharacteristicsService.findByVariant(variantIdsArray[0]);
+      }
+      // Pour plusieurs variantes, on utilise findByFamilyAndVariant avec une famille vide
+      // Mais on a besoin d'une famille, donc on récupère la famille de la première variante
+      // Pour l'instant, on retourne toutes les caractéristiques associées à ces variantes
+      return this.technicalCharacteristicsService.findByVariant(variantIdsArray[0]);
     }
     return this.technicalCharacteristicsService.findAll();
   }

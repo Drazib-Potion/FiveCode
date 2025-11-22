@@ -79,7 +79,11 @@ export class VariantsService {
     const variants = await this.prisma.variant.findMany({
       include: {
         family: true,
-        technicalCharacteristics: true,
+        technicalCharacteristicVariants: {
+          include: {
+            technicalCharacteristic: true,
+          },
+        },
         exclusionsAsVariant1: {
           include: {
             variant2: true,
@@ -114,7 +118,11 @@ export class VariantsService {
       where: { familyId },
       include: {
         family: true,
-        technicalCharacteristics: true,
+        technicalCharacteristicVariants: {
+          include: {
+            technicalCharacteristic: true,
+          },
+        },
         exclusionsAsVariant1: {
           include: {
             variant2: true,
@@ -149,7 +157,11 @@ export class VariantsService {
       where: { id },
       include: {
         family: true,
-        technicalCharacteristics: true,
+        technicalCharacteristicVariants: {
+          include: {
+            technicalCharacteristic: true,
+          },
+        },
         exclusionsAsVariant1: {
           include: {
             variant2: true,

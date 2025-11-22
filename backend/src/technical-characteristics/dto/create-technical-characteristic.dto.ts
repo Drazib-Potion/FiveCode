@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsUUID, IsInt, Min } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsUUID, IsArray } from 'class-validator';
 
 export class CreateTechnicalCharacteristicDto {
   @IsString()
@@ -9,17 +9,14 @@ export class CreateTechnicalCharacteristicDto {
   @IsNotEmpty()
   type: string; // "string" | "number" | "boolean" | "select"
 
-  @IsUUID()
+  @IsArray()
+  @IsUUID(undefined, { each: true })
   @IsOptional()
-  familyId?: string;
+  familyIds?: string[]; // Tableau de familyIds
 
-  @IsUUID()
+  @IsArray()
+  @IsUUID(undefined, { each: true })
   @IsOptional()
-  variantId?: string;
-
-  @IsInt()
-  @Min(0)
-  @IsOptional()
-  position?: number;
+  variantIds?: string[]; // Tableau de variantIds
 }
 

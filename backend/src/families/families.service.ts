@@ -17,7 +17,11 @@ export class FamiliesService {
     return this.prisma.family.findMany({
       include: {
         variants: true,
-        technicalCharacteristics: true,
+        technicalCharacteristicFamilies: {
+          include: {
+            technicalCharacteristic: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -30,7 +34,11 @@ export class FamiliesService {
       where: { id },
       include: {
         variants: true,
-        technicalCharacteristics: true,
+        technicalCharacteristicFamilies: {
+          include: {
+            technicalCharacteristic: true,
+          },
+        },
       },
     });
 

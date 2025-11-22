@@ -38,9 +38,9 @@ model Family {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  variants                 Variant[]
-  technicalCharacteristics TechnicalCharacteristic[]
-  products                 Product[]
+  variants                        Variant[]
+  technicalCharacteristicFamilies TechnicalCharacteristicFamily[]
+  products                        Product[]
 
   @@map("families")
 }
@@ -53,9 +53,9 @@ model Variant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  family                   Family                    @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  technicalCharacteristics TechnicalCharacteristic[]
-  generatedInfos           ProductVariant[] // Via ProductGeneratedInfo
+  family                           Family                          @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  technicalCharacteristicVariants TechnicalCharacteristicVariant[]
+  generatedInfos                   ProductVariant[] // Via ProductGeneratedInfo
 
   // Relations pour les exclusions
   exclusionsAsVariant1 VariantExclusion[] @relation("VariantExclusions1")
@@ -69,17 +69,42 @@ model TechnicalCharacteristic {
   id        String   @id @default(uuid())
   name      String
   type      String // "string" | "number" | "boolean" | "select"
-  familyId  String?
-  variantId String?
-  position  Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  family         Family?                          @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  variant        Variant?                         @relation(fields: [variantId], references: [id], onDelete: Cascade)
-  generatedInfos ProductTechnicalCharacteristic[] // Via ProductGeneratedInfo
+  families        TechnicalCharacteristicFamily[]
+  variants        TechnicalCharacteristicVariant[]
+  generatedInfos  ProductTechnicalCharacteristic[] // Via ProductGeneratedInfo
 
   @@map("technical_characteristics")
+}
+
+// Table de liaison pour TechnicalCharacteristic <-> Family (many-to-many)
+model TechnicalCharacteristicFamily {
+  id                        String   @id @default(uuid())
+  technicalCharacteristicId String
+  familyId                  String
+  createdAt                 DateTime @default(now())
+
+  technicalCharacteristic TechnicalCharacteristic @relation(fields: [technicalCharacteristicId], references: [id], onDelete: Cascade)
+  family                   Family                 @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@unique([technicalCharacteristicId, familyId])
+  @@map("technical_characteristic_families")
+}
+
+// Table de liaison pour TechnicalCharacteristic <-> Variant (many-to-many)
+model TechnicalCharacteristicVariant {
+  id                        String   @id @default(uuid())
+  technicalCharacteristicId String
+  variantId                 String
+  createdAt                 DateTime @default(now())
+
+  technicalCharacteristic TechnicalCharacteristic @relation(fields: [technicalCharacteristicId], references: [id], onDelete: Cascade)
+  variant                  Variant                 @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([technicalCharacteristicId, variantId])
+  @@map("technical_characteristic_variants")
 }
 
 model Product {

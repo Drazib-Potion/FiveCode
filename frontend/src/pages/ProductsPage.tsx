@@ -39,6 +39,8 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ name: '', code: '', familyId: '', productTypeId: '' });
+  const [familySearch, setFamilySearch] = useState('');
+  const [productTypeSearch, setProductTypeSearch] = useState('');
 
   useEffect(() => {
     loadProducts();
@@ -83,6 +85,8 @@ export default function ProductsPage() {
     try {
       await productsService.create(formData);
       setFormData({ name: '', code: '', familyId: '', productTypeId: '' });
+      setFamilySearch('');
+      setProductTypeSearch('');
       setShowForm(false);
       loadProducts();
     } catch (error: any) {
@@ -103,6 +107,23 @@ export default function ProductsPage() {
     }
   };
 
+  // Filtrer les familles selon la recherche
+  const getFilteredFamilies = () => {
+    if (!familySearch) return families;
+    const searchLower = familySearch.toLowerCase();
+    return families.filter((family) => family.name.toLowerCase().includes(searchLower));
+  };
+
+  // Filtrer les types de produit selon la recherche
+  const getFilteredProductTypes = () => {
+    if (!productTypeSearch) return productTypes;
+    const searchLower = productTypeSearch.toLowerCase();
+    return productTypes.filter((productType) => 
+      productType.name.toLowerCase().includes(searchLower) ||
+      productType.code.toLowerCase().includes(searchLower)
+    );
+  };
+
 
   if (loading) return <div className="loading">Chargement...</div>;
 
@@ -115,6 +136,8 @@ export default function ProductsPage() {
             onClick={() => {
               setShowForm(true);
               setFormData({ name: '', code: '', familyId: '', productTypeId: '' });
+              setFamilySearch('');
+              setProductTypeSearch('');
             }}
           >
             + Nouveau produit
@@ -147,37 +170,75 @@ export default function ProductsPage() {
             </div>
             <div className="form-group">
               <label>Type de produit</label>
+              <input
+                type="text"
+                placeholder="Rechercher un type de produit..."
+                value={productTypeSearch}
+                onChange={(e) => setProductTypeSearch(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  marginBottom: '10px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                }}
+              />
               <select
                 value={formData.productTypeId}
                 onChange={(e) => setFormData({ ...formData, productTypeId: e.target.value })}
                 required
               >
                 <option value="">Sélectionner un type de produit</option>
-                {productTypes.map((productType) => (
+                {getFilteredProductTypes().map((productType) => (
                   <option key={productType.id} value={productType.id}>
                     {productType.name} ({productType.code})
                   </option>
                 ))}
               </select>
+              {productTypeSearch && getFilteredProductTypes().length === 0 && (
+                <p style={{ color: '#666', fontStyle: 'italic', marginTop: '5px', fontSize: '0.9em' }}>
+                  Aucun type de produit ne correspond à votre recherche
+                </p>
+              )}
             </div>
             <div className="form-group">
               <label>Famille</label>
+              <input
+                type="text"
+                placeholder="Rechercher une famille..."
+                value={familySearch}
+                onChange={(e) => setFamilySearch(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  marginBottom: '10px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                }}
+              />
               <select
                 value={formData.familyId}
                 onChange={(e) => setFormData({ ...formData, familyId: e.target.value })}
                 required
               >
                 <option value="">Sélectionner une famille</option>
-                {families.map((family) => (
+                {getFilteredFamilies().map((family) => (
                   <option key={family.id} value={family.id}>
                     {family.name}
                   </option>
                 ))}
               </select>
+              {familySearch && getFilteredFamilies().length === 0 && (
+                <p style={{ color: '#666', fontStyle: 'italic', marginTop: '5px', fontSize: '0.9em' }}>
+                  Aucune famille ne correspond à votre recherche
+                </p>
+              )}
             </div>
             <div className="form-actions">
               <button type="submit">Enregistrer</button>
-              <button type="button" onClick={() => setShowForm(false)}>
+              <button type="button" onClick={() => { setShowForm(false); setFamilySearch(''); setProductTypeSearch(''); }}>
                 Annuler
               </button>
             </div>

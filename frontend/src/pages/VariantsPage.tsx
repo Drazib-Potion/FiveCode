@@ -30,6 +30,8 @@ export default function VariantsPage() {
     code: '',
     excludedVariantIds: [] as string[],
   });
+  const [familySearch, setFamilySearch] = useState('');
+  const [excludedVariantSearch, setExcludedVariantSearch] = useState('');
 
   useEffect(() => {
     loadData();
@@ -60,6 +62,8 @@ export default function VariantsPage() {
         await variantsService.create(formData as { familyId: string; name: string; code: string; excludedVariantIds?: string[] });
       }
       setFormData({ familyId: '', name: '', code: '', excludedVariantIds: [] });
+      setFamilySearch('');
+      setExcludedVariantSearch('');
       setShowForm(false);
       setEditingId(null);
       loadData();
@@ -76,6 +80,8 @@ export default function VariantsPage() {
       code: variant.code,
       excludedVariantIds: variant.excludedVariantIds || [],
     });
+    setFamilySearch('');
+    setExcludedVariantSearch('');
     setEditingId(variant.id);
     setShowForm(true);
   };
@@ -92,13 +98,35 @@ export default function VariantsPage() {
     }
   };
 
+  // Filtrer les familles selon la recherche
+  const getFilteredFamilies = () => {
+    if (!familySearch) return families;
+    const searchLower = familySearch.toLowerCase();
+    return families.filter((family) => family.name.toLowerCase().includes(searchLower));
+  };
+
+  // Filtrer les variantes exclues selon la recherche
+  const getFilteredExcludedVariants = () => {
+    let filtered = variants.filter(v => v.familyId === formData.familyId && v.id !== editingId);
+    
+    if (excludedVariantSearch) {
+      const searchLower = excludedVariantSearch.toLowerCase();
+      filtered = filtered.filter((variant) => 
+        variant.name.toLowerCase().includes(searchLower) ||
+        variant.code.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    return filtered;
+  };
+
   if (loading) return <div className="loading">Chargement...</div>;
 
   return (
     <div className="crud-page">
       <div className="page-header">
         <h1>Gestion des Variantes</h1>
-        <button onClick={() => { setShowForm(true); setEditingId(null); setFormData({ familyId: '', name: '', code: '', excludedVariantIds: [] }); }}>
+        <button onClick={() => { setShowForm(true); setEditingId(null); setFormData({ familyId: '', name: '', code: '', excludedVariantIds: [] }); setFamilySearch(''); setExcludedVariantSearch(''); }}>
           + Nouvelle variante
         </button>
       </div>
@@ -109,18 +137,37 @@ export default function VariantsPage() {
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label>Famille</label>
+              <input
+                type="text"
+                placeholder="Rechercher une famille..."
+                value={familySearch}
+                onChange={(e) => setFamilySearch(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  marginBottom: '10px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                }}
+              />
               <select
                 value={formData.familyId}
                 onChange={(e) => setFormData({ ...formData, familyId: e.target.value })}
                 required
               >
                 <option value="">Sélectionner une famille</option>
-                {families.map((family) => (
+                {getFilteredFamilies().map((family) => (
                   <option key={family.id} value={family.id}>
                     {family.name}
                   </option>
                 ))}
               </select>
+              {familySearch && getFilteredFamilies().length === 0 && (
+                <p style={{ color: '#666', fontStyle: 'italic', marginTop: '5px', fontSize: '0.9em' }}>
+                  Aucune famille ne correspond à votre recherche
+                </p>
+              )}
             </div>
             <div className="form-group">
               <label>Nom</label>
@@ -143,10 +190,33 @@ export default function VariantsPage() {
             </div>
             <div className="form-group">
               <label>Variantes exclues (ne peuvent pas être sélectionnées avec cette variante)</label>
+              <input
+                type="text"
+                placeholder="Rechercher une variante..."
+                value={excludedVariantSearch}
+                onChange={(e) => setExcludedVariantSearch(e.target.value)}
+                disabled={!formData.familyId}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  marginBottom: '10px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  opacity: !formData.familyId ? 0.5 : 1,
+                }}
+              />
               <div className="variants-checkboxes">
-                {variants
-                  .filter(v => v.familyId === formData.familyId && v.id !== editingId)
-                  .map((variant) => (
+                {getFilteredExcludedVariants().length === 0 ? (
+                  <p style={{ color: '#666', fontStyle: 'italic', margin: 0 }}>
+                    {!formData.familyId 
+                      ? 'Sélectionnez d\'abord une famille pour voir les variantes'
+                      : excludedVariantSearch
+                      ? 'Aucune variante ne correspond à votre recherche'
+                      : 'Aucune autre variante disponible pour cette famille'}
+                  </p>
+                ) : (
+                  getFilteredExcludedVariants().map((variant) => (
                     <label key={variant.id} className="checkbox-label">
                       <input
                         type="checkbox"
@@ -168,15 +238,13 @@ export default function VariantsPage() {
                       />
                       <span>{variant.name}</span>
                     </label>
-                  ))}
+                  ))
+                )}
               </div>
-              {formData.familyId && variants.filter(v => v.familyId === formData.familyId && v.id !== editingId).length === 0 && (
-                <p className="no-variants">Aucune autre variante disponible pour cette famille</p>
-              )}
             </div>
             <div className="form-actions">
               <button type="submit">Enregistrer</button>
-              <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }}>
+              <button type="button" onClick={() => { setShowForm(false); setEditingId(null); setFamilySearch(''); setExcludedVariantSearch(''); }}>
                 Annuler
               </button>
             </div>

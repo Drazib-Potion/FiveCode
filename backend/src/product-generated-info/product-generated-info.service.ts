@@ -81,17 +81,48 @@ export class ProductGeneratedInfoService {
     // Récupérer les caractéristiques techniques applicables AVANT de vérifier les doublons
     const allTechnicalCharacteristics = await this.technicalCharacteristicsService.findAll();
 
-    // Filtrer pour avoir les caractéristiques techniques de la famille ou des variantes sélectionnées
+    // Filtrer pour avoir les caractéristiques techniques qui s'appliquent
     const applicableTechnicalCharacteristics = allTechnicalCharacteristics.filter(
-      (technicalCharacteristic: any) =>
-        (technicalCharacteristic.familyId === product.familyId && !technicalCharacteristic.variantId) || // Caractéristiques techniques de la famille
-        (technicalCharacteristic.variantId && createDto.variantIds.includes(technicalCharacteristic.variantId)), // Caractéristiques techniques des variantes sélectionnées
+      (technicalCharacteristic: any) => {
+        // Vérifier si la caractéristique est associée à la famille du produit
+        const isAssociatedWithFamily = technicalCharacteristic.families?.some(
+          (tcFamily: any) => tcFamily.familyId === product.familyId
+        );
+
+        if (!isAssociatedWithFamily) {
+          return false;
+        }
+
+        // Récupérer les variantes associées avec leur famille (en filtrant les null/undefined)
+        const associatedVariants = (technicalCharacteristic.variants || [])
+          .filter((tcVariant: any) => tcVariant.variant && tcVariant.variant.familyId) // Filtrer les variantes invalides
+          .map((tcVariant: any) => ({
+            variantId: tcVariant.variantId,
+            familyId: tcVariant.variant.familyId,
+          }));
+
+        // Filtrer les variantes pour ne garder que celles qui appartiennent à la famille du produit
+        const variantsForThisFamily = associatedVariants.filter(
+          (v) => v.familyId === product.familyId
+        );
+
+        // Si la caractéristique n'a pas de variantes pour cette famille, elle s'applique à toute la famille
+        if (variantsForThisFamily.length === 0) {
+          return true;
+        }
+
+        // Si la caractéristique a des variantes pour cette famille, vérifier si une correspond aux variantes sélectionnées
+        const variantIdsForThisFamily = variantsForThisFamily.map((v) => v.variantId);
+        return createDto.variantIds.some((variantId) =>
+          variantIdsForThisFamily.includes(variantId)
+        );
+      }
     );
 
-    // Dédupliquer par ID et trier par position
+    // Dédupliquer par ID
     const uniqueTechnicalCharacteristics = Array.from(
       new Map(applicableTechnicalCharacteristics.map((technicalCharacteristic: any) => [technicalCharacteristic.id, technicalCharacteristic])).values(),
-    ).sort((a: any, b: any) => a.position - b.position);
+    );
 
     // Compter combien de ProductGeneratedInfo existent déjà avec cette combinaison produit+variantes
     const allProductInfos = await this.prisma.productGeneratedInfo.findMany({
