@@ -7,7 +7,7 @@ export class CreateTechnicalCharacteristicDto {
 
   @IsString()
   @IsNotEmpty()
-  type: string; // "string" | "number" | "boolean" | "select" | "enum"
+  type: string; // "string" | "number" | "boolean" | "enum"
 
   @IsArray()
   @IsString({ each: true })

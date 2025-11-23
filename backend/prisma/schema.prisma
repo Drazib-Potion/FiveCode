@@ -68,7 +68,7 @@ model Variant {
 model TechnicalCharacteristic {
   id           String   @id @default(uuid())
   name         String
-  type         String // "string" | "number" | "boolean" | "select" | "enum"
+  type         String // "string" | "number" | "boolean" | "enum"
   enumOptions  Json?    // Tableau de strings pour les options enum
   enumMultiple Boolean? @default(false) // true = sélection multiple, false = sélection unique
   createdAt    DateTime @default(now())

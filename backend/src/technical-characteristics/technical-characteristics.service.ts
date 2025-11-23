@@ -10,7 +10,7 @@ export class TechnicalCharacteristicsService {
 
   async create(createTechnicalCharacteristicDto: CreateTechnicalCharacteristicDto) {
     // Valider le type
-    const validTypes = ['string', 'number', 'boolean', 'select', 'enum'];
+    const validTypes = ['string', 'number', 'boolean', 'enum'];
     if (!validTypes.includes(createTechnicalCharacteristicDto.type)) {
       throw new BadRequestException(`Type de caractéristique technique invalide. Doit être l'un de : ${validTypes.join(', ')}`);
     }
@@ -352,7 +352,7 @@ export class TechnicalCharacteristicsService {
     const technicalCharacteristic = await this.findOne(id);
 
     if (updateTechnicalCharacteristicDto.type) {
-      const validTypes = ['string', 'number', 'boolean', 'select', 'enum'];
+      const validTypes = ['string', 'number', 'boolean', 'enum'];
       if (!validTypes.includes(updateTechnicalCharacteristicDto.type)) {
         throw new BadRequestException(`Type de caractéristique technique invalide. Doit être l'un de : ${validTypes.join(', ')}`);
       }

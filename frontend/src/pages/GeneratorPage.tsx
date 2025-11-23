@@ -288,17 +288,6 @@ export default function GeneratorPage() {
           />
         );
 
-      case 'select':
-        return (
-          <input
-            type="text"
-            value={value}
-            onChange={(e) => handleValueChange(technicalCharacteristic.id, e.target.value)}
-            required
-            className="w-full px-3 py-3 border border-gray-300 rounded text-base focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
-          />
-        );
-
       case 'enum': {
         const enumOptions = technicalCharacteristic.enumOptions || [];
         const isMultiple = technicalCharacteristic.enumMultiple ?? false;
