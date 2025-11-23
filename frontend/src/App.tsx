@@ -34,7 +34,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to="/families" />} />
+        <Route index element={<Navigate to="/product-types" />} />
         <Route path="families" element={<FamiliesPage />} />
         <Route path="product-types" element={<ProductTypesPage />} />
         <Route path="products" element={<ProductsPage />} />
