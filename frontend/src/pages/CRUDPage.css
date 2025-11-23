@@ -318,6 +318,7 @@ td button:active {
 
 .checkbox-label {
   display: flex;
+  flex-direction: row;
   align-items: center;
   cursor: pointer;
   padding: 0.5rem;
@@ -329,14 +330,20 @@ td button:active {
   background-color: #f0f0f0;
 }
 
-.checkbox-label input[type="checkbox"] {
+.checkbox-label input[type="checkbox"],
+.checkbox-label input[type="radio"] {
   margin-right: 0.75rem;
+  margin-top: 0;
+  margin-bottom: 0;
   cursor: pointer;
   width: auto;
+  flex-shrink: 0;
 }
 
 .checkbox-label span {
   user-select: none;
+  display: inline-block;
+  line-height: 1.5;
 }
 
 .no-variants {
