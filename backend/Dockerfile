@@ -47,8 +47,16 @@ COPY --from=builder /app/dist ./dist
 # Vérifier que dist/main.js existe avant de démarrer
 RUN test -f dist/main.js && echo "✓ dist/main.js exists in production" || (echo "✗ dist/main.js NOT FOUND in production" && ls -la dist/ && exit 1)
 
-# Exposer le port
-EXPOSE ${BACKEND_PORT}
+# Script de démarrage avec migrations Prisma
+RUN echo '#!/bin/sh' > /app/start.sh && \
+    echo 'echo "Running Prisma migrations..."' >> /app/start.sh && \
+    echo 'npx prisma migrate deploy' >> /app/start.sh && \
+    echo 'echo "Starting application..."' >> /app/start.sh && \
+    echo 'node dist/main.js' >> /app/start.sh && \
+    chmod +x /app/start.sh
 
-# Commande de production - utiliser l'extension .js explicitement
-CMD ["node", "dist/main.js"]
+# Exposer le port (Railway utilisera le PORT de l'environnement)
+EXPOSE 3000
+
+# Commande de production avec migrations
+CMD ["/app/start.sh"]
