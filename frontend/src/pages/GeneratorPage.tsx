@@ -325,7 +325,7 @@ export default function GeneratorPage() {
         Générateur de Produits
       </h1>
 
-      <div className="bg-white p-12 rounded-2xl shadow-2xl border-2 border-green-500/20 max-w-[1200px] mx-auto relative">
+      <div className="bg-gradient-to-br from-white to-gray-light/30 p-12 rounded-2xl shadow-xl border-2 border-purple/20 max-w-[1200px] mx-auto relative animate-slide-in backdrop-blur-sm">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 pb-8 border-b-2 border-gray-200">
           <div className="mb-4">
             <label className="block mb-2 text-gray-dark font-medium">Produit</label>
@@ -344,7 +344,7 @@ export default function GeneratorPage() {
           </div>
 
           {selectedProduct && (
-            <div className="mb-4">
+            <div className="mb-4 ">
               <label className="block mb-2 text-gray-dark font-medium">Variante (sélection unique)</label>
               <input
                 type="text"
@@ -353,7 +353,7 @@ export default function GeneratorPage() {
                 onChange={(e) => setVariantSearch(e.target.value)}
                 className="w-full px-3 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
               />
-              <div className="flex flex-col gap-3 mt-2">
+              <div className="border border-gray-300 rounded p-2.5 max-h-[200px] overflow-y-auto bg-gray-50">
                 {getFilteredVariants().length === 0 ? (
                   <p className="text-gray-500 italic m-0">
                     {variantSearch 
@@ -401,11 +401,11 @@ export default function GeneratorPage() {
               </div>
             )}
 
-            <div className="mt-8 pt-8 border-t-2 border-gray-200">
+            <div className="mt-8 pt-8 border-t-2 border-gray-200 flex justify-center">
               <button 
                 onClick={handleGenerate} 
                 disabled={loading}
-                className="bg-gradient-to-r from-green-500 to-green-600 text-white border-none px-12 py-5 rounded-lg cursor-pointer text-xl font-bold transition-all duration-300 shadow-lg hover:from-green-600 hover:to-green-700 hover:shadow-xl hover:-translate-y-0.5 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:translate-y-0 uppercase tracking-wide"
+                className="bg-gradient-to-r from-purple-light to-purple text-white border-none px-12 py-5 rounded-xl cursor-pointer text-xl font-semibold transition-all duration-300 shadow-lg hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100 uppercase tracking-wide"
               >
                 {loading ? 'Génération...' : 'Générer le code'}
               </button>
