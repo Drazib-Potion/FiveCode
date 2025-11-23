@@ -1,4 +1,5 @@
-FROM node:18-alpine
+# Stage 1: Build
+FROM node:18-alpine AS builder
 
 WORKDIR /app
 
@@ -11,9 +12,23 @@ RUN npm ci
 # Copier le reste du code
 COPY . .
 
-# Exposer le port
-EXPOSE 5173
+# Build l'application avec les variables d'environnement
+# VITE_API_URL sera utilisé au build time
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+RUN npm run build
 
-# Commande par défaut
-CMD ["npm", "run", "dev", "--", "--host"]
+# Stage 2: Production avec Nginx
+FROM nginx:alpine
 
+# Copier les fichiers buildés depuis le stage builder
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copier la configuration Nginx
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Exposer le port 80
+EXPOSE ${FRONTEND_PORT}
+
+# Démarrer Nginx
+CMD ["nginx", "-g", "daemon off;"]
