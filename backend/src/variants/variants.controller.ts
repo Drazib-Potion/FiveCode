@@ -15,11 +15,13 @@ export class VariantsController {
   }
 
   @Get()
-  findAll(@Query('familyId') familyId?: string) {
+  findAll(@Query('familyId') familyId?: string, @Query('offset') offset?: string, @Query('limit') limit?: string, @Query('search') search?: string) {
+    const offsetNum = offset ? parseInt(offset, 10) : 0;
+    const limitNum = limit ? parseInt(limit, 10) : 50;
     if (familyId) {
-      return this.variantsService.findByFamily(familyId);
+      return this.variantsService.findByFamily(familyId, offsetNum, limitNum, search);
     }
-    return this.variantsService.findAll();
+    return this.variantsService.findAll(offsetNum, limitNum, search);
   }
 
   @Get(':id')

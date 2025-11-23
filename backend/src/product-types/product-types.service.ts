@@ -38,12 +38,33 @@ export class ProductTypesService {
     });
   }
 
-  async findAll() {
-    return this.prisma.productType.findMany({
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+  async findAll(offset: number = 0, limit: number = 50, search?: string) {
+    const searchFilter = search
+      ? {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' as const } },
+            { code: { contains: search, mode: 'insensitive' as const } },
+          ],
+        }
+      : {};
+
+    const [data, total] = await Promise.all([
+      this.prisma.productType.findMany({
+        where: searchFilter,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip: offset,
+        take: limit,
+      }),
+      this.prisma.productType.count({ where: searchFilter }),
+    ]);
+
+    return {
+      data,
+      total,
+      hasMore: offset + limit < total,
+    };
   }
 
   async findOne(id: string) {

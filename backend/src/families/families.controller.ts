@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
 import { FamiliesService } from './families.service';
 import { CreateFamilyDto } from './dto/create-family.dto';
 import { UpdateFamilyDto } from './dto/update-family.dto';
@@ -15,8 +15,10 @@ export class FamiliesController {
   }
 
   @Get()
-  findAll() {
-    return this.familiesService.findAll();
+  findAll(@Query('offset') offset?: string, @Query('limit') limit?: string, @Query('search') search?: string) {
+    const offsetNum = offset ? parseInt(offset, 10) : 0;
+    const limitNum = limit ? parseInt(limit, 10) : 50;
+    return this.familiesService.findAll(offsetNum, limitNum, search);
   }
 
   @Get(':id')

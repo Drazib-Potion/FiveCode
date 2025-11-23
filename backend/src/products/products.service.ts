@@ -70,16 +70,40 @@ export class ProductsService {
     });
   }
 
-  async findAll() {
-    return this.prisma.product.findMany({
-      include: {
-        family: true,
-        productType: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+  async findAll(offset: number = 0, limit: number = 50, search?: string) {
+    const searchFilter = search
+      ? {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' as const } },
+            { code: { contains: search, mode: 'insensitive' as const } },
+            { family: { name: { contains: search, mode: 'insensitive' as const } } },
+            { productType: { name: { contains: search, mode: 'insensitive' as const } } },
+            { productType: { code: { contains: search, mode: 'insensitive' as const } } },
+          ],
+        }
+      : {};
+
+    const [data, total] = await Promise.all([
+      this.prisma.product.findMany({
+        where: searchFilter,
+        include: {
+          family: true,
+          productType: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip: offset,
+        take: limit,
+      }),
+      this.prisma.product.count({ where: searchFilter }),
+    ]);
+
+    return {
+      data,
+      total,
+      hasMore: offset + limit < total,
+    };
   }
 
   async findOne(id: string) {

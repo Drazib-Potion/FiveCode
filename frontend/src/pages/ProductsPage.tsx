@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { productsService, familiesService, productTypesService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import Loader from '../components/Loader';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 
 interface Product {
   id: string;
@@ -44,26 +45,96 @@ export default function ProductsPage() {
   const [tableSearchTerm, setTableSearchTerm] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const offsetRef = useRef(0);
+  const LIMIT = 20;
 
+  const loadProducts = useCallback(async (reset: boolean = false, search?: string) => {
+    try {
+      if (reset) {
+        setLoading(true);
+        setHasMore(true);
+      } else {
+        setLoadingMore(true);
+      }
+      
+      const currentOffset = reset ? 0 : offsetRef.current;
+      const searchValue = search !== undefined ? search : tableSearchTerm.trim() || undefined;
+      const response = await productsService.getAll(currentOffset, LIMIT, searchValue);
+      const data = Array.isArray(response) ? response : (response.data || []);
+      const hasMoreData = Array.isArray(response) ? data.length === LIMIT : (response.hasMore !== false && data.length === LIMIT);
+      
+      if (reset) {
+        // Dédupliquer les données
+        const productsMap = new Map<string, Product>();
+        data.forEach((product: Product) => {
+          if (!productsMap.has(product.id)) {
+            productsMap.set(product.id, product);
+          }
+        });
+        const newProducts = Array.from(productsMap.values());
+        setLoading(false);
+        setProducts(newProducts);
+        offsetRef.current = newProducts.length;
+        setHasMore(hasMoreData);
+      } else {
+        setProducts(prev => {
+          const productsMap = new Map<string, Product>(prev.map(p => [p.id, p]));
+          data.forEach((product: Product) => {
+            if (!productsMap.has(product.id)) {
+              productsMap.set(product.id, product);
+            }
+          });
+          return Array.from(productsMap.values());
+        });
+        offsetRef.current = offsetRef.current + data.length;
+        setHasMore(hasMoreData);
+      }
+    } catch (error) {
+      console.error('Error loading products:', error);
+      await showAlert('Erreur lors du chargement des produits', 'error');
+      setLoading(false);
+      setLoadingMore(false);
+    } finally {
+      if (!reset) {
+        setLoadingMore(false);
+      }
+    }
+  }, [tableSearchTerm, showAlert]);
+
+  // Charger les données au montage
   useEffect(() => {
-    loadProducts();
+    offsetRef.current = 0;
+    loadProducts(true);
     loadFamilies();
     loadProductTypes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadProducts = async () => {
-    try {
-      setLoading(true);
-      const data = await productsService.getAll();
-      setProducts(data);
-    } catch (error) {
-      console.error('Error loading products:', error);
-      await showAlert('Erreur lors du chargement des produits', 'error');
-    } finally {
-      setLoading(false);
+  // Recharger quand la recherche change
+  useEffect(() => {
+    offsetRef.current = 0;
+    
+    const timeoutId = setTimeout(() => {
+      loadProducts(true, tableSearchTerm);
+    }, tableSearchTerm ? 300 : 0);
+
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableSearchTerm]);
+
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore && !tableSearchTerm.trim()) {
+      loadProducts(false);
     }
-  };
+  }, [loadingMore, hasMore, tableSearchTerm, loadProducts]);
+
+  const observerTarget = useInfiniteScroll({
+    hasMore,
+    loading: loadingMore,
+    onLoadMore: loadMore,
+  });
 
   const loadFamilies = async () => {
     try {
@@ -92,7 +163,7 @@ export default function ProductsPage() {
       setFamilySearch('');
       setProductTypeSearch('');
       setShowForm(false);
-      loadProducts();
+      loadProducts(true);
     } catch (error: any) {
       console.error('Error creating product:', error);
       await showAlert(error.response?.data?.message || 'Erreur lors de la création du produit', 'error');
@@ -107,7 +178,7 @@ export default function ProductsPage() {
     setDeletingId(id);
     try {
       await productsService.delete(id);
-      loadProducts();
+      loadProducts(true);
     } catch (error) {
       console.error('Error deleting product:', error);
       await showAlert('Erreur lors de la suppression', 'error');
@@ -143,27 +214,6 @@ export default function ProductsPage() {
     setFormData({ ...formData, familyId: formData.familyId === familyId ? '' : familyId }    );
   };
 
-  // Filtrer les produits du tableau selon la recherche
-  const getFilteredProducts = () => {
-    if (!tableSearchTerm) return products;
-    const searchLower = tableSearchTerm.toLowerCase();
-    return products.filter((product) => 
-      product.name.toLowerCase().includes(searchLower) ||
-      product.code.toLowerCase().includes(searchLower) ||
-      product.family.name.toLowerCase().includes(searchLower) ||
-      (product.productType && product.productType.name.toLowerCase().includes(searchLower)) ||
-      (product.productType && product.productType.code.toLowerCase().includes(searchLower))
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center gap-4 py-12 text-lg text-gray-600">
-        <div className="w-6 h-6 border-[3px] border-gray-300 border-t-purple rounded-full animate-spin"></div>
-        Chargement...
-      </div>
-    );
-  }
 
   return (
     <div className="w-full animate-fade-in">
@@ -303,30 +353,18 @@ export default function ProductsPage() {
       )}
 
       <div className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-purple/20 animate-fade-in">
-        {products.length > 0 && (
-          <div className="p-4 bg-gray-light border-b-2 border-purple/20">
-            <div className="relative w-full max-w-[400px]">
-              <input
-                type="text"
-                placeholder="🔍 Rechercher par nom, code, famille ou type..."
-                value={tableSearchTerm}
-                onChange={(e) => setTableSearchTerm(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-purple rounded-lg text-sm bg-white text-gray-dark focus:outline-none focus:border-purple-light focus:ring-2 focus:ring-purple/20 transition-all shadow-sm"
-              />
-            </div>
+        <div className="p-4 bg-gray-light border-b-2 border-purple/20">
+          <div className="relative w-full max-w-[400px]">
+            <input
+              type="text"
+              placeholder="🔍 Rechercher par nom, code, famille ou type..."
+              value={tableSearchTerm}
+              onChange={(e) => setTableSearchTerm(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-purple rounded-lg text-sm bg-white text-gray-dark focus:outline-none focus:border-purple-light focus:ring-2 focus:ring-purple/20 transition-all shadow-sm"
+            />
           </div>
-        )}
-        {getFilteredProducts().length === 0 ? (
-          <div className="py-16 px-8 text-center bg-gray-light">
-            <div className="text-6xl block mb-4 opacity-20">📋</div>
-            <h3 className="text-2xl text-gray-dark mb-2 font-semibold">
-              {tableSearchTerm ? 'Aucun résultat' : 'Aucun produit'}
-            </h3>
-            <p className="text-base text-gray-dark/70 m-0">
-              {tableSearchTerm ? 'Aucun produit ne correspond à votre recherche' : 'Créez votre premier produit pour commencer'}
-            </p>
-          </div>
-        ) : (
+        </div>
+        <div className="table-responsive">
           <table className="w-full border-collapse">
             <thead className="bg-gradient-to-r from-purple to-purple-dark text-white">
               <tr>
@@ -339,7 +377,29 @@ export default function ProductsPage() {
               </tr>
             </thead>
             <tbody>
-              {getFilteredProducts().map((product, index) => (
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-16 text-center">
+                    <div className="flex items-center justify-center gap-4 text-lg text-gray-600">
+                      <Loader size="md" />
+                      <span>Chargement...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : products.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-16 text-center bg-gray-light">
+                    <div className="text-6xl block mb-4 opacity-20">📋</div>
+                    <h3 className="text-2xl text-gray-dark mb-2 font-semibold">
+                      {tableSearchTerm ? 'Aucun résultat' : 'Aucun produit'}
+                    </h3>
+                    <p className="text-base text-gray-dark/70 m-0">
+                      {tableSearchTerm ? 'Aucun produit ne correspond à votre recherche' : 'Créez votre premier produit pour commencer'}
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                products.map((product, index) => (
                 <tr 
                   key={product.id}
                   className={`transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-light'} hover:bg-gray-hover`}
@@ -381,12 +441,24 @@ export default function ProductsPage() {
                     </button>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
+        </div>
+        {hasMore && !tableSearchTerm.trim() && (
+          <div ref={observerTarget} className="py-4 flex items-center justify-center">
+            {loadingMore && (
+              <div className="flex items-center gap-2 text-gray-600">
+                <Loader size="sm" />
+                <span>Chargement...</span>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
   );
 }
+
 

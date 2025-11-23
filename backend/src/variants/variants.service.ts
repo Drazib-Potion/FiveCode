@@ -88,33 +88,49 @@ export class VariantsService {
     return variant;
   }
 
-  async findAll() {
-    const variants = await this.prisma.variant.findMany({
-      include: {
-        family: true,
-        technicalCharacteristicVariants: {
-          include: {
-            technicalCharacteristic: true,
+  async findAll(offset: number = 0, limit: number = 50, search?: string) {
+    const searchFilter = search
+      ? {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' as const } },
+            { code: { contains: search, mode: 'insensitive' as const } },
+            { family: { name: { contains: search, mode: 'insensitive' as const } } },
+          ],
+        }
+      : {};
+
+    const [variants, total] = await Promise.all([
+      this.prisma.variant.findMany({
+        where: searchFilter,
+        include: {
+          family: true,
+          technicalCharacteristicVariants: {
+            include: {
+              technicalCharacteristic: true,
+            },
+          },
+          exclusionsAsVariant1: {
+            include: {
+              variant2: true,
+            },
+          },
+          exclusionsAsVariant2: {
+            include: {
+              variant1: true,
+            },
           },
         },
-        exclusionsAsVariant1: {
-          include: {
-            variant2: true,
-          },
+        orderBy: {
+          createdAt: 'desc',
         },
-        exclusionsAsVariant2: {
-          include: {
-            variant1: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        skip: offset,
+        take: limit,
+      }),
+      this.prisma.variant.count({ where: searchFilter }),
+    ]);
 
     // Ajouter excludedVariantIds à chaque variante
-    return variants.map((variant) => {
+    const data = variants.map((variant) => {
       const allExclusions = [
         ...variant.exclusionsAsVariant1.map((e) => e.variant2.id),
         ...variant.exclusionsAsVariant2.map((e) => e.variant1.id),
@@ -124,36 +140,57 @@ export class VariantsService {
         excludedVariantIds: allExclusions,
       };
     });
+
+    return {
+      data,
+      total,
+      hasMore: offset + limit < total,
+    };
   }
 
-  async findByFamily(familyId: string) {
-    const variants = await this.prisma.variant.findMany({
-      where: { familyId },
-      include: {
-        family: true,
-        technicalCharacteristicVariants: {
-          include: {
-            technicalCharacteristic: true,
+  async findByFamily(familyId: string, offset: number = 0, limit: number = 50, search?: string) {
+    const searchFilter = search
+      ? {
+          familyId,
+          OR: [
+            { name: { contains: search, mode: 'insensitive' as const } },
+            { code: { contains: search, mode: 'insensitive' as const } },
+          ],
+        }
+      : { familyId };
+
+    const [variants, total] = await Promise.all([
+      this.prisma.variant.findMany({
+        where: searchFilter,
+        include: {
+          family: true,
+          technicalCharacteristicVariants: {
+            include: {
+              technicalCharacteristic: true,
+            },
+          },
+          exclusionsAsVariant1: {
+            include: {
+              variant2: true,
+            },
+          },
+          exclusionsAsVariant2: {
+            include: {
+              variant1: true,
+            },
           },
         },
-        exclusionsAsVariant1: {
-          include: {
-            variant2: true,
-          },
+        orderBy: {
+          createdAt: 'desc',
         },
-        exclusionsAsVariant2: {
-          include: {
-            variant1: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        skip: offset,
+        take: limit,
+      }),
+      this.prisma.variant.count({ where: searchFilter }),
+    ]);
 
     // Ajouter excludedVariantIds à chaque variante
-    return variants.map((variant) => {
+    const data = variants.map((variant) => {
       const allExclusions = [
         ...variant.exclusionsAsVariant1.map((e) => e.variant2.id),
         ...variant.exclusionsAsVariant2.map((e) => e.variant1.id),
@@ -163,6 +200,12 @@ export class VariantsService {
         excludedVariantIds: allExclusions,
       };
     });
+
+    return {
+      data,
+      total,
+      hasMore: offset + limit < total,
+    };
   }
 
   async findOne(id: string) {

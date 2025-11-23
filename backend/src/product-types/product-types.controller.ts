@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
 import { ProductTypesService } from './product-types.service';
 import { CreateProductTypeDto } from './dto/create-product-type.dto';
 import { UpdateProductTypeDto } from './dto/update-product-type.dto';
@@ -15,8 +15,10 @@ export class ProductTypesController {
   }
 
   @Get()
-  findAll() {
-    return this.productTypesService.findAll();
+  findAll(@Query('offset') offset?: string, @Query('limit') limit?: string, @Query('search') search?: string) {
+    const offsetNum = offset ? parseInt(offset, 10) : 0;
+    const limitNum = limit ? parseInt(limit, 10) : 50;
+    return this.productTypesService.findAll(offsetNum, limitNum, search);
   }
 
   @Get(':id')

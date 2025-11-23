@@ -15,7 +15,10 @@ export class TechnicalCharacteristicsController {
   }
 
   @Get()
-  findAll(@Query('familyId') familyId?: string, @Query('variantIds') variantIds?: string) {
+  findAll(@Query('familyId') familyId?: string, @Query('variantIds') variantIds?: string, @Query('offset') offset?: string, @Query('limit') limit?: string, @Query('search') search?: string) {
+    const offsetNum = offset ? parseInt(offset, 10) : 0;
+    const limitNum = limit ? parseInt(limit, 10) : 50;
+    
     if (familyId) {
       // Si variantIds est fourni (même vide), utiliser findByFamilyAndVariant
       // Cela permet de filtrer correctement : avec un tableau vide, on obtient uniquement
@@ -23,22 +26,22 @@ export class TechnicalCharacteristicsController {
       if (variantIds !== undefined) {
         // variantIds peut être une chaîne séparée par des virgules ou une chaîne vide
         const variantIdsArray = variantIds ? variantIds.split(',').filter(id => id.trim() !== '') : [];
-        return this.technicalCharacteristicsService.findByFamilyAndVariant(familyId, variantIdsArray);
+        return this.technicalCharacteristicsService.findByFamilyAndVariant(familyId, variantIdsArray, offsetNum, limitNum, search);
       }
       // Si variantIds n'est pas fourni du tout, retourner toutes les caractéristiques de la famille
-      return this.technicalCharacteristicsService.findByFamily(familyId);
+      return this.technicalCharacteristicsService.findByFamily(familyId, offsetNum, limitNum, search);
     }
     if (variantIds) {
       const variantIdsArray = variantIds.split(',').filter(id => id.trim() !== '');
       if (variantIdsArray.length === 1) {
-        return this.technicalCharacteristicsService.findByVariant(variantIdsArray[0]);
+        return this.technicalCharacteristicsService.findByVariant(variantIdsArray[0], offsetNum, limitNum, search);
       }
       // Pour plusieurs variantes, on utilise findByFamilyAndVariant avec une famille vide
       // Mais on a besoin d'une famille, donc on récupère la famille de la première variante
       // Pour l'instant, on retourne toutes les caractéristiques associées à ces variantes
-      return this.technicalCharacteristicsService.findByVariant(variantIdsArray[0]);
+      return this.technicalCharacteristicsService.findByVariant(variantIdsArray[0], offsetNum, limitNum, search);
     }
-    return this.technicalCharacteristicsService.findAll();
+    return this.technicalCharacteristicsService.findAll(offsetNum, limitNum, search);
   }
 
   @Get(':id')

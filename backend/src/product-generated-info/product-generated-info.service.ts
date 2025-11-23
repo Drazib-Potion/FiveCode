@@ -56,7 +56,10 @@ export class ProductGeneratedInfoService {
     }
 
     // Récupérer les caractéristiques techniques applicables AVANT de vérifier les doublons
-    const allTechnicalCharacteristics = await this.technicalCharacteristicsService.findAll();
+    const allTechnicalCharacteristicsResponse = await this.technicalCharacteristicsService.findAll();
+    const allTechnicalCharacteristics = Array.isArray(allTechnicalCharacteristicsResponse) 
+      ? allTechnicalCharacteristicsResponse 
+      : allTechnicalCharacteristicsResponse.data;
 
     // Filtrer pour avoir les caractéristiques techniques qui s'appliquent
     const applicableTechnicalCharacteristics = allTechnicalCharacteristics.filter(

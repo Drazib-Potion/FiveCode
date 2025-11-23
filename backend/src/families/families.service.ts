@@ -27,20 +27,89 @@ export class FamiliesService {
     });
   }
 
-  async findAll() {
-    return this.prisma.family.findMany({
-      include: {
-        variants: true,
-        technicalCharacteristicFamilies: {
-          include: {
-            technicalCharacteristic: true,
+  async findAll(offset: number = 0, limit: number = 50, search?: string) {
+    const whereClause: any = {};
+    
+    if (search && typeof search === 'string' && search.trim().length > 0) {
+      const searchTerm = search.trim();
+      // Utiliser une requête SQL brute avec ILIKE pour PostgreSQL (insensible à la casse)
+      const searchPattern = `%${searchTerm}%`;
+      
+      // Requête SQL brute pour la recherche - utiliser les noms de colonnes de la base de données (snake_case)
+      const rawQuery = `
+        SELECT id FROM families 
+        WHERE LOWER(name) LIKE LOWER($1)
+        ORDER BY "createdAt" DESC
+        LIMIT $2 OFFSET $3
+      `;
+      
+      const countQuery = `
+        SELECT COUNT(*)::int as count FROM families 
+        WHERE LOWER(name) LIKE LOWER($1)
+      `;
+      
+      const [rawData, countResult] = await Promise.all([
+        this.prisma.$queryRawUnsafe<Array<{ id: string }>>(rawQuery, searchPattern, limit, offset),
+        this.prisma.$queryRawUnsafe<Array<{ count: number }>>(countQuery, searchPattern),
+      ]);
+      
+      const total = countResult[0]?.count || 0;
+      const familyIds = rawData.map((row) => row.id);
+      
+      // Récupérer les données complètes avec les relations
+      const data = await this.prisma.family.findMany({
+        where: { id: { in: familyIds } },
+        include: {
+          variants: true,
+          technicalCharacteristicFamilies: {
+            include: {
+              technicalCharacteristic: true,
+            },
           },
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      return {
+        data,
+        total,
+        hasMore: offset + limit < total,
+      };
+    }
+
+    // Pas de recherche - utiliser la requête normale
+    try {
+      const [data, total] = await Promise.all([
+        this.prisma.family.findMany({
+          where: whereClause,
+        include: {
+          variants: true,
+          technicalCharacteristicFamilies: {
+            include: {
+              technicalCharacteristic: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+          skip: offset,
+          take: limit,
+        }),
+        this.prisma.family.count({ where: whereClause }),
+      ]);
+
+      return {
+        data,
+        total,
+        hasMore: offset + limit < total,
+      };
+    } catch (error) {
+      console.error('[FamiliesService] Error executing query:', error);
+      throw error;
+    }
   }
 
   async findOne(id: string) {

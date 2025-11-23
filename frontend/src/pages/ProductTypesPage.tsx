@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { productTypesService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import Loader from '../components/Loader';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 
 interface ProductType {
   id: string;
@@ -22,22 +23,93 @@ export default function ProductTypesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const offsetRef = useRef(0);
+  const LIMIT = 20;
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async (reset: boolean = false, search?: string) => {
     try {
-      setLoading(true);
-      const data = await productTypesService.getAll();
-      setProductTypes(data);
+      if (reset) {
+        setLoading(true);
+        setHasMore(true);
+      } else {
+        setLoadingMore(true);
+      }
+      
+      const currentOffset = reset ? 0 : offsetRef.current;
+      const searchValue = search !== undefined ? search : searchTerm.trim() || undefined;
+      const response = await productTypesService.getAll(currentOffset, LIMIT, searchValue);
+      const data = Array.isArray(response) ? response : (response.data || []);
+      const hasMoreData = Array.isArray(response) ? data.length === LIMIT : (response.hasMore !== false && data.length === LIMIT);
+      
+      if (reset) {
+        // Dédupliquer les données au cas où l'API renverrait des doublons
+        const productTypesMap = new Map<string, ProductType>();
+        data.forEach((productType: ProductType) => {
+          if (!productTypesMap.has(productType.id)) {
+            productTypesMap.set(productType.id, productType);
+          }
+        });
+        const newProductTypes = Array.from(productTypesMap.values());
+        setLoading(false);
+        setProductTypes(newProductTypes);
+        offsetRef.current = newProductTypes.length;
+        setHasMore(hasMoreData);
+      } else {
+        setProductTypes(prev => {
+          const productTypesMap = new Map<string, ProductType>(prev.map(pt => [pt.id, pt]));
+          data.forEach((productType: ProductType) => {
+            if (!productTypesMap.has(productType.id)) {
+              productTypesMap.set(productType.id, productType);
+            }
+          });
+          return Array.from(productTypesMap.values());
+        });
+        offsetRef.current = offsetRef.current + data.length;
+        setHasMore(hasMoreData);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
-    } finally {
       setLoading(false);
+      setLoadingMore(false);
+    } finally {
+      if (!reset) {
+        setLoadingMore(false);
+      }
     }
-  };
+  }, [searchTerm]);
+
+  // Charger les données au montage (une seule fois)
+  useEffect(() => {
+    offsetRef.current = 0;
+    loadData(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Recharger quand la recherche change
+  useEffect(() => {
+    offsetRef.current = 0;
+    
+    const timeoutId = setTimeout(() => {
+      loadData(true, searchTerm);
+    }, searchTerm ? 300 : 0);
+
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]);
+
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore && !searchTerm.trim()) {
+      loadData(false);
+    }
+  }, [loadingMore, hasMore, searchTerm, loadData]);
+
+  const observerTarget = useInfiniteScroll({
+    hasMore,
+    loading: loadingMore,
+    onLoadMore: loadMore,
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,7 +123,7 @@ export default function ProductTypesPage() {
       setFormData({ name: '', code: '' });
       setShowForm(false);
       setEditingId(null);
-      loadData();
+      loadData(true);
     } catch (error: any) {
       console.error('Error saving product type:', error);
       const message = error.response?.data?.message || 'Erreur lors de la sauvegarde';
@@ -76,7 +148,7 @@ export default function ProductTypesPage() {
     setDeletingId(id);
     try {
       await productTypesService.delete(id);
-      loadData();
+      loadData(true);
     } catch (error: any) {
       console.error('Error deleting product type:', error);
       const message = error.response?.data?.message || 'Erreur lors de la suppression';
@@ -86,24 +158,6 @@ export default function ProductTypesPage() {
     }
   };
 
-  // Filtrer les types de produit selon la recherche
-  const getFilteredProductTypes = () => {
-    if (!searchTerm) return productTypes;
-    const searchLower = searchTerm.toLowerCase();
-    return productTypes.filter((productType) => 
-      productType.name.toLowerCase().includes(searchLower) ||
-      productType.code.toLowerCase().includes(searchLower)
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center gap-4 py-12 text-lg text-gray-600">
-        <div className="w-6 h-6 border-[3px] border-gray-300 border-t-purple rounded-full animate-spin"></div>
-        Chargement...
-      </div>
-    );
-  }
 
   return (
     <div className="w-full animate-fade-in">
@@ -167,30 +221,18 @@ export default function ProductTypesPage() {
       )}
 
       <div className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-purple/20 animate-fade-in">
-        {productTypes.length > 0 && (
-          <div className="p-4 bg-gray-light border-b-2 border-purple/20">
-            <div className="relative w-full max-w-[400px]">
-              <input
-                type="text"
-                placeholder="🔍 Rechercher par nom ou code..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-purple rounded-lg text-sm bg-white text-gray-dark focus:outline-none focus:border-purple-light focus:ring-2 focus:ring-purple/20 transition-all shadow-sm"
-              />
-            </div>
+        <div className="p-4 bg-gray-light border-b-2 border-purple/20">
+          <div className="relative w-full max-w-[400px]">
+            <input
+              type="text"
+              placeholder="🔍 Rechercher par nom ou code..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-purple rounded-lg text-sm bg-white text-gray-dark focus:outline-none focus:border-purple-light focus:ring-2 focus:ring-purple/20 transition-all shadow-sm"
+            />
           </div>
-        )}
-        {getFilteredProductTypes().length === 0 ? (
-          <div className="py-16 px-8 text-center bg-gray-light">
-            <div className="text-6xl block mb-4 opacity-20">📋</div>
-            <h3 className="text-2xl text-gray-dark mb-2 font-semibold">
-              {searchTerm ? 'Aucun résultat' : 'Aucun type de produit'}
-            </h3>
-            <p className="text-base text-gray-dark/70 m-0">
-              {searchTerm ? 'Aucun type de produit ne correspond à votre recherche' : 'Créez votre premier type de produit pour commencer'}
-            </p>
-          </div>
-        ) : (
+        </div>
+        <div className="table-responsive">
           <table className="w-full border-collapse">
             <thead className="bg-gradient-to-r from-purple to-purple-dark text-white">
               <tr>
@@ -200,7 +242,29 @@ export default function ProductTypesPage() {
               </tr>
             </thead>
             <tbody>
-              {getFilteredProductTypes().map((productType, index) => (
+              {loading ? (
+                <tr>
+                  <td colSpan={3} className="px-6 py-16 text-center">
+                    <div className="flex items-center justify-center gap-4 text-lg text-gray-600">
+                      <Loader size="md" />
+                      <span>Chargement...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : productTypes.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="px-6 py-16 text-center bg-gray-light">
+                    <div className="text-6xl block mb-4 opacity-20">📋</div>
+                    <h3 className="text-2xl text-gray-dark mb-2 font-semibold">
+                      {searchTerm ? 'Aucun résultat' : 'Aucun type de produit'}
+                    </h3>
+                    <p className="text-base text-gray-dark/70 m-0">
+                      {searchTerm ? 'Aucun type de produit ne correspond à votre recherche' : 'Créez votre premier type de produit pour commencer'}
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                productTypes.map((productType, index) => (
                 <tr 
                   key={productType.id}
                   className={`transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-light'} hover:bg-gray-hover`}
@@ -226,12 +290,24 @@ export default function ProductTypesPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
+        </div>
+        {hasMore && !searchTerm.trim() && (
+          <div ref={observerTarget} className="py-4 flex items-center justify-center">
+            {loadingMore && (
+              <div className="flex items-center gap-2 text-gray-600">
+                <Loader size="sm" />
+                <span>Chargement...</span>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
   );
 }
+
 

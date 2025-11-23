@@ -96,76 +96,160 @@ export class TechnicalCharacteristicsService {
     });
   }
 
-  async findAll() {
-    return this.prisma.technicalCharacteristic.findMany({
-      include: {
-        families: {
-          include: { family: true },
-        },
-        variants: {
-          include: {
-            variant: {
-              include: { family: true },
+  async findAll(offset: number = 0, limit: number = 50, search?: string) {
+    const searchFilter = search
+      ? {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' as const } },
+            { type: { contains: search, mode: 'insensitive' as const } },
+            { families: { some: { family: { name: { contains: search, mode: 'insensitive' as const } } } } },
+            { variants: { some: { variant: { name: { contains: search, mode: 'insensitive' as const } } } } },
+          ],
+        }
+      : {};
+
+    const [data, total] = await Promise.all([
+      this.prisma.technicalCharacteristic.findMany({
+        where: searchFilter,
+        include: {
+          families: {
+            include: { family: true },
+          },
+          variants: {
+            include: {
+              variant: {
+                include: { family: true },
+              },
             },
           },
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip: offset,
+        take: limit,
+      }),
+      this.prisma.technicalCharacteristic.count({ where: searchFilter }),
+    ]);
+
+    return {
+      data,
+      total,
+      hasMore: offset + limit < total,
+    };
   }
 
-  async findByFamily(familyId: string) {
-    return this.prisma.technicalCharacteristic.findMany({
-      where: {
-        families: {
-          some: { familyId }
+  async findByFamily(familyId: string, offset: number = 0, limit: number = 50, search?: string) {
+    const baseFilter = {
+      families: {
+        some: { familyId }
+      }
+    };
+
+    const searchFilter = search
+      ? {
+          ...baseFilter,
+          OR: [
+            { name: { contains: search, mode: 'insensitive' as const } },
+            { type: { contains: search, mode: 'insensitive' as const } },
+          ],
         }
-      },
-      include: {
-        families: {
-          include: { family: true }
+      : baseFilter;
+
+    const [data, total] = await Promise.all([
+      this.prisma.technicalCharacteristic.findMany({
+        where: searchFilter,
+        include: {
+          families: {
+            include: { family: true }
+          },
+          variants: {
+            include: { variant: true }
+          },
         },
-        variants: {
-          include: { variant: true }
+        orderBy: {
+          createdAt: 'desc',
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        skip: offset,
+        take: limit,
+      }),
+      this.prisma.technicalCharacteristic.count({
+        where: searchFilter,
+      }),
+    ]);
+
+    return {
+      data,
+      total,
+      hasMore: offset + limit < total,
+    };
   }
 
-  async findByVariant(variantId: string) {
-    return this.prisma.technicalCharacteristic.findMany({
-      where: {
-        variants: {
-          some: { variantId }
+  async findByVariant(variantId: string, offset: number = 0, limit: number = 50, search?: string) {
+    const baseFilter = {
+      variants: {
+        some: { variantId }
+      }
+    };
+
+    const searchFilter = search
+      ? {
+          ...baseFilter,
+          OR: [
+            { name: { contains: search, mode: 'insensitive' as const } },
+            { type: { contains: search, mode: 'insensitive' as const } },
+          ],
         }
-      },
-      include: {
-        families: {
-          include: { family: true }
+      : baseFilter;
+
+    const [data, total] = await Promise.all([
+      this.prisma.technicalCharacteristic.findMany({
+        where: searchFilter,
+        include: {
+          families: {
+            include: { family: true }
+          },
+          variants: {
+            include: { variant: true }
+          },
         },
-        variants: {
-          include: { variant: true }
+        orderBy: {
+          createdAt: 'desc',
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        skip: offset,
+        take: limit,
+      }),
+      this.prisma.technicalCharacteristic.count({
+        where: searchFilter,
+      }),
+    ]);
+
+    return {
+      data,
+      total,
+      hasMore: offset + limit < total,
+    };
   }
 
-  async findByFamilyAndVariant(familyId: string, variantIds: string[]) {
+  async findByFamilyAndVariant(familyId: string, variantIds: string[], offset: number = 0, limit: number = 50, search?: string) {
+    // Construire le filtre de base
+    const baseFilter: any = {
+      families: {
+        some: { familyId },
+      },
+    };
+
+    // Ajouter le filtre de recherche si fourni
+    if (search) {
+      baseFilter.OR = [
+        { name: { contains: search, mode: 'insensitive' as const } },
+        { type: { contains: search, mode: 'insensitive' as const } },
+      ];
+    }
+
     // Récupérer toutes les caractéristiques techniques associées à la famille
     const allTechnicalCharacteristics = await this.prisma.technicalCharacteristic.findMany({
-      where: {
-        families: {
-          some: { familyId },
-        },
-      },
+      where: baseFilter,
       include: {
         families: {
           include: { family: true },
@@ -185,7 +269,7 @@ export class TechnicalCharacteristicsService {
 
     // Filtrer selon la logique : si pas de variantes pour cette famille, s'applique à toute la famille
     // Sinon, vérifier si une des variantes sélectionnées correspond
-    return allTechnicalCharacteristics.filter((technicalCharacteristic) => {
+    const filtered = allTechnicalCharacteristics.filter((technicalCharacteristic) => {
       // Récupérer les variantes associées avec leur famille (en filtrant les null/undefined)
       const associatedVariants = (technicalCharacteristic.variants || [])
         .filter((tcVariant: any) => tcVariant.variant && tcVariant.variant.familyId) // Filtrer les variantes invalides
@@ -210,6 +294,34 @@ export class TechnicalCharacteristicsService {
         variantIdsForThisFamily.includes(variantId)
       );
     });
+
+    // Appliquer la recherche supplémentaire si nécessaire (pour les champs liés)
+    let finalFiltered = filtered;
+    if (search) {
+      const searchLower = search.toLowerCase();
+      finalFiltered = filtered.filter((tc) => {
+        // Vérifier le nom et le type (déjà fait dans la requête Prisma)
+        // Vérifier aussi les familles et variantes associées
+        const familyNames = (tc.families || []).map((f: any) => f.family?.name?.toLowerCase() || '').join(' ');
+        const variantNames = (tc.variants || []).map((v: any) => v.variant?.name?.toLowerCase() || '').join(' ');
+        return (
+          tc.name.toLowerCase().includes(searchLower) ||
+          tc.type.toLowerCase().includes(searchLower) ||
+          familyNames.includes(searchLower) ||
+          variantNames.includes(searchLower)
+        );
+      });
+    }
+
+    // Appliquer la pagination sur le résultat filtré
+    const total = finalFiltered.length;
+    const data = finalFiltered.slice(offset, offset + limit);
+
+    return {
+      data,
+      total,
+      hasMore: offset + limit < total,
+    };
   }
 
   async findOne(id: string) {

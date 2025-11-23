@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { technicalCharacteristicsService, familiesService, variantsService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import { formatFieldType, getFieldTypeOptions } from '../utils/fieldTypeFormatter';
 import Loader from '../components/Loader';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 
 interface TechnicalCharacteristic {
   id: string;
@@ -51,28 +52,117 @@ export default function TechnicalCharacteristicsPage() {
   const [tableSearchTerm, setTableSearchTerm] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const offsetRef = useRef(0);
+  const LIMIT = 20;
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async (reset: boolean = false, search?: string) => {
     try {
-      setLoading(true);
-      const [technicalCharacteristicsData, familiesData, variantsData] = await Promise.all([
-        technicalCharacteristicsService.getAll(),
-        familiesService.getAll(),
-        variantsService.getAll(),
-      ]);
-      setTechnicalCharacteristics(technicalCharacteristicsData);
-      setFamilies(familiesData);
-      setVariants(variantsData);
+      if (reset) {
+        setLoading(true);
+        setHasMore(true);
+      } else {
+        setLoadingMore(true);
+      }
+      
+      const currentOffset = reset ? 0 : offsetRef.current;
+      const searchValue = search !== undefined ? search : tableSearchTerm.trim() || undefined;
+      // Pour l'instant, on ne filtre pas par famille/variante dans le tableau principal
+      // On charge toutes les caractéristiques techniques
+      const response = await technicalCharacteristicsService.getAll(undefined, undefined, currentOffset, LIMIT, searchValue);
+      const data = Array.isArray(response) ? response : (response.data || []);
+      const hasMoreData = Array.isArray(response) ? data.length === LIMIT : (response.hasMore !== false && data.length === LIMIT);
+      
+      if (reset) {
+        // Dédupliquer les données
+        const tcMap = new Map<string, TechnicalCharacteristic>();
+        data.forEach((tc: TechnicalCharacteristic) => {
+          if (!tcMap.has(tc.id)) {
+            tcMap.set(tc.id, tc);
+          }
+        });
+        const newTCs = Array.from(tcMap.values());
+        setLoading(false);
+        setTechnicalCharacteristics(newTCs);
+        offsetRef.current = newTCs.length;
+        setHasMore(hasMoreData);
+      } else {
+        setTechnicalCharacteristics(prev => {
+          const tcMap = new Map<string, TechnicalCharacteristic>(prev.map(tc => [tc.id, tc]));
+          data.forEach((tc: TechnicalCharacteristic) => {
+            if (!tcMap.has(tc.id)) {
+              tcMap.set(tc.id, tc);
+            }
+          });
+          return Array.from(tcMap.values());
+        });
+        offsetRef.current = offsetRef.current + data.length;
+        setHasMore(hasMoreData);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
-    } finally {
       setLoading(false);
+      setLoadingMore(false);
+    } finally {
+      if (!reset) {
+        setLoadingMore(false);
+      }
+    }
+  }, [tableSearchTerm]);
+
+  // Charger les données au montage
+  useEffect(() => {
+    offsetRef.current = 0;
+    loadData(true);
+    loadFamilies();
+    loadVariants();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Recharger quand la recherche change
+  useEffect(() => {
+    offsetRef.current = 0;
+    
+    const timeoutId = setTimeout(() => {
+      loadData(true, tableSearchTerm);
+    }, tableSearchTerm ? 300 : 0);
+
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableSearchTerm]);
+
+  const loadFamilies = async () => {
+    try {
+      const data = await familiesService.getAll();
+      const familiesData = Array.isArray(data) ? data : (data.data || []);
+      setFamilies(familiesData);
+    } catch (error) {
+      console.error('Error loading families:', error);
     }
   };
+
+  const loadVariants = async () => {
+    try {
+      const data = await variantsService.getAll();
+      const variantsData = Array.isArray(data) ? data : (data.data || []);
+      setVariants(variantsData);
+    } catch (error) {
+      console.error('Error loading variants:', error);
+    }
+  };
+
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore && !tableSearchTerm.trim()) {
+      loadData(false);
+    }
+  }, [loadingMore, hasMore, tableSearchTerm, loadData]);
+
+  const observerTarget = useInfiniteScroll({
+    hasMore,
+    loading: loadingMore,
+    onLoadMore: loadMore,
+  });
 
   // Filtrer les familles selon la recherche
   const getFilteredFamilies = () => {
@@ -100,17 +190,6 @@ export default function TechnicalCharacteristicsPage() {
     return filtered;
   };
 
-  // Filtrer les caractéristiques techniques du tableau selon la recherche
-  const getFilteredTechnicalCharacteristics = () => {
-    if (!tableSearchTerm) return technicalCharacteristics;
-    const searchLower = tableSearchTerm.toLowerCase();
-    return technicalCharacteristics.filter((tc) => 
-      tc.name.toLowerCase().includes(searchLower) ||
-      tc.type.toLowerCase().includes(searchLower) ||
-      (tc.families && tc.families.some((f: any) => f.family.name.toLowerCase().includes(searchLower))) ||
-      (tc.variants && tc.variants.some((v: any) => v.variant.name.toLowerCase().includes(searchLower)))
-    );
-  };
 
   const handleFamilyToggle = (familyId: string) => {
     const isSelected = formData.familyIds.includes(familyId);
@@ -169,7 +248,7 @@ export default function TechnicalCharacteristicsPage() {
       setVariantSearch('');
       setShowForm(false);
       setEditingId(null);
-      loadData();
+      loadData(true);
     } catch (error: any) {
       console.error('Error saving technical characteristic:', error);
       const message = error.response?.data?.message || 'Erreur lors de la sauvegarde';
@@ -199,7 +278,7 @@ export default function TechnicalCharacteristicsPage() {
     setDeletingId(id);
     try {
       await technicalCharacteristicsService.delete(id);
-      loadData();
+      loadData(true);
     } catch (error) {
       console.error('Error deleting technical characteristic:', error);
       await showAlert('Erreur lors de la suppression', 'error');
@@ -207,15 +286,6 @@ export default function TechnicalCharacteristicsPage() {
       setDeletingId(null);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center gap-4 py-12 text-lg text-gray-600">
-        <div className="w-6 h-6 border-[3px] border-gray-300 border-t-purple rounded-full animate-spin"></div>
-        Chargement...
-      </div>
-    );
-  }
 
   return (
     <div className="w-full animate-fade-in">
@@ -455,30 +525,18 @@ export default function TechnicalCharacteristicsPage() {
       )}
 
       <div className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-purple/20 animate-fade-in">
-        {technicalCharacteristics.length > 0 && (
-          <div className="p-4 bg-gray-light border-b-2 border-purple/20">
-            <div className="relative w-full max-w-[400px]">
-              <input
-                type="text"
-                placeholder="🔍 Rechercher par nom, type, famille ou variante..."
-                value={tableSearchTerm}
-                onChange={(e) => setTableSearchTerm(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-purple rounded-lg text-sm bg-white text-gray-dark focus:outline-none focus:border-purple-light focus:ring-2 focus:ring-purple/20 transition-all shadow-sm"
-              />
-            </div>
+        <div className="p-4 bg-gray-light border-b-2 border-purple/20">
+          <div className="relative w-full max-w-[400px]">
+            <input
+              type="text"
+              placeholder="🔍 Rechercher par nom, type, famille ou variante..."
+              value={tableSearchTerm}
+              onChange={(e) => setTableSearchTerm(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-purple rounded-lg text-sm bg-white text-gray-dark focus:outline-none focus:border-purple-light focus:ring-2 focus:ring-purple/20 transition-all shadow-sm"
+            />
           </div>
-        )}
-        {getFilteredTechnicalCharacteristics().length === 0 ? (
-          <div className="py-16 px-8 text-center bg-gray-light">
-            <div className="text-6xl block mb-4 opacity-20">📋</div>
-            <h3 className="text-2xl text-gray-dark mb-2 font-semibold">
-              {tableSearchTerm ? 'Aucun résultat' : 'Aucune caractéristique technique'}
-            </h3>
-            <p className="text-base text-gray-dark/70 m-0">
-              {tableSearchTerm ? 'Aucune caractéristique technique ne correspond à votre recherche' : 'Créez votre première caractéristique technique pour commencer'}
-            </p>
-          </div>
-        ) : (
+        </div>
+        <div className="table-responsive">
           <table className="w-full border-collapse">
             <thead className="bg-gradient-to-r from-purple to-purple-dark text-white">
               <tr>
@@ -490,7 +548,29 @@ export default function TechnicalCharacteristicsPage() {
               </tr>
             </thead>
             <tbody>
-              {getFilteredTechnicalCharacteristics().map((technicalCharacteristic, index) => (
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-16 text-center">
+                    <div className="flex items-center justify-center gap-4 text-lg text-gray-600">
+                      <Loader size="md" />
+                      <span>Chargement...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : technicalCharacteristics.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-16 text-center bg-gray-light">
+                    <div className="text-6xl block mb-4 opacity-20">📋</div>
+                    <h3 className="text-2xl text-gray-dark mb-2 font-semibold">
+                      {tableSearchTerm ? 'Aucun résultat' : 'Aucune caractéristique technique'}
+                    </h3>
+                    <p className="text-base text-gray-dark/70 m-0">
+                      {tableSearchTerm ? 'Aucune caractéristique technique ne correspond à votre recherche' : 'Créez votre première caractéristique technique pour commencer'}
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                technicalCharacteristics.map((technicalCharacteristic, index) => (
                 <tr 
                   key={technicalCharacteristic.id}
                   className={`transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-light'} hover:bg-gray-hover`}
@@ -526,9 +606,20 @@ export default function TechnicalCharacteristicsPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
+        </div>
+        {hasMore && !tableSearchTerm.trim() && (
+          <div ref={observerTarget} className="py-4 flex items-center justify-center">
+            {loadingMore && (
+              <div className="flex items-center gap-2 text-gray-600">
+                <Loader size="sm" />
+                <span>Chargement...</span>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

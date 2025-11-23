@@ -59,8 +59,15 @@ export const authService = {
 
 // Families Service
 export const familiesService = {
-  getAll: async () => {
-    const response = await apiClient.get('/families');
+  getAll: async (offset: number = 0, limit: number = 50, search?: string) => {
+    const params = new URLSearchParams();
+    params.append('offset', offset.toString());
+    params.append('limit', limit.toString());
+    if (search && search.trim()) {
+      params.append('search', search.trim());
+    }
+    const url = `/families?${params.toString()}`;
+    const response = await apiClient.get(url);
     return response.data;
   },
   getById: async (id: string) => {
@@ -83,9 +90,13 @@ export const familiesService = {
 
 // Variants Service
 export const variantsService = {
-  getAll: async (familyId?: string) => {
-    const url = familyId ? `/variants?familyId=${familyId}` : '/variants';
-    const response = await apiClient.get(url);
+  getAll: async (familyId?: string, offset: number = 0, limit: number = 50, search?: string) => {
+    const params = new URLSearchParams();
+    if (familyId) params.append('familyId', familyId);
+    params.append('offset', offset.toString());
+    params.append('limit', limit.toString());
+    if (search) params.append('search', search);
+    const response = await apiClient.get(`/variants?${params}`);
     return response.data;
   },
   getById: async (id: string) => {
@@ -108,7 +119,7 @@ export const variantsService = {
 
 // Technical Characteristics Service
 export const technicalCharacteristicsService = {
-  getAll: async (familyId?: string, variantIds?: string) => {
+  getAll: async (familyId?: string, variantIds?: string, offset: number = 0, limit: number = 50, search?: string) => {
     const params = new URLSearchParams();
     if (familyId) params.append('familyId', familyId);
     // Toujours passer variantIds si familyId est présent, même si c'est une chaîne vide
@@ -116,7 +127,10 @@ export const technicalCharacteristicsService = {
     if (familyId && variantIds !== undefined) {
       params.append('variantIds', variantIds);
     }
-    const url = params.toString() ? `/technical-characteristics?${params}` : '/technical-characteristics';
+    params.append('offset', offset.toString());
+    params.append('limit', limit.toString());
+    if (search) params.append('search', search);
+    const url = `/technical-characteristics?${params}`;
     const response = await apiClient.get(url);
     return response.data;
   },
@@ -149,8 +163,12 @@ export const productsService = {
     const response = await apiClient.post('/products', data);
     return response.data;
   },
-  getAll: async () => {
-    const response = await apiClient.get('/products');
+  getAll: async (offset: number = 0, limit: number = 50, search?: string) => {
+    const params = new URLSearchParams();
+    params.append('offset', offset.toString());
+    params.append('limit', limit.toString());
+    if (search) params.append('search', search);
+    const response = await apiClient.get(`/products?${params}`);
     return response.data;
   },
   getById: async (id: string) => {
@@ -192,8 +210,12 @@ export const productGeneratedInfoService = {
 
 // Product Types Service
 export const productTypesService = {
-  getAll: async () => {
-    const response = await apiClient.get('/product-types');
+  getAll: async (offset: number = 0, limit: number = 50, search?: string) => {
+    const params = new URLSearchParams();
+    params.append('offset', offset.toString());
+    params.append('limit', limit.toString());
+    if (search) params.append('search', search);
+    const response = await apiClient.get(`/product-types?${params}`);
     return response.data;
   },
   getOne: async (id: string) => {
