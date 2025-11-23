@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateVariantDto } from './dto/create-variant.dto';
 import { UpdateVariantDto } from './dto/update-variant.dto';
+import { normalizeString } from '../utils/string-normalizer';
 
 @Injectable()
 export class VariantsService {
@@ -22,9 +23,9 @@ export class VariantsService {
       where: { familyId: createVariantDto.familyId },
     });
 
-    // Vérifier que le code n'existe pas déjà pour cette famille (insensible à la casse)
+    // Vérifier que le code n'existe pas déjà pour cette famille (insensible à la casse et aux accents)
     const existingByCode = familyVariants.find(
-      (v) => v.code.toLowerCase() === createVariantDto.code.toLowerCase(),
+      (v) => normalizeString(v.code) === normalizeString(createVariantDto.code),
     );
 
     if (existingByCode) {
@@ -33,9 +34,9 @@ export class VariantsService {
       );
     }
 
-    // Vérifier que le nom n'existe pas déjà pour cette famille (insensible à la casse)
+    // Vérifier que le nom n'existe pas déjà pour cette famille (insensible à la casse et aux accents)
     const existingByName = familyVariants.find(
-      (v) => v.name.toLowerCase() === createVariantDto.name.toLowerCase(),
+      (v) => normalizeString(v.name) === normalizeString(createVariantDto.name),
     );
 
     if (existingByName) {
@@ -89,48 +90,52 @@ export class VariantsService {
   }
 
   async findAll(offset: number = 0, limit: number = 50, search?: string) {
-    const searchFilter = search
-      ? {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' as const } },
-            { code: { contains: search, mode: 'insensitive' as const } },
-            { family: { name: { contains: search, mode: 'insensitive' as const } } },
-          ],
-        }
-      : {};
+    // Récupérer toutes les variantes si recherche, sinon utiliser la pagination normale
+    let allVariants = await this.prisma.variant.findMany({
+      include: {
+        family: true,
+        technicalCharacteristicVariants: {
+          include: {
+            technicalCharacteristic: true,
+          },
+        },
+        exclusionsAsVariant1: {
+          include: {
+            variant2: true,
+          },
+        },
+        exclusionsAsVariant2: {
+          include: {
+            variant1: true,
+          },
+        },
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
 
-    const [variants, total] = await Promise.all([
-      this.prisma.variant.findMany({
-        where: searchFilter,
-        include: {
-          family: true,
-          technicalCharacteristicVariants: {
-            include: {
-              technicalCharacteristic: true,
-            },
-          },
-          exclusionsAsVariant1: {
-            include: {
-              variant2: true,
-            },
-          },
-          exclusionsAsVariant2: {
-            include: {
-              variant1: true,
-            },
-          },
-        },
-        orderBy: {
-          name: 'asc',
-        },
-        skip: offset,
-        take: limit,
-      }),
-      this.prisma.variant.count({ where: searchFilter }),
-    ]);
+    // Filtrer avec normalisation si recherche
+    if (search && typeof search === 'string' && search.trim().length > 0) {
+      const normalizedSearch = normalizeString(search.trim());
+      allVariants = allVariants.filter((variant) => {
+        const normalizedName = normalizeString(variant.name);
+        const normalizedCode = normalizeString(variant.code);
+        const normalizedFamilyName = variant.family ? normalizeString(variant.family.name) : '';
+        return (
+          normalizedName.includes(normalizedSearch) ||
+          normalizedCode.includes(normalizedSearch) ||
+          normalizedFamilyName.includes(normalizedSearch)
+        );
+      });
+    }
+
+    // Appliquer la pagination
+    const total = allVariants.length;
+    const paginatedVariants = allVariants.slice(offset, offset + limit);
 
     // Ajouter excludedVariantIds à chaque variante
-    const data = variants.map((variant) => {
+    const data = paginatedVariants.map((variant) => {
       const allExclusions = [
         ...variant.exclusionsAsVariant1.map((e) => e.variant2.id),
         ...variant.exclusionsAsVariant2.map((e) => e.variant1.id),
@@ -149,48 +154,51 @@ export class VariantsService {
   }
 
   async findByFamily(familyId: string, offset: number = 0, limit: number = 50, search?: string) {
-    const searchFilter = search
-      ? {
-          familyId,
-          OR: [
-            { name: { contains: search, mode: 'insensitive' as const } },
-            { code: { contains: search, mode: 'insensitive' as const } },
-          ],
-        }
-      : { familyId };
+    // Récupérer toutes les variantes de la famille
+    let allVariants = await this.prisma.variant.findMany({
+      where: { familyId },
+      include: {
+        family: true,
+        technicalCharacteristicVariants: {
+          include: {
+            technicalCharacteristic: true,
+          },
+        },
+        exclusionsAsVariant1: {
+          include: {
+            variant2: true,
+          },
+        },
+        exclusionsAsVariant2: {
+          include: {
+            variant1: true,
+          },
+        },
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
 
-    const [variants, total] = await Promise.all([
-      this.prisma.variant.findMany({
-        where: searchFilter,
-        include: {
-          family: true,
-          technicalCharacteristicVariants: {
-            include: {
-              technicalCharacteristic: true,
-            },
-          },
-          exclusionsAsVariant1: {
-            include: {
-              variant2: true,
-            },
-          },
-          exclusionsAsVariant2: {
-            include: {
-              variant1: true,
-            },
-          },
-        },
-        orderBy: {
-          name: 'asc',
-        },
-        skip: offset,
-        take: limit,
-      }),
-      this.prisma.variant.count({ where: searchFilter }),
-    ]);
+    // Filtrer avec normalisation si recherche
+    if (search && typeof search === 'string' && search.trim().length > 0) {
+      const normalizedSearch = normalizeString(search.trim());
+      allVariants = allVariants.filter((variant) => {
+        const normalizedName = normalizeString(variant.name);
+        const normalizedCode = normalizeString(variant.code);
+        return (
+          normalizedName.includes(normalizedSearch) ||
+          normalizedCode.includes(normalizedSearch)
+        );
+      });
+    }
+
+    // Appliquer la pagination
+    const total = allVariants.length;
+    const paginatedVariants = allVariants.slice(offset, offset + limit);
 
     // Ajouter excludedVariantIds à chaque variante
-    const data = variants.map((variant) => {
+    const data = paginatedVariants.map((variant) => {
       const allExclusions = [
         ...variant.exclusionsAsVariant1.map((e) => e.variant2.id),
         ...variant.exclusionsAsVariant2.map((e) => e.variant1.id),
@@ -258,10 +266,10 @@ export class VariantsService {
       },
     });
 
-    // Si le code est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse)
-    if (updateVariantDto.code && updateVariantDto.code.toLowerCase() !== variant.code.toLowerCase()) {
+    // Si le code est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse et aux accents)
+    if (updateVariantDto.code && normalizeString(updateVariantDto.code) !== normalizeString(variant.code)) {
       const existingByCode = familyVariants.find(
-        (v) => v.code.toLowerCase() === updateVariantDto.code.toLowerCase(),
+        (v) => normalizeString(v.code) === normalizeString(updateVariantDto.code),
       );
 
       if (existingByCode) {
@@ -271,10 +279,10 @@ export class VariantsService {
       }
     }
 
-    // Si le nom est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse)
-    if (updateVariantDto.name && updateVariantDto.name.toLowerCase() !== variant.name.toLowerCase()) {
+    // Si le nom est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse et aux accents)
+    if (updateVariantDto.name && normalizeString(updateVariantDto.name) !== normalizeString(variant.name)) {
       const existingByName = familyVariants.find(
-        (v) => v.name.toLowerCase() === updateVariantDto.name.toLowerCase(),
+        (v) => normalizeString(v.name) === normalizeString(updateVariantDto.name),
       );
 
       if (existingByName) {

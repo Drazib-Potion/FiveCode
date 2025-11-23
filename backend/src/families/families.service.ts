@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateFamilyDto } from './dto/create-family.dto';
 import { UpdateFamilyDto } from './dto/update-family.dto';
+import { normalizeString } from '../utils/string-normalizer';
 
 @Injectable()
 export class FamiliesService {
@@ -11,9 +12,9 @@ export class FamiliesService {
     // Récupérer toutes les familles pour comparaison case-insensitive
     const allFamilies = await this.prisma.family.findMany();
 
-    // Vérifier que le nom n'existe pas déjà (insensible à la casse)
+    // Vérifier que le nom n'existe pas déjà (insensible à la casse et aux accents)
     const existing = allFamilies.find(
-      (f) => f.name.toLowerCase() === createFamilyDto.name.toLowerCase(),
+      (f) => normalizeString(f.name) === normalizeString(createFamilyDto.name),
     );
 
     if (existing) {
@@ -28,88 +29,39 @@ export class FamiliesService {
   }
 
   async findAll(offset: number = 0, limit: number = 50, search?: string) {
-    const whereClause: any = {};
-    
+    // Récupérer toutes les familles si recherche, sinon utiliser la pagination normale
+    let allFamilies = await this.prisma.family.findMany({
+      include: {
+        variants: true,
+        technicalCharacteristicFamilies: {
+          include: {
+            technicalCharacteristic: true,
+          },
+        },
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+
+    // Filtrer avec normalisation si recherche
     if (search && typeof search === 'string' && search.trim().length > 0) {
-      const searchTerm = search.trim();
-      // Utiliser une requête SQL brute avec ILIKE pour PostgreSQL (insensible à la casse)
-      const searchPattern = `%${searchTerm}%`;
-      
-      // Requête SQL brute pour la recherche - utiliser les noms de colonnes de la base de données (snake_case)
-      const rawQuery = `
-        SELECT id FROM families 
-        WHERE LOWER(name) LIKE LOWER($1)
-        ORDER BY "createdAt" DESC
-        LIMIT $2 OFFSET $3
-      `;
-      
-      const countQuery = `
-        SELECT COUNT(*)::int as count FROM families 
-        WHERE LOWER(name) LIKE LOWER($1)
-      `;
-      
-      const [rawData, countResult] = await Promise.all([
-        this.prisma.$queryRawUnsafe<Array<{ id: string }>>(rawQuery, searchPattern, limit, offset),
-        this.prisma.$queryRawUnsafe<Array<{ count: number }>>(countQuery, searchPattern),
-      ]);
-      
-      const total = countResult[0]?.count || 0;
-      const familyIds = rawData.map((row) => row.id);
-      
-      // Récupérer les données complètes avec les relations
-      const data = await this.prisma.family.findMany({
-        where: { id: { in: familyIds } },
-        include: {
-          variants: true,
-          technicalCharacteristicFamilies: {
-            include: {
-              technicalCharacteristic: true,
-            },
-          },
-        },
-        orderBy: {
-          name: 'asc',
-        },
+      const normalizedSearch = normalizeString(search.trim());
+      allFamilies = allFamilies.filter((family) => {
+        const normalizedName = normalizeString(family.name);
+        return normalizedName.includes(normalizedSearch);
       });
-
-      return {
-        data,
-        total,
-        hasMore: offset + limit < total,
-      };
     }
 
-    // Pas de recherche - utiliser la requête normale
-    try {
-      const [data, total] = await Promise.all([
-        this.prisma.family.findMany({
-          where: whereClause,
-        include: {
-          variants: true,
-          technicalCharacteristicFamilies: {
-            include: {
-              technicalCharacteristic: true,
-            },
-          },
-        },
-        orderBy: {
-          name: 'asc',
-        },
-          skip: offset,
-          take: limit,
-        }),
-        this.prisma.family.count({ where: whereClause }),
-      ]);
+    // Appliquer la pagination
+    const total = allFamilies.length;
+    const data = allFamilies.slice(offset, offset + limit);
 
-      return {
-        data,
-        total,
-        hasMore: offset + limit < total,
-      };
-    } catch (error) {
-      console.error('[FamiliesService] Error executing query:', error);
-      throw error;
-    }
+    return {
+      data,
+      total,
+      hasMore: offset + limit < total,
+    };
   }
 
   async findOne(id: string) {
@@ -140,10 +92,10 @@ export class FamiliesService {
       where: { id: { not: id } },
     });
 
-    // Si le nom est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse)
-    if (updateFamilyDto.name && updateFamilyDto.name.toLowerCase() !== family.name.toLowerCase()) {
+    // Si le nom est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse et aux accents)
+    if (updateFamilyDto.name && normalizeString(updateFamilyDto.name) !== normalizeString(family.name)) {
       const existing = allFamilies.find(
-        (f) => f.name.toLowerCase() === updateFamilyDto.name.toLowerCase(),
+        (f) => normalizeString(f.name) === normalizeString(updateFamilyDto.name),
       );
 
       if (existing) {

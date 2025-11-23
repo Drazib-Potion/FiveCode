@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
+import { normalizeString } from '../utils/string-normalizer';
 
 @Injectable()
 export class ProductsService {
@@ -34,9 +35,9 @@ export class ProductsService {
     // Récupérer tous les produits pour comparaison case-insensitive
     const allProducts = await this.prisma.product.findMany();
 
-    // Vérifier que le code n'existe pas déjà (insensible à la casse)
+    // Vérifier que le code n'existe pas déjà (insensible à la casse et aux accents)
     const existingByCode = allProducts.find(
-      (p) => p.code.toLowerCase() === createProductDto.code.toLowerCase(),
+      (p) => normalizeString(p.code) === normalizeString(createProductDto.code),
     );
 
     if (existingByCode) {
@@ -45,9 +46,9 @@ export class ProductsService {
       );
     }
 
-    // Vérifier que le nom n'existe pas déjà (insensible à la casse)
+    // Vérifier que le nom n'existe pas déjà (insensible à la casse et aux accents)
     const existingByName = allProducts.find(
-      (p) => p.name.toLowerCase() === createProductDto.name.toLowerCase(),
+      (p) => normalizeString(p.name) === normalizeString(createProductDto.name),
     );
 
     if (existingByName) {
@@ -71,33 +72,39 @@ export class ProductsService {
   }
 
   async findAll(offset: number = 0, limit: number = 50, search?: string) {
-    const searchFilter = search
-      ? {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' as const } },
-            { code: { contains: search, mode: 'insensitive' as const } },
-            { family: { name: { contains: search, mode: 'insensitive' as const } } },
-            { productType: { name: { contains: search, mode: 'insensitive' as const } } },
-            { productType: { code: { contains: search, mode: 'insensitive' as const } } },
-          ],
-        }
-      : {};
+    // Récupérer tous les produits si recherche, sinon utiliser la pagination normale
+    let allProducts = await this.prisma.product.findMany({
+      include: {
+        family: true,
+        productType: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
 
-    const [data, total] = await Promise.all([
-      this.prisma.product.findMany({
-        where: searchFilter,
-        include: {
-          family: true,
-          productType: true,
-        },
-        orderBy: {
-          name: 'asc',
-        },
-        skip: offset,
-        take: limit,
-      }),
-      this.prisma.product.count({ where: searchFilter }),
-    ]);
+    // Filtrer avec normalisation si recherche
+    if (search && typeof search === 'string' && search.trim().length > 0) {
+      const normalizedSearch = normalizeString(search.trim());
+      allProducts = allProducts.filter((product) => {
+        const normalizedName = normalizeString(product.name);
+        const normalizedCode = normalizeString(product.code);
+        const normalizedFamilyName = product.family ? normalizeString(product.family.name) : '';
+        const normalizedProductTypeName = product.productType ? normalizeString(product.productType.name) : '';
+        const normalizedProductTypeCode = product.productType ? normalizeString(product.productType.code) : '';
+        return (
+          normalizedName.includes(normalizedSearch) ||
+          normalizedCode.includes(normalizedSearch) ||
+          normalizedFamilyName.includes(normalizedSearch) ||
+          normalizedProductTypeName.includes(normalizedSearch) ||
+          normalizedProductTypeCode.includes(normalizedSearch)
+        );
+      });
+    }
+
+    // Appliquer la pagination
+    const total = allProducts.length;
+    const data = allProducts.slice(offset, offset + limit);
 
     return {
       data,

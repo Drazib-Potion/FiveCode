@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTechnicalCharacteristicDto } from './dto/create-technical-characteristic.dto';
 import { UpdateTechnicalCharacteristicDto } from './dto/update-technical-characteristic.dto';
+import { normalizeString } from '../utils/string-normalizer';
 
 @Injectable()
 export class TechnicalCharacteristicsService {
@@ -29,9 +30,9 @@ export class TechnicalCharacteristicsService {
     // Récupérer toutes les caractéristiques techniques pour comparaison case-insensitive
     const allTechnicalCharacteristics = await this.prisma.technicalCharacteristic.findMany();
 
-    // Vérifier que le nom n'existe pas déjà (insensible à la casse)
+    // Vérifier que le nom n'existe pas déjà (insensible à la casse et aux accents)
     const existing = allTechnicalCharacteristics.find(
-      (tc) => tc.name.toLowerCase() === createTechnicalCharacteristicDto.name.toLowerCase(),
+      (tc) => normalizeString(tc.name) === normalizeString(createTechnicalCharacteristicDto.name),
     );
 
     if (existing) {
@@ -97,40 +98,47 @@ export class TechnicalCharacteristicsService {
   }
 
   async findAll(offset: number = 0, limit: number = 50, search?: string) {
-    const searchFilter = search
-      ? {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' as const } },
-            { type: { contains: search, mode: 'insensitive' as const } },
-            { families: { some: { family: { name: { contains: search, mode: 'insensitive' as const } } } } },
-            { variants: { some: { variant: { name: { contains: search, mode: 'insensitive' as const } } } } },
-          ],
-        }
-      : {};
+    // Récupérer toutes les caractéristiques techniques si recherche, sinon utiliser la pagination normale
+    let allTechnicalCharacteristics = await this.prisma.technicalCharacteristic.findMany({
+      include: {
+        families: {
+          include: { family: true },
+        },
+        variants: {
+          include: { variant: true },
+        },
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
 
-    const [data, total] = await Promise.all([
-      this.prisma.technicalCharacteristic.findMany({
-        where: searchFilter,
-        include: {
-          families: {
-            include: { family: true },
-          },
-          variants: {
-            include: {
-              variant: {
-                include: { family: true },
-              },
-            },
-          },
-        },
-        orderBy: {
-          name: 'asc',
-        },
-        skip: offset,
-        take: limit,
-      }),
-      this.prisma.technicalCharacteristic.count({ where: searchFilter }),
-    ]);
+    // Filtrer avec normalisation si recherche
+    if (search && typeof search === 'string' && search.trim().length > 0) {
+      const normalizedSearch = normalizeString(search.trim());
+      allTechnicalCharacteristics = allTechnicalCharacteristics.filter((tc) => {
+        const normalizedName = normalizeString(tc.name);
+        const normalizedType = normalizeString(tc.type);
+        const familyNames = (tc.families || [])
+          .map((f: any) => f.family?.name || '')
+          .map((name: string) => normalizeString(name))
+          .join(' ');
+        const variantNames = (tc.variants || [])
+          .map((v: any) => v.variant?.name || '')
+          .map((name: string) => normalizeString(name))
+          .join(' ');
+        return (
+          normalizedName.includes(normalizedSearch) ||
+          normalizedType.includes(normalizedSearch) ||
+          familyNames.includes(normalizedSearch) ||
+          variantNames.includes(normalizedSearch)
+        );
+      });
+    }
+
+    // Appliquer la pagination
+    const total = allTechnicalCharacteristics.length;
+    const data = allTechnicalCharacteristics.slice(offset, offset + limit);
 
     return {
       data,
@@ -140,43 +148,42 @@ export class TechnicalCharacteristicsService {
   }
 
   async findByFamily(familyId: string, offset: number = 0, limit: number = 50, search?: string) {
-    const baseFilter = {
-      families: {
-        some: { familyId }
-      }
-    };
-
-    const searchFilter = search
-      ? {
-          ...baseFilter,
-          OR: [
-            { name: { contains: search, mode: 'insensitive' as const } },
-            { type: { contains: search, mode: 'insensitive' as const } },
-          ],
-        }
-      : baseFilter;
-
-    const [data, total] = await Promise.all([
-      this.prisma.technicalCharacteristic.findMany({
-        where: searchFilter,
-        include: {
-          families: {
-            include: { family: true }
-          },
-          variants: {
-            include: { variant: true }
-          },
+    // Récupérer toutes les caractéristiques techniques de la famille
+    let allTechnicalCharacteristics = await this.prisma.technicalCharacteristic.findMany({
+      where: {
+        families: {
+          some: { familyId },
         },
-        orderBy: {
-          name: 'asc',
+      },
+      include: {
+        families: {
+          include: { family: true },
         },
-        skip: offset,
-        take: limit,
-      }),
-      this.prisma.technicalCharacteristic.count({
-        where: searchFilter,
-      }),
-    ]);
+        variants: {
+          include: { variant: true },
+        },
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+
+    // Filtrer avec normalisation si recherche
+    if (search && typeof search === 'string' && search.trim().length > 0) {
+      const normalizedSearch = normalizeString(search.trim());
+      allTechnicalCharacteristics = allTechnicalCharacteristics.filter((tc) => {
+        const normalizedName = normalizeString(tc.name);
+        const normalizedType = normalizeString(tc.type);
+        return (
+          normalizedName.includes(normalizedSearch) ||
+          normalizedType.includes(normalizedSearch)
+        );
+      });
+    }
+
+    // Appliquer la pagination
+    const total = allTechnicalCharacteristics.length;
+    const data = allTechnicalCharacteristics.slice(offset, offset + limit);
 
     return {
       data,
@@ -186,43 +193,42 @@ export class TechnicalCharacteristicsService {
   }
 
   async findByVariant(variantId: string, offset: number = 0, limit: number = 50, search?: string) {
-    const baseFilter = {
-      variants: {
-        some: { variantId }
-      }
-    };
-
-    const searchFilter = search
-      ? {
-          ...baseFilter,
-          OR: [
-            { name: { contains: search, mode: 'insensitive' as const } },
-            { type: { contains: search, mode: 'insensitive' as const } },
-          ],
-        }
-      : baseFilter;
-
-    const [data, total] = await Promise.all([
-      this.prisma.technicalCharacteristic.findMany({
-        where: searchFilter,
-        include: {
-          families: {
-            include: { family: true }
-          },
-          variants: {
-            include: { variant: true }
-          },
+    // Récupérer toutes les caractéristiques techniques de la variante
+    let allTechnicalCharacteristics = await this.prisma.technicalCharacteristic.findMany({
+      where: {
+        variants: {
+          some: { variantId },
         },
-        orderBy: {
-          name: 'asc',
+      },
+      include: {
+        families: {
+          include: { family: true },
         },
-        skip: offset,
-        take: limit,
-      }),
-      this.prisma.technicalCharacteristic.count({
-        where: searchFilter,
-      }),
-    ]);
+        variants: {
+          include: { variant: true },
+        },
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+
+    // Filtrer avec normalisation si recherche
+    if (search && typeof search === 'string' && search.trim().length > 0) {
+      const normalizedSearch = normalizeString(search.trim());
+      allTechnicalCharacteristics = allTechnicalCharacteristics.filter((tc) => {
+        const normalizedName = normalizeString(tc.name);
+        const normalizedType = normalizeString(tc.type);
+        return (
+          normalizedName.includes(normalizedSearch) ||
+          normalizedType.includes(normalizedSearch)
+        );
+      });
+    }
+
+    // Appliquer la pagination
+    const total = allTechnicalCharacteristics.length;
+    const data = allTechnicalCharacteristics.slice(offset, offset + limit);
 
     return {
       data,
@@ -239,16 +245,8 @@ export class TechnicalCharacteristicsService {
       },
     };
 
-    // Ajouter le filtre de recherche si fourni
-    if (search) {
-      baseFilter.OR = [
-        { name: { contains: search, mode: 'insensitive' as const } },
-        { type: { contains: search, mode: 'insensitive' as const } },
-      ];
-    }
-
     // Récupérer toutes les caractéristiques techniques associées à la famille
-    const allTechnicalCharacteristics = await this.prisma.technicalCharacteristic.findMany({
+    let allTechnicalCharacteristics = await this.prisma.technicalCharacteristic.findMany({
       where: baseFilter,
       include: {
         families: {
@@ -269,7 +267,7 @@ export class TechnicalCharacteristicsService {
 
     // Filtrer selon la logique : si pas de variantes pour cette famille, s'applique à toute la famille
     // Sinon, vérifier si une des variantes sélectionnées correspond
-    const filtered = allTechnicalCharacteristics.filter((technicalCharacteristic) => {
+    let filtered = allTechnicalCharacteristics.filter((technicalCharacteristic) => {
       // Récupérer les variantes associées avec leur famille (en filtrant les null/undefined)
       const associatedVariants = (technicalCharacteristic.variants || [])
         .filter((tcVariant: any) => tcVariant.variant && tcVariant.variant.familyId) // Filtrer les variantes invalides
@@ -280,7 +278,7 @@ export class TechnicalCharacteristicsService {
 
       // Filtrer les variantes pour ne garder que celles qui appartiennent à la famille
       const variantsForThisFamily = associatedVariants.filter(
-        (v) => v.familyId === familyId
+        (v) => v.familyId === familyId,
       );
 
       // Si la caractéristique n'a pas de variantes pour cette famille, elle s'applique à toute la famille
@@ -291,24 +289,30 @@ export class TechnicalCharacteristicsService {
       // Si la caractéristique a des variantes pour cette famille, vérifier si une correspond aux variantes sélectionnées
       const variantIdsForThisFamily = variantsForThisFamily.map((v) => v.variantId);
       return variantIds.some((variantId) =>
-        variantIdsForThisFamily.includes(variantId)
+        variantIdsForThisFamily.includes(variantId),
       );
     });
 
-    // Appliquer la recherche supplémentaire si nécessaire (pour les champs liés)
+    // Appliquer la recherche avec normalisation si nécessaire
     let finalFiltered = filtered;
-    if (search) {
-      const searchLower = search.toLowerCase();
+    if (search && typeof search === 'string' && search.trim().length > 0) {
+      const normalizedSearch = normalizeString(search.trim());
       finalFiltered = filtered.filter((tc) => {
-        // Vérifier le nom et le type (déjà fait dans la requête Prisma)
-        // Vérifier aussi les familles et variantes associées
-        const familyNames = (tc.families || []).map((f: any) => f.family?.name?.toLowerCase() || '').join(' ');
-        const variantNames = (tc.variants || []).map((v: any) => v.variant?.name?.toLowerCase() || '').join(' ');
+        const normalizedName = normalizeString(tc.name);
+        const normalizedType = normalizeString(tc.type);
+        const familyNames = (tc.families || [])
+          .map((f: any) => f.family?.name || '')
+          .map((name: string) => normalizeString(name))
+          .join(' ');
+        const variantNames = (tc.variants || [])
+          .map((v: any) => v.variant?.name || '')
+          .map((name: string) => normalizeString(name))
+          .join(' ');
         return (
-          tc.name.toLowerCase().includes(searchLower) ||
-          tc.type.toLowerCase().includes(searchLower) ||
-          familyNames.includes(searchLower) ||
-          variantNames.includes(searchLower)
+          normalizedName.includes(normalizedSearch) ||
+          normalizedType.includes(normalizedSearch) ||
+          familyNames.includes(normalizedSearch) ||
+          variantNames.includes(normalizedSearch)
         );
       });
     }
@@ -376,10 +380,10 @@ export class TechnicalCharacteristicsService {
       where: { id: { not: id } },
     });
 
-    // Si le nom est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse)
-    if (updateTechnicalCharacteristicDto.name && updateTechnicalCharacteristicDto.name.toLowerCase() !== technicalCharacteristic.name.toLowerCase()) {
+    // Si le nom est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse et aux accents)
+    if (updateTechnicalCharacteristicDto.name && normalizeString(updateTechnicalCharacteristicDto.name) !== normalizeString(technicalCharacteristic.name)) {
       const existing = allTechnicalCharacteristics.find(
-        (tc) => tc.name.toLowerCase() === updateTechnicalCharacteristicDto.name.toLowerCase(),
+        (tc) => normalizeString(tc.name) === normalizeString(updateTechnicalCharacteristicDto.name),
       );
 
       if (existing) {

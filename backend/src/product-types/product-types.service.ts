@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductTypeDto } from './dto/create-product-type.dto';
 import { UpdateProductTypeDto } from './dto/update-product-type.dto';
+import { normalizeString } from '../utils/string-normalizer';
 
 @Injectable()
 export class ProductTypesService {
@@ -11,9 +12,9 @@ export class ProductTypesService {
     // Récupérer tous les types de produit pour comparaison case-insensitive
     const allProductTypes = await this.prisma.productType.findMany();
 
-    // Vérifier que le code n'existe pas déjà (insensible à la casse)
+    // Vérifier que le code n'existe pas déjà (insensible à la casse et aux accents)
     const existingByCode = allProductTypes.find(
-      (pt) => pt.code.toLowerCase() === createProductTypeDto.code.toLowerCase(),
+      (pt) => normalizeString(pt.code) === normalizeString(createProductTypeDto.code),
     );
 
     if (existingByCode) {
@@ -22,9 +23,9 @@ export class ProductTypesService {
       );
     }
 
-    // Vérifier que le nom n'existe pas déjà (insensible à la casse)
+    // Vérifier que le nom n'existe pas déjà (insensible à la casse et aux accents)
     const existingByName = allProductTypes.find(
-      (pt) => pt.name.toLowerCase() === createProductTypeDto.name.toLowerCase(),
+      (pt) => normalizeString(pt.name) === normalizeString(createProductTypeDto.name),
     );
 
     if (existingByName) {
@@ -39,26 +40,29 @@ export class ProductTypesService {
   }
 
   async findAll(offset: number = 0, limit: number = 50, search?: string) {
-    const searchFilter = search
-      ? {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' as const } },
-            { code: { contains: search, mode: 'insensitive' as const } },
-          ],
-        }
-      : {};
+    // Récupérer tous les types de produit si recherche, sinon utiliser la pagination normale
+    let allProductTypes = await this.prisma.productType.findMany({
+      orderBy: {
+        name: 'asc',
+      },
+    });
 
-    const [data, total] = await Promise.all([
-      this.prisma.productType.findMany({
-        where: searchFilter,
-        orderBy: {
-          name: 'asc',
-        },
-        skip: offset,
-        take: limit,
-      }),
-      this.prisma.productType.count({ where: searchFilter }),
-    ]);
+    // Filtrer avec normalisation si recherche
+    if (search && typeof search === 'string' && search.trim().length > 0) {
+      const normalizedSearch = normalizeString(search.trim());
+      allProductTypes = allProductTypes.filter((productType) => {
+        const normalizedName = normalizeString(productType.name);
+        const normalizedCode = normalizeString(productType.code);
+        return (
+          normalizedName.includes(normalizedSearch) ||
+          normalizedCode.includes(normalizedSearch)
+        );
+      });
+    }
+
+    // Appliquer la pagination
+    const total = allProductTypes.length;
+    const data = allProductTypes.slice(offset, offset + limit);
 
     return {
       data,
@@ -87,10 +91,10 @@ export class ProductTypesService {
       where: { id: { not: id } },
     });
 
-    // Si le code est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse)
-    if (updateProductTypeDto.code && updateProductTypeDto.code.toLowerCase() !== productType.code.toLowerCase()) {
+    // Si le code est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse et aux accents)
+    if (updateProductTypeDto.code && normalizeString(updateProductTypeDto.code) !== normalizeString(productType.code)) {
       const existingByCode = allProductTypes.find(
-        (pt) => pt.code.toLowerCase() === updateProductTypeDto.code.toLowerCase(),
+        (pt) => normalizeString(pt.code) === normalizeString(updateProductTypeDto.code),
       );
 
       if (existingByCode) {
@@ -100,10 +104,10 @@ export class ProductTypesService {
       }
     }
 
-    // Si le nom est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse)
-    if (updateProductTypeDto.name && updateProductTypeDto.name.toLowerCase() !== productType.name.toLowerCase()) {
+    // Si le nom est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse et aux accents)
+    if (updateProductTypeDto.name && normalizeString(updateProductTypeDto.name) !== normalizeString(productType.name)) {
       const existingByName = allProductTypes.find(
-        (pt) => pt.name.toLowerCase() === updateProductTypeDto.name.toLowerCase(),
+        (pt) => normalizeString(pt.name) === normalizeString(updateProductTypeDto.name),
       );
 
       if (existingByName) {
