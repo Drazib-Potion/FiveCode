@@ -170,6 +170,7 @@ export default function VariantsPage() {
     setExcludedVariantSearch('');
     setEditingId(variant.id);
     setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDelete = async (id: string) => {

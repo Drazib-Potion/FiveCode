@@ -140,6 +140,7 @@ export default function FamiliesPage() {
     setFormData({ name: family.name });
     setEditingId(family.id);
     setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDelete = async (id: string) => {

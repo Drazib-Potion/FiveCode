@@ -270,6 +270,7 @@ export default function TechnicalCharacteristicsPage() {
     setNewEnumOption('');
     setEditingId(technicalCharacteristic.id);
     setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDelete = async (id: string) => {
