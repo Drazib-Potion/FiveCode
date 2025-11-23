@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { productGeneratedInfoService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import * as XLSX from 'xlsx';
+import excelIcon from '../media/excel-icon.png';
 
 interface ProductGeneratedInfo {
   id: string;
@@ -164,9 +165,10 @@ export default function GeneratedCodesPage() {
         <div className="flex gap-4">
           <button
             onClick={handleExportToExcel}
-            className="bg-green-600 text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:bg-green-700 hover:shadow-xl hover:scale-105 active:scale-100"
+            className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100 flex items-center gap-2"
           >
-            📥 Exporter en Excel
+            <img src={excelIcon} alt="Excel" className="w-5 h-5" />
+            Exporter en Excel
           </button>
           <button 
             onClick={loadGeneratedInfos}
