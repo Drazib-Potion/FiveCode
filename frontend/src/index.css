@@ -98,3 +98,191 @@
   border-radius: 2px 2px 0 0;
 }
 
+/* Responsive styles for Layout */
+@media (max-width: 1400px) {
+  .nav-links {
+    gap: 0.75rem !important;
+    margin: 0 1rem !important;
+  }
+  
+  .nav-link {
+    padding: 0.4rem 0.75rem !important;
+    font-size: 0.9rem !important;
+  }
+}
+
+@media (max-width: 1200px) {
+  nav {
+    padding: 1rem 1.5rem !important;
+  }
+  
+  .nav-title {
+    font-size: 1.2rem !important;
+  }
+  
+  .nav-logo {
+    height: 60px !important;
+  }
+  
+  .nav-links {
+    gap: 0.5rem !important;
+    margin: 0 0.5rem !important;
+  }
+  
+  .nav-link {
+    padding: 0.4rem 0.6rem !important;
+    font-size: 0.85rem !important;
+  }
+  
+  .nav-separator {
+    font-size: 1rem !important;
+  }
+  
+  .user-email {
+    font-size: 0.8rem !important;
+  }
+}
+
+@media (max-width: 992px) {
+  nav {
+    padding: 1rem !important;
+  }
+  
+  .nav-title {
+    font-size: 1rem !important;
+  }
+  
+  .nav-logo {
+    height: 50px !important;
+  }
+  
+  .nav-links {
+    display: none !important;
+  }
+  
+  .mobile-menu-toggle {
+    display: block !important;
+  }
+  
+  .nav-user {
+    gap: 0.5rem !important;
+  }
+  
+  .user-email {
+    display: none;
+  }
+  
+  .logout-btn {
+    padding: 0.4rem 0.8rem !important;
+    font-size: 0.8rem !important;
+  }
+  
+  main {
+    padding: 1.5rem !important;
+  }
+}
+
+@media (max-width: 768px) {
+  nav {
+    padding: 0.75rem !important;
+  }
+  
+  .nav-title {
+    font-size: 0.9rem !important;
+  }
+  
+  .nav-logo {
+    height: 45px !important;
+  }
+  
+  main {
+    padding: 1rem !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .nav-title {
+    font-size: 0.8rem !important;
+  }
+  
+  .nav-logo {
+    height: 40px !important;
+  }
+  
+  .logout-btn {
+    padding: 0.35rem 0.6rem !important;
+    font-size: 0.75rem !important;
+  }
+  
+  main {
+    padding: 0.75rem !important;
+  }
+}
+
+/* Responsive styles for page content */
+@media (max-width: 992px) {
+  /* Make tables scrollable on smaller screens */
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .table-responsive table {
+    min-width: 600px;
+  }
+  
+  /* Responsive page headers */
+  .page-header-responsive {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1rem;
+  }
+  
+  .page-header-responsive h1 {
+    font-size: 1.5rem !important;
+  }
+  
+  .page-header-responsive button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Stack form buttons on mobile */
+  .form-buttons-responsive {
+    flex-direction: column !important;
+  }
+  
+  /* Make table cells more compact */
+  .table-responsive table th,
+  .table-responsive table td {
+    padding: 0.75rem 0.5rem !important;
+    font-size: 0.875rem;
+  }
+  
+  /* Stack action buttons on mobile */
+  .table-responsive table td:last-child {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .table-responsive table td:last-child button {
+    width: 100%;
+    margin-right: 0 !important;
+  }
+}
+
+@media (max-width: 576px) {
+  /* Further reduce sizes on very small screens */
+  .page-header-responsive h1 {
+    font-size: 1.25rem !important;
+  }
+  
+  .table-responsive table th,
+  .table-responsive table td {
+    padding: 0.5rem 0.25rem !important;
+    font-size: 0.8rem;
+  }
+}
+

@@ -87,7 +87,7 @@ export default function FamiliesPage() {
 
   return (
     <div className="w-full animate-fade-in">
-      <div className="flex justify-between items-center mb-10 pb-4 border-b-2 border-purple/20">
+      <div className="flex justify-between items-center mb-10 pb-4 border-b-2 border-purple/20 page-header-responsive">
         <h1 className="m-0 text-3xl font-bold text-purple">Gestion des Familles</h1>
         <button 
           onClick={() => { setShowForm(true); setEditingId(null); setFormData({ name: '' }); }}
@@ -113,7 +113,7 @@ export default function FamiliesPage() {
                 className="w-full px-4 py-3.5 border-2 border-gray-light rounded-xl text-base bg-white focus:outline-none focus:border-purple focus:ring-4 focus:ring-purple/20 transition-all duration-300 shadow-sm hover:border-purple/50"
               />
             </div>
-            <div className="flex gap-4 mt-8 pt-6 border-t-2 border-gray-light">
+            <div className="flex gap-4 mt-8 pt-6 border-t-2 border-gray-light form-buttons-responsive">
               <button 
                 type="submit"
                 className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg bg-gradient-to-r from-purple-light to-purple text-white hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100"
@@ -157,7 +157,8 @@ export default function FamiliesPage() {
             </p>
           </div>
         ) : (
-          <table className="w-full border-collapse">
+          <div className="table-responsive">
+            <table className="w-full border-collapse">
             <thead className="bg-gradient-to-r from-purple to-purple-dark text-white">
               <tr>
                 <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Nom</th>
@@ -189,6 +190,7 @@ export default function FamiliesPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>
