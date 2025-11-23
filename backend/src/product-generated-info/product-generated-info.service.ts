@@ -293,11 +293,7 @@ export class ProductGeneratedInfoService {
             family: true,
           },
         },
-        variants: {
-          include: {
-            variant: true,
-          },
-        },
+        variant: true,
         technicalCharacteristics: {
           include: {
             technicalCharacteristic: true,
