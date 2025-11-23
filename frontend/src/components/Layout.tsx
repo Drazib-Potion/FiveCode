@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import logo from '../media/fives-logo-white.png';
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -21,7 +22,12 @@ export default function Layout() {
         alignItems: 'center',
         boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
       }}>
-        <div style={{ flexShrink: 0 }}>
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <img 
+            src={logo} 
+            alt="Fives Logo" 
+            style={{ height: '70px', width: 'auto', marginBottom: '10px' }}
+          />
           <h1 style={{ fontSize: '1.5rem', margin: 0, fontWeight: 600, letterSpacing: '-0.01em' }}>
             Configurateur de Produits
           </h1>
