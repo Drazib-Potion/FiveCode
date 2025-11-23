@@ -277,7 +277,7 @@ export default function VariantsPage() {
               <button 
                 type="button" 
                 onClick={() => { setShowForm(false); setEditingId(null); setFamilySearch(''); setExcludedVariantSearch(''); }}
-                className="flex-1 px-8 py-3.5 border-2 border-gray-dark rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-md bg-white text-gray-dark hover:bg-gray-dark hover:text-white hover:shadow-lg hover:scale-105 active:scale-100"
+                className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg hover:scale-105 active:scale-100"
               >
                 ✕ Annuler
               </button>
