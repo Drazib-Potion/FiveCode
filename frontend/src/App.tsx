@@ -22,6 +22,18 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
 }
 
+function NotFoundRoute() {
+  const { isAuthenticated, isInitialized } = useAuth();
+  
+  // Attendre que l'initialisation soit terminée avant de rediriger
+  if (!isInitialized) {
+    return <div className="loading">Chargement...</div>;
+  }
+  
+  // Si authentifié, rediriger vers la page d'accueil, sinon vers /login
+  return <Navigate to={isAuthenticated ? "/" : "/login"} replace />;
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -43,6 +55,8 @@ function AppRoutes() {
         <Route path="generated-codes" element={<GeneratedCodesPage />} />
         <Route path="generator" element={<GeneratorPage />} />
       </Route>
+      {/* Route catch-all : rediriger toutes les routes non définies */}
+      <Route path="*" element={<NotFoundRoute />} />
     </Routes>
   );
 }
