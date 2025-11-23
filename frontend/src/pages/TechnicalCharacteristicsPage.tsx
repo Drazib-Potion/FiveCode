@@ -82,12 +82,11 @@ export default function TechnicalCharacteristicsPage() {
             tcMap.set(tc.id, tc);
           }
         });
-        const newTCs = Array.from(tcMap.values()).sort((a, b) => 
-          a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
-        );
+        const newTCs = Array.from(tcMap.values());
         setLoading(false);
         setTechnicalCharacteristics(newTCs);
-        offsetRef.current = newTCs.length;
+        // Mettre à jour l'offset avec le nombre d'éléments reçus
+        offsetRef.current = currentOffset + data.length;
         setHasMore(hasMoreData);
       } else {
         setTechnicalCharacteristics(prev => {
@@ -97,11 +96,10 @@ export default function TechnicalCharacteristicsPage() {
               tcMap.set(tc.id, tc);
             }
           });
-          return Array.from(tcMap.values()).sort((a, b) => 
-            a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
-          );
+          return Array.from(tcMap.values());
         });
-        offsetRef.current = offsetRef.current + data.length;
+        // Mettre à jour l'offset avec le nombre d'éléments reçus
+        offsetRef.current = currentOffset + data.length;
         setHasMore(hasMoreData);
       }
     } catch (error) {

@@ -64,12 +64,11 @@ export default function VariantsPage() {
             variantsMap.set(variant.id, variant);
           }
         });
-        const newVariants = Array.from(variantsMap.values()).sort((a, b) => 
-          a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
-        );
+        const newVariants = Array.from(variantsMap.values());
         setLoading(false);
         setVariants(newVariants);
-        offsetRef.current = newVariants.length;
+        // Mettre à jour l'offset avec le nombre d'éléments reçus
+        offsetRef.current = currentOffset + data.length;
         setHasMore(hasMoreData);
       } else {
         setVariants(prev => {
@@ -79,11 +78,10 @@ export default function VariantsPage() {
               variantsMap.set(variant.id, variant);
             }
           });
-          return Array.from(variantsMap.values()).sort((a, b) => 
-            a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
-          );
+          return Array.from(variantsMap.values());
         });
-        offsetRef.current = offsetRef.current + data.length;
+        // Mettre à jour l'offset avec le nombre d'éléments reçus
+        offsetRef.current = currentOffset + data.length;
         setHasMore(hasMoreData);
       }
     } catch (error) {

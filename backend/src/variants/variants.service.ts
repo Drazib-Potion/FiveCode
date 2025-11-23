@@ -121,7 +121,7 @@ export class VariantsService {
           },
         },
         orderBy: {
-          createdAt: 'desc',
+          name: 'asc',
         },
         skip: offset,
         take: limit,
@@ -181,7 +181,7 @@ export class VariantsService {
           },
         },
         orderBy: {
-          createdAt: 'desc',
+          name: 'asc',
         },
         skip: offset,
         take: limit,

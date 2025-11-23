@@ -68,7 +68,7 @@ export class FamiliesService {
           },
         },
         orderBy: {
-          createdAt: 'desc',
+          name: 'asc',
         },
       });
 
@@ -93,7 +93,7 @@ export class FamiliesService {
           },
         },
         orderBy: {
-          createdAt: 'desc',
+          name: 'asc',
         },
           skip: offset,
           take: limit,

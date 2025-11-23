@@ -124,7 +124,7 @@ export class TechnicalCharacteristicsService {
           },
         },
         orderBy: {
-          createdAt: 'desc',
+          name: 'asc',
         },
         skip: offset,
         take: limit,
@@ -168,7 +168,7 @@ export class TechnicalCharacteristicsService {
           },
         },
         orderBy: {
-          createdAt: 'desc',
+          name: 'asc',
         },
         skip: offset,
         take: limit,
@@ -214,7 +214,7 @@ export class TechnicalCharacteristicsService {
           },
         },
         orderBy: {
-          createdAt: 'desc',
+          name: 'asc',
         },
         skip: offset,
         take: limit,
@@ -263,7 +263,7 @@ export class TechnicalCharacteristicsService {
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        name: 'asc',
       },
     });
 

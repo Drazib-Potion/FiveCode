@@ -73,12 +73,11 @@ export default function ProductsPage() {
             productsMap.set(product.id, product);
           }
         });
-        const newProducts = Array.from(productsMap.values()).sort((a, b) => 
-          a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
-        );
+        const newProducts = Array.from(productsMap.values());
         setLoading(false);
         setProducts(newProducts);
-        offsetRef.current = newProducts.length;
+        // Mettre à jour l'offset avec le nombre d'éléments reçus
+        offsetRef.current = currentOffset + data.length;
         setHasMore(hasMoreData);
       } else {
         setProducts(prev => {
@@ -88,11 +87,10 @@ export default function ProductsPage() {
               productsMap.set(product.id, product);
             }
           });
-          return Array.from(productsMap.values()).sort((a, b) => 
-            a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
-          );
+          return Array.from(productsMap.values());
         });
-        offsetRef.current = offsetRef.current + data.length;
+        // Mettre à jour l'offset avec le nombre d'éléments reçus
+        offsetRef.current = currentOffset + data.length;
         setHasMore(hasMoreData);
       }
     } catch (error) {

@@ -51,12 +51,11 @@ export default function ProductTypesPage() {
             productTypesMap.set(productType.id, productType);
           }
         });
-        const newProductTypes = Array.from(productTypesMap.values()).sort((a, b) => 
-          a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
-        );
+        const newProductTypes = Array.from(productTypesMap.values());
         setLoading(false);
         setProductTypes(newProductTypes);
-        offsetRef.current = newProductTypes.length;
+        // Mettre à jour l'offset avec le nombre d'éléments reçus
+        offsetRef.current = currentOffset + data.length;
         setHasMore(hasMoreData);
       } else {
         setProductTypes(prev => {
@@ -66,11 +65,10 @@ export default function ProductTypesPage() {
               productTypesMap.set(productType.id, productType);
             }
           });
-          return Array.from(productTypesMap.values()).sort((a, b) => 
-            a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
-          );
+          return Array.from(productTypesMap.values());
         });
-        offsetRef.current = offsetRef.current + data.length;
+        // Mettre à jour l'offset avec le nombre d'éléments reçus
+        offsetRef.current = currentOffset + data.length;
         setHasMore(hasMoreData);
       }
     } catch (error) {

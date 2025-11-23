@@ -52,7 +52,7 @@ export class ProductTypesService {
       this.prisma.productType.findMany({
         where: searchFilter,
         orderBy: {
-          createdAt: 'desc',
+          name: 'asc',
         },
         skip: offset,
         take: limit,

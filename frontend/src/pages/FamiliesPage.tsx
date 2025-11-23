@@ -49,13 +49,12 @@ export default function FamiliesPage() {
             familiesMap.set(family.id, family);
           }
         });
-        const newFamilies = Array.from(familiesMap.values()).sort((a, b) => 
-          a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
-        );
+        const newFamilies = Array.from(familiesMap.values());
         // Mettre à jour loading en premier pour éviter les problèmes de rendu
         setLoading(false);
         setFamilies(newFamilies);
-        offsetRef.current = newFamilies.length;
+        // Mettre à jour l'offset avec le nombre d'éléments reçus
+        offsetRef.current = currentOffset + data.length;
         setHasMore(hasMoreData);
       } else {
         setFamilies(prev => {
@@ -67,11 +66,10 @@ export default function FamiliesPage() {
               familiesMap.set(family.id, family);
             }
           });
-          return Array.from(familiesMap.values()).sort((a, b) => 
-            a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
-          );
+          return Array.from(familiesMap.values());
         });
-        offsetRef.current = offsetRef.current + data.length;
+        // Mettre à jour l'offset avec le nombre d'éléments reçus
+        offsetRef.current = currentOffset + data.length;
         setHasMore(hasMoreData);
       }
     } catch (error) {

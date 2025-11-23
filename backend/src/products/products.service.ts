@@ -91,7 +91,7 @@ export class ProductsService {
           productType: true,
         },
         orderBy: {
-          createdAt: 'desc',
+          name: 'asc',
         },
         skip: offset,
         take: limit,
