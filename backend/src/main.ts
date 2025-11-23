@@ -14,8 +14,12 @@ async function bootstrap() {
   // CORS configuration - accept requests from frontend
   const allowedOrigins = process.env.CORS_ORIGIN 
     ? process.env.CORS_ORIGIN.split(',')
-    : ['http://localhost:5173', 'http://localhost:80', 'http://localhost'];
-  
+    : [
+        'http://localhost:5173',
+        'http://localhost:80',
+        'http://localhost',
+        'https://front-production-fe87.up.railway.app',
+      ];
   app.enableCors({
     origin: allowedOrigins,
     credentials: true,
