@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { productTypesService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
+import Loader from '../components/Loader';
 
 interface ProductType {
   id: string;
@@ -19,6 +20,8 @@ export default function ProductTypesPage() {
     code: '',
   });
   const [searchTerm, setSearchTerm] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -38,6 +41,7 @@ export default function ProductTypesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       if (editingId) {
         await productTypesService.update(editingId, formData);
@@ -52,6 +56,8 @@ export default function ProductTypesPage() {
       console.error('Error saving product type:', error);
       const message = error.response?.data?.message || 'Erreur lors de la sauvegarde';
       await showAlert(message, 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -67,6 +73,7 @@ export default function ProductTypesPage() {
   const handleDelete = async (id: string) => {
     const confirmed = await showConfirm('Êtes-vous sûr de vouloir supprimer ce type de produit ?');
     if (!confirmed) return;
+    setDeletingId(id);
     try {
       await productTypesService.delete(id);
       loadData();
@@ -74,6 +81,8 @@ export default function ProductTypesPage() {
       console.error('Error deleting product type:', error);
       const message = error.response?.data?.message || 'Erreur lors de la suppression';
       await showAlert(message, 'error');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -139,9 +148,11 @@ export default function ProductTypesPage() {
             <div className="flex gap-4 mt-8 pt-6 border-t-2 border-gray-light">
               <button 
                 type="submit"
-                className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg bg-gradient-to-r from-purple-light to-purple text-white hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100"
+                disabled={submitting}
+                className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg bg-gradient-to-r from-purple-light to-purple text-white hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg flex items-center justify-center gap-2"
               >
-                ✓ Enregistrer
+                {submitting && <Loader size="sm" />}
+                {submitting ? 'Enregistrement...' : '✓ Enregistrer'}
               </button>
               <button 
                 type="button" 
@@ -197,18 +208,22 @@ export default function ProductTypesPage() {
                   <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">{productType.name}</td>
                   <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-mono font-semibold">{productType.code}</td>
                   <td className="px-6 py-4 text-left border-b border-purple/20">
-                    <button 
-                      onClick={() => handleEdit(productType)}
-                      className="mr-2 px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
-                    >
-                      Modifier
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(productType.id)}
-                      className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg"
-                    >
-                      Supprimer
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => handleEdit(productType)}
+                        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
+                      >
+                        Modifier
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(productType.id)}
+                        disabled={deletingId === productType.id}
+                        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:opacity-100 flex items-center gap-2"
+                      >
+                        {deletingId === productType.id && <Loader size="sm" />}
+                        {deletingId === productType.id ? 'Suppression...' : 'Supprimer'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

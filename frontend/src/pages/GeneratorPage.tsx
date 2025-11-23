@@ -7,6 +7,7 @@ import {
 } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import { formatFieldType } from '../utils/fieldTypeFormatter';
+import Loader from '../components/Loader';
 
 interface Product {
   id: string;
@@ -413,8 +414,9 @@ export default function GeneratorPage() {
               <button 
                 onClick={handleGenerate} 
                 disabled={loading}
-                className="bg-gradient-to-r from-purple-light to-purple text-white border-none px-12 py-5 rounded-xl cursor-pointer text-xl font-semibold transition-all duration-300 shadow-lg hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100 uppercase tracking-wide"
+                className="bg-gradient-to-r from-purple-light to-purple text-white border-none px-12 py-5 rounded-xl cursor-pointer text-xl font-semibold transition-all duration-300 shadow-lg hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100 uppercase tracking-wide flex items-center gap-3"
               >
+                {loading && <Loader size="md" />}
                 {loading ? 'Génération...' : 'Générer le code'}
               </button>
             </div>

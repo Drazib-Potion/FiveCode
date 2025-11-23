@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { variantsService, familiesService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
+import Loader from '../components/Loader';
 
 interface Variant {
   id: string;
@@ -32,6 +33,8 @@ export default function VariantsPage() {
   const [familySearch, setFamilySearch] = useState('');
   const [excludedVariantSearch, setExcludedVariantSearch] = useState('');
   const [tableSearchTerm, setTableSearchTerm] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -55,6 +58,7 @@ export default function VariantsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       if (editingId) {
         await variantsService.update(editingId, formData);
@@ -71,6 +75,8 @@ export default function VariantsPage() {
       console.error('Error saving variant:', error);
       const message = error.response?.data?.message || 'Erreur lors de la sauvegarde';
       await showAlert(message, 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -90,12 +96,15 @@ export default function VariantsPage() {
   const handleDelete = async (id: string) => {
     const confirmed = await showConfirm('Êtes-vous sûr de vouloir supprimer cette variante ?');
     if (!confirmed) return;
+    setDeletingId(id);
     try {
       await variantsService.delete(id);
       loadData();
     } catch (error) {
       console.error('Error deleting variant:', error);
       await showAlert('Erreur lors de la suppression', 'error');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -270,9 +279,11 @@ export default function VariantsPage() {
             <div className="flex gap-4 mt-8 pt-6 border-t-2 border-gray-light">
               <button 
                 type="submit"
-                className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg bg-gradient-to-r from-purple-light to-purple text-white hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100"
+                disabled={submitting}
+                className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg bg-gradient-to-r from-purple-light to-purple text-white hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg flex items-center justify-center gap-2"
               >
-                ✓ Enregistrer
+                {submitting && <Loader size="sm" />}
+                {submitting ? 'Enregistrement...' : '✓ Enregistrer'}
               </button>
               <button 
                 type="button" 
@@ -330,18 +341,22 @@ export default function VariantsPage() {
                   <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-mono font-semibold">{variant.code}</td>
                   <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">{variant.family?.name || 'N/A'}</td>
                   <td className="px-6 py-4 text-left border-b border-purple/20">
-                    <button 
-                      onClick={() => handleEdit(variant)}
-                      className="mr-2 px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
-                    >
-                      Modifier
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(variant.id)}
-                      className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg"
-                    >
-                      Supprimer
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => handleEdit(variant)}
+                        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
+                      >
+                        Modifier
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(variant.id)}
+                        disabled={deletingId === variant.id}
+                        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:opacity-100 flex items-center gap-2"
+                      >
+                        {deletingId === variant.id && <Loader size="sm" />}
+                        {deletingId === variant.id ? 'Suppression...' : 'Supprimer'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

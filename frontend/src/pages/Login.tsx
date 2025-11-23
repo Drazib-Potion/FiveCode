@@ -2,18 +2,21 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import fivesLogo from '../media/fivesLoginimg.png';
+import Loader from '../components/Loader';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isRegister, setIsRegister] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login, register } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     try {
       if (isRegister) {
@@ -24,6 +27,8 @@ export default function Login() {
       navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Une erreur est survenue');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -64,9 +69,11 @@ export default function Login() {
           )}
           <button 
             type="submit"
-            className="w-full py-3 bg-purple text-white border-none rounded text-base cursor-pointer transition-colors duration-200 hover:bg-purple/90"
+            disabled={loading}
+            className="w-full py-3 bg-purple text-white border-none rounded text-base cursor-pointer transition-colors duration-200 hover:bg-purple/90 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:bg-gray-400 flex items-center justify-center gap-2"
           >
-            {isRegister ? 'S\'inscrire' : 'Se connecter'}
+            {loading && <Loader size="sm" />}
+            {loading ? 'Chargement...' : (isRegister ? 'S\'inscrire' : 'Se connecter')}
           </button>
         </form>
         <p className="mt-4 text-center">

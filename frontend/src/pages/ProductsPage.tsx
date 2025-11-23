@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { productsService, familiesService, productTypesService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
+import Loader from '../components/Loader';
 
 interface Product {
   id: string;
@@ -41,6 +42,8 @@ export default function ProductsPage() {
   const [familySearch, setFamilySearch] = useState('');
   const [productTypeSearch, setProductTypeSearch] = useState('');
   const [tableSearchTerm, setTableSearchTerm] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     loadProducts();
@@ -82,6 +85,7 @@ export default function ProductsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       await productsService.create(formData);
       setFormData({ name: '', code: '', familyId: '', productTypeId: '' });
@@ -92,18 +96,23 @@ export default function ProductsPage() {
     } catch (error: any) {
       console.error('Error creating product:', error);
       await showAlert(error.response?.data?.message || 'Erreur lors de la création du produit', 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleDelete = async (id: string) => {
     const confirmed = await showConfirm('Êtes-vous sûr de vouloir supprimer ce produit ?');
     if (!confirmed) return;
+    setDeletingId(id);
     try {
       await productsService.delete(id);
       loadProducts();
     } catch (error) {
       console.error('Error deleting product:', error);
       await showAlert('Erreur lors de la suppression', 'error');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -275,9 +284,11 @@ export default function ProductsPage() {
             <div className="flex gap-4 mt-8 pt-6 border-t-2 border-gray-light">
               <button 
                 type="submit"
-                className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg bg-gradient-to-r from-purple-light to-purple text-white hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100"
+                disabled={submitting}
+                className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg bg-gradient-to-r from-purple-light to-purple text-white hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg flex items-center justify-center gap-2"
               >
-                ✓ Enregistrer
+                {submitting && <Loader size="sm" />}
+                {submitting ? 'Enregistrement...' : '✓ Enregistrer'}
               </button>
               <button 
                 type="button" 
@@ -362,9 +373,11 @@ export default function ProductsPage() {
                   <td className="px-6 py-4 text-left border-b border-purple/20">
                     <button 
                       onClick={() => handleDelete(product.id)}
-                      className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg"
+                      disabled={deletingId === product.id}
+                      className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:opacity-100 flex items-center gap-2"
                     >
-                      Supprimer
+                      {deletingId === product.id && <Loader size="sm" />}
+                      {deletingId === product.id ? 'Suppression...' : 'Supprimer'}
                     </button>
                   </td>
                 </tr>
