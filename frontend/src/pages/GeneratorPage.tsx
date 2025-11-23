@@ -7,7 +7,6 @@ import {
 } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import { formatFieldType } from '../utils/fieldTypeFormatter';
-import './GeneratorPage.css';
 
 interface Product {
   id: string;
@@ -204,6 +203,7 @@ export default function GeneratorPage() {
             type="checkbox"
             checked={value === true || value === 'true'}
             onChange={(e) => handleValueChange(technicalCharacteristic.id, e.target.checked)}
+            className="w-auto mr-2 cursor-pointer"
           />
         );
 
@@ -214,6 +214,7 @@ export default function GeneratorPage() {
             value={value}
             onChange={(e) => handleValueChange(technicalCharacteristic.id, parseFloat(e.target.value) || 0)}
             required
+            className="w-full px-3 py-3 border border-gray-300 rounded text-base focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
           />
         );
 
@@ -224,6 +225,7 @@ export default function GeneratorPage() {
             value={value}
             onChange={(e) => handleValueChange(technicalCharacteristic.id, e.target.value)}
             required
+            className="w-full px-3 py-3 border border-gray-300 rounded text-base focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
           />
         );
 
@@ -246,46 +248,18 @@ export default function GeneratorPage() {
               placeholder="🔍 Rechercher une option..."
               value={searchTerm}
               onChange={(e) => setEnumSearch({ ...enumSearch, [technicalCharacteristic.id]: e.target.value })}
-              style={{
-                width: '100%',
-                padding: '8px',
-                marginBottom: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '14px',
-              }}
+              className="w-full px-2 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
             />
-            <div style={{
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              padding: '10px',
-              maxHeight: '200px',
-              overflowY: 'auto',
-              backgroundColor: '#f9f9f9',
-            }}>
+            <div className="border border-gray-300 rounded p-2.5 max-h-[200px] overflow-y-auto bg-gray-50">
               {filteredOptions.length === 0 ? (
-                <p style={{ color: '#666', fontStyle: 'italic', margin: 0 }}>
+                <p className="text-gray-500 italic m-0">
                   {searchTerm ? 'Aucune option ne correspond à votre recherche' : 'Aucune option disponible'}
                 </p>
               ) : (
                 filteredOptions.map((option) => (
                   <label
                     key={option}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '8px',
-                      cursor: 'pointer',
-                      borderRadius: '4px',
-                      marginBottom: '4px',
-                      transition: 'background-color 0.2s',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#f0f0f0';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                    }}
+                    className="flex items-center px-2 py-2 cursor-pointer rounded mb-1 transition-colors duration-200 hover:bg-gray-100"
                   >
                     <input
                       type="checkbox"
@@ -304,7 +278,7 @@ export default function GeneratorPage() {
                           handleValueChange(technicalCharacteristic.id, selectedValues.filter(v => v !== option));
                         }
                       }}
-                      style={{ marginRight: '8px', cursor: 'pointer' }}
+                      className="mr-2 cursor-pointer"
                     />
                     <span>{option}</span>
                   </label>
@@ -312,7 +286,7 @@ export default function GeneratorPage() {
               )}
             </div>
             {selectedValues.length > 0 && (
-              <small style={{ display: 'block', marginTop: '5px', color: '#666' }}>
+              <small className="block mt-1.5 text-gray-500">
                 {isMultiple 
                   ? `${selectedValues.length} option(s) sélectionnée(s)`
                   : `1 option sélectionnée`}
@@ -329,6 +303,7 @@ export default function GeneratorPage() {
             value={value}
             onChange={(e) => handleValueChange(technicalCharacteristic.id, e.target.value)}
             required
+            className="w-full px-3 py-3 border border-gray-300 rounded text-base focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
           />
         );
     }
@@ -345,16 +320,19 @@ export default function GeneratorPage() {
   };
 
   return (
-    <div className="generator-page">
-      <h1>Générateur de Produits</h1>
+    <div className="w-full bg-gradient-to-br from-gray-50 to-gray-200 min-h-[calc(100vh-80px)] p-8 -m-8">
+      <h1 className="text-gray-dark mb-8 text-4xl text-center bg-gradient-to-r from-purple to-purple-light bg-clip-text text-transparent font-bold">
+        Générateur de Produits
+      </h1>
 
-      <div className="generator-container">
-        <div className="selection-section">
-          <div className="form-group">
-            <label>Produit</label>
+      <div className="bg-white p-12 rounded-2xl shadow-2xl border-2 border-green-500/20 max-w-[1200px] mx-auto relative">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 pb-8 border-b-2 border-gray-200">
+          <div className="mb-4">
+            <label className="block mb-2 text-gray-dark font-medium">Produit</label>
             <select
               value={selectedProductId}
               onChange={(e) => setSelectedProductId(e.target.value)}
+              className="w-full px-3 py-3 border border-gray-300 rounded text-base focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
             >
               <option value="">Sélectionner un produit</option>
               {products.map((product) => (
@@ -366,39 +344,33 @@ export default function GeneratorPage() {
           </div>
 
           {selectedProduct && (
-            <div className="form-group">
-              <label>Variante (sélection unique)</label>
+            <div className="mb-4">
+              <label className="block mb-2 text-gray-dark font-medium">Variante (sélection unique)</label>
               <input
                 type="text"
-                placeholder="Rechercher une variante..."
+                placeholder="🔍 Rechercher une variante..."
                 value={variantSearch}
                 onChange={(e) => setVariantSearch(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  marginBottom: '10px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                }}
+                className="w-full px-3 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
               />
-              <div className="variants-checkboxes">
+              <div className="flex flex-col gap-3 mt-2">
                 {getFilteredVariants().length === 0 ? (
-                  <p style={{ color: '#666', fontStyle: 'italic', margin: 0 }}>
+                  <p className="text-gray-500 italic m-0">
                     {variantSearch 
                       ? 'Aucune variante ne correspond à votre recherche'
                       : 'Aucune variante disponible pour cette famille'}
                   </p>
                 ) : (
                   getFilteredVariants().map((variant) => (
-                    <label key={variant.id} className="checkbox-label">
+                    <label key={variant.id} className="flex items-center cursor-pointer px-2 py-2 rounded transition-colors duration-200 hover:bg-gray-100">
                       <input
                         type="radio"
                         name="variant-selection"
                         checked={selectedVariantId === variant.id}
                         onChange={() => handleVariantToggle(variant.id)}
+                        className="mr-3 cursor-pointer"
                       />
-                      <span>{variant.name}</span>
+                      <span className="select-none">{variant.name}</span>
                     </label>
                   ))
                 )}
@@ -408,14 +380,14 @@ export default function GeneratorPage() {
         </div>
 
         {selectedProduct && selectedVariantId && (
-          <div className="fields-section">
+          <div className="mt-8">
             {technicalCharacteristics.length > 0 ? (
               <>
-                <h2>Caractéristiques techniques (optionnelles)</h2>
-                <div className="fields-form">
+                <h2 className="text-gray-dark mb-6 text-2xl font-semibold">Caractéristiques techniques (optionnelles)</h2>
+                <div className="grid gap-6 mb-8">
                   {technicalCharacteristics.map((technicalCharacteristic) => (
-                    <div key={technicalCharacteristic.id} className="form-group">
-                      <label>
+                    <div key={technicalCharacteristic.id} className="mb-4">
+                      <label className="block mb-2 text-gray-dark font-medium">
                         {technicalCharacteristic.name} ({formatFieldType(technicalCharacteristic.type)})
                       </label>
                       {renderTechnicalCharacteristicInput(technicalCharacteristic)}
@@ -424,13 +396,17 @@ export default function GeneratorPage() {
                 </div>
               </>
             ) : (
-              <div className="empty-state">
+              <div className="text-center py-12 text-gray-500 text-lg">
                 <p>Aucune caractéristique technique définie pour cette combinaison famille/variante</p>
               </div>
             )}
 
-            <div className="actions">
-              <button onClick={handleGenerate} disabled={loading}>
+            <div className="mt-8 pt-8 border-t-2 border-gray-200">
+              <button 
+                onClick={handleGenerate} 
+                disabled={loading}
+                className="bg-gradient-to-r from-green-500 to-green-600 text-white border-none px-12 py-5 rounded-lg cursor-pointer text-xl font-bold transition-all duration-300 shadow-lg hover:from-green-600 hover:to-green-700 hover:shadow-xl hover:-translate-y-0.5 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:translate-y-0 uppercase tracking-wide"
+              >
                 {loading ? 'Génération...' : 'Générer le code'}
               </button>
             </div>
@@ -438,13 +414,13 @@ export default function GeneratorPage() {
         )}
 
         {!selectedProductId && (
-          <div className="empty-state">
+          <div className="text-center py-12 text-gray-500 text-lg">
             <p>Sélectionnez un produit pour commencer</p>
           </div>
         )}
 
         {selectedProduct && !selectedVariantId && (
-          <div className="empty-state">
+          <div className="text-center py-12 text-gray-500 text-lg">
             <p>Sélectionnez une variante pour continuer</p>
           </div>
         )}

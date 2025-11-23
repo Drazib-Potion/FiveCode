@@ -1,6 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import './Layout.css';
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -12,67 +11,120 @@ export default function Layout() {
   };
 
   return (
-    <div className="layout">
-      <nav className="navbar">
-        <div className="navbar-brand">
-          <h1>Configurateur de Produits</h1>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <nav style={{ 
+        backgroundColor: '#A62182', 
+        color: 'white', 
+        padding: '1rem 2rem',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+      }}>
+        <div style={{ flexShrink: 0 }}>
+          <h1 style={{ fontSize: '1.5rem', margin: 0, fontWeight: 600, letterSpacing: '-0.01em' }}>
+            Configurateur de Produits
+          </h1>
         </div>
-        <div className="navbar-menu">
+        <div style={{ 
+          display: 'flex', 
+          gap: '1rem', 
+          alignItems: 'center',
+          flex: 1,
+          justifyContent: 'center',
+          margin: '0 2rem'
+        }}>
           <NavLink 
             to="/product-types" 
-            className={({ isActive }) => isActive ? 'active' : ''}
+            className={({ isActive }) => 
+              `nav-link ${isActive ? 'nav-active' : ''}`
+            }
           >
             Types de produit
           </NavLink>
-          <span className="nav-separator">|</span>
+          <span style={{ color: 'rgba(255, 255, 255, 0.3)', fontSize: '1.2rem', userSelect: 'none' }}>|</span>
           <NavLink 
             to="/families" 
-            className={({ isActive }) => isActive ? 'active' : ''}
+            className={({ isActive }) => 
+              `nav-link ${isActive ? 'nav-active' : ''}`
+            }
           >
             Familles
           </NavLink>
-          <span className="nav-separator">|</span>
+          <span style={{ color: 'rgba(255, 255, 255, 0.3)', fontSize: '1.2rem', userSelect: 'none' }}>|</span>
           <NavLink 
             to="/products" 
-            className={({ isActive }) => isActive ? 'active' : ''}
+            className={({ isActive }) => 
+              `nav-link ${isActive ? 'nav-active' : ''}`
+            }
           >
             Produits
           </NavLink>
-          <span className="nav-separator">|</span>
+          <span style={{ color: 'rgba(255, 255, 255, 0.3)', fontSize: '1.2rem', userSelect: 'none' }}>|</span>
           <NavLink 
             to="/variants" 
-            className={({ isActive }) => isActive ? 'active' : ''}
+            className={({ isActive }) => 
+              `nav-link ${isActive ? 'nav-active' : ''}`
+            }
           >
             Variantes
           </NavLink>
-          <span className="nav-separator">|</span>
+          <span style={{ color: 'rgba(255, 255, 255, 0.3)', fontSize: '1.2rem', userSelect: 'none' }}>|</span>
           <NavLink 
             to="/technical-characteristics" 
-            className={({ isActive }) => isActive ? 'active' : ''}
+            className={({ isActive }) => 
+              `nav-link ${isActive ? 'nav-active' : ''}`
+            }
           >
             Caractéristiques techniques
           </NavLink>
-          <span className="nav-separator">|</span>
+          <span style={{ color: 'rgba(255, 255, 255, 0.3)', fontSize: '1.2rem', userSelect: 'none' }}>|</span>
           <NavLink 
             to="/generator" 
-            className={({ isActive }) => isActive ? 'active' : ''}
+            className={({ isActive }) => 
+              `nav-link ${isActive ? 'nav-active' : ''}`
+            }
           >
             Générateur
           </NavLink>
-          <span className="nav-separator">|</span>
+          <span style={{ color: 'rgba(255, 255, 255, 0.3)', fontSize: '1.2rem', userSelect: 'none' }}>|</span>
           <NavLink 
             to="/generated-codes" 
-            className={({ isActive }) => isActive ? 'active' : ''}
+            className={({ isActive }) => 
+              `nav-link ${isActive ? 'nav-active' : ''}`
+            }
           >
             Codes Générés
           </NavLink>
         </div>
-        <div className="navbar-user">
-          <span>{user?.email}</span>
-          <button onClick={handleLogout}>Déconnexion</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
+          <span style={{ fontSize: '0.875rem' }}>{user?.email}</span>
+          <button 
+            onClick={handleLogout}
+            style={{
+              backgroundColor: '#e74c3c',
+              color: 'white',
+              border: 'none',
+              padding: '0.5rem 1rem',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s',
+              fontSize: '0.875rem'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#c0392b'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#e74c3c'}
+          >
+            Déconnexion
+          </button>
         </div>
       </nav>
-      <main className="main-content">
+      <main style={{ 
+        flex: 1, 
+        padding: '2rem', 
+        maxWidth: '1400px', 
+        width: '100%', 
+        margin: '0 auto'
+      }}>
         <Outlet />
       </main>
     </div>

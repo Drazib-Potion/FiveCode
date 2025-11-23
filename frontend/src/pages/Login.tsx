@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import fivesLogo from '../media/fivesLoginimg.png';
-import './Login.css';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -29,41 +28,52 @@ export default function Login() {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-card">
+    <div className="min-h-screen flex justify-center items-center bg-gradient-to-br from-purple via-purple/70 to-white/30">
+      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-[400px]">
         <img 
           src={fivesLogo} 
           alt="Fives Pillard Logo" 
-          className="fives-login-logo"
+          className="w-full max-w-[400px] h-auto mb-8 block mx-auto"
         />
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Email</label>
+          <div className="mb-4">
+            <label className="block mb-2 text-gray-dark font-medium">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              className="w-full px-3 py-3 border border-gray-light rounded text-base focus:outline-none focus:border-purple"
             />
           </div>
-          <div className="form-group">
-            <label>Mot de passe</label>
+          <div className="mb-4">
+            <label className="block mb-2 text-gray-dark font-medium">Mot de passe</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
+              className="w-full px-3 py-3 border border-gray-light rounded text-base focus:outline-none focus:border-purple"
             />
           </div>
-          {error && <div className="error">{error}</div>}
-          <button type="submit">{isRegister ? 'S\'inscrire' : 'Se connecter'}</button>
+          {error && (
+            <div className="text-purple-dark mb-4 p-2 bg-red-50 rounded">
+              {error}
+            </div>
+          )}
+          <button 
+            type="submit"
+            className="w-full py-3 bg-purple text-white border-none rounded text-base cursor-pointer transition-colors duration-200 hover:bg-purple/90"
+          >
+            {isRegister ? 'S\'inscrire' : 'Se connecter'}
+          </button>
         </form>
-        <p>
+        <p className="mt-4 text-center">
           {isRegister ? 'Déjà un compte ?' : 'Pas encore de compte ?'}{' '}
           <button
             type="button"
-            className="link-button"
+            className="bg-transparent border-none text-purple cursor-pointer underline text-base hover:text-purple-dark"
             onClick={() => setIsRegister(!isRegister)}
           >
             {isRegister ? 'Se connecter' : 'S\'inscrire'}
