@@ -64,7 +64,9 @@ export default function VariantsPage() {
             variantsMap.set(variant.id, variant);
           }
         });
-        const newVariants = Array.from(variantsMap.values());
+        const newVariants = Array.from(variantsMap.values()).sort((a, b) => 
+          a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+        );
         setLoading(false);
         setVariants(newVariants);
         offsetRef.current = newVariants.length;
@@ -77,7 +79,9 @@ export default function VariantsPage() {
               variantsMap.set(variant.id, variant);
             }
           });
-          return Array.from(variantsMap.values());
+          return Array.from(variantsMap.values()).sort((a, b) => 
+            a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+          );
         });
         offsetRef.current = offsetRef.current + data.length;
         setHasMore(hasMoreData);

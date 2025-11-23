@@ -49,7 +49,9 @@ export default function FamiliesPage() {
             familiesMap.set(family.id, family);
           }
         });
-        const newFamilies = Array.from(familiesMap.values());
+        const newFamilies = Array.from(familiesMap.values()).sort((a, b) => 
+          a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+        );
         // Mettre à jour loading en premier pour éviter les problèmes de rendu
         setLoading(false);
         setFamilies(newFamilies);
@@ -65,7 +67,9 @@ export default function FamiliesPage() {
               familiesMap.set(family.id, family);
             }
           });
-          return Array.from(familiesMap.values());
+          return Array.from(familiesMap.values()).sort((a, b) => 
+            a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+          );
         });
         offsetRef.current = offsetRef.current + data.length;
         setHasMore(hasMoreData);

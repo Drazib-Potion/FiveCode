@@ -82,7 +82,9 @@ export default function TechnicalCharacteristicsPage() {
             tcMap.set(tc.id, tc);
           }
         });
-        const newTCs = Array.from(tcMap.values());
+        const newTCs = Array.from(tcMap.values()).sort((a, b) => 
+          a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+        );
         setLoading(false);
         setTechnicalCharacteristics(newTCs);
         offsetRef.current = newTCs.length;
@@ -95,7 +97,9 @@ export default function TechnicalCharacteristicsPage() {
               tcMap.set(tc.id, tc);
             }
           });
-          return Array.from(tcMap.values());
+          return Array.from(tcMap.values()).sort((a, b) => 
+            a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+          );
         });
         offsetRef.current = offsetRef.current + data.length;
         setHasMore(hasMoreData);

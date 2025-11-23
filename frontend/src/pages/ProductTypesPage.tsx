@@ -51,7 +51,9 @@ export default function ProductTypesPage() {
             productTypesMap.set(productType.id, productType);
           }
         });
-        const newProductTypes = Array.from(productTypesMap.values());
+        const newProductTypes = Array.from(productTypesMap.values()).sort((a, b) => 
+          a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+        );
         setLoading(false);
         setProductTypes(newProductTypes);
         offsetRef.current = newProductTypes.length;
@@ -64,7 +66,9 @@ export default function ProductTypesPage() {
               productTypesMap.set(productType.id, productType);
             }
           });
-          return Array.from(productTypesMap.values());
+          return Array.from(productTypesMap.values()).sort((a, b) => 
+            a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+          );
         });
         offsetRef.current = offsetRef.current + data.length;
         setHasMore(hasMoreData);
