@@ -16,12 +16,16 @@ export class TechnicalCharacteristicsController {
 
   @Get()
   findAll(@Query('familyId') familyId?: string, @Query('variantIds') variantIds?: string) {
-    if (familyId && variantIds) {
-      // variantIds peut être une chaîne séparée par des virgules
-      const variantIdsArray = variantIds.split(',').filter(id => id.trim() !== '');
-      return this.technicalCharacteristicsService.findByFamilyAndVariant(familyId, variantIdsArray);
-    }
     if (familyId) {
+      // Si variantIds est fourni (même vide), utiliser findByFamilyAndVariant
+      // Cela permet de filtrer correctement : avec un tableau vide, on obtient uniquement
+      // les caractéristiques qui ne sont pas liées à une variante
+      if (variantIds !== undefined) {
+        // variantIds peut être une chaîne séparée par des virgules ou une chaîne vide
+        const variantIdsArray = variantIds ? variantIds.split(',').filter(id => id.trim() !== '') : [];
+        return this.technicalCharacteristicsService.findByFamilyAndVariant(familyId, variantIdsArray);
+      }
+      // Si variantIds n'est pas fourni du tout, retourner toutes les caractéristiques de la famille
       return this.technicalCharacteristicsService.findByFamily(familyId);
     }
     if (variantIds) {

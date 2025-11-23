@@ -73,8 +73,12 @@ export default function GeneratorPage() {
   }, [selectedProductId, products]);
 
   useEffect(() => {
-    if (selectedProduct && selectedVariantId) {
-      loadTechnicalCharacteristics(selectedProduct.family.id, [selectedVariantId]);
+    if (selectedProduct) {
+      // Charger les caractéristiques techniques dès qu'un produit est sélectionné
+      // Si une variante est sélectionnée, on charge les caractéristiques pour cette variante
+      // Sinon, on charge les caractéristiques qui ne sont pas liées à une variante (tableau vide)
+      const variantIds = selectedVariantId ? [selectedVariantId] : [];
+      loadTechnicalCharacteristics(selectedProduct.family.id, variantIds);
     } else {
       setTechnicalCharacteristics([]);
       setValues({});
@@ -379,7 +383,7 @@ export default function GeneratorPage() {
           )}
         </div>
 
-        {selectedProduct && selectedVariantId && (
+        {selectedProduct && (
           <div className="mt-8">
             {technicalCharacteristics.length > 0 ? (
               <>
@@ -397,7 +401,11 @@ export default function GeneratorPage() {
               </>
             ) : (
               <div className="text-center py-12 text-gray-500 text-lg">
-                <p>Aucune caractéristique technique définie pour cette combinaison famille/variante</p>
+                <p>
+                  {selectedVariantId 
+                    ? 'Aucune caractéristique technique définie pour cette combinaison famille/variante'
+                    : 'Aucune caractéristique technique définie pour cette famille (sans variante)'}
+                </p>
               </div>
             )}
 
@@ -419,11 +427,6 @@ export default function GeneratorPage() {
           </div>
         )}
 
-        {selectedProduct && !selectedVariantId && (
-          <div className="text-center py-12 text-gray-500 text-lg">
-            <p>Sélectionnez une variante pour continuer</p>
-          </div>
-        )}
       </div>
     </div>
   );

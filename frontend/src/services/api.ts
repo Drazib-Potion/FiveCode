@@ -111,7 +111,11 @@ export const technicalCharacteristicsService = {
   getAll: async (familyId?: string, variantIds?: string) => {
     const params = new URLSearchParams();
     if (familyId) params.append('familyId', familyId);
-    if (variantIds) params.append('variantIds', variantIds);
+    // Toujours passer variantIds si familyId est présent, même si c'est une chaîne vide
+    // Cela permet au backend de distinguer entre "toutes les caractéristiques" et "caractéristiques sans variante"
+    if (familyId && variantIds !== undefined) {
+      params.append('variantIds', variantIds);
+    }
     const url = params.toString() ? `/technical-characteristics?${params}` : '/technical-characteristics';
     const response = await apiClient.get(url);
     return response.data;
