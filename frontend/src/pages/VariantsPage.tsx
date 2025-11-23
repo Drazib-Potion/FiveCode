@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { variantsService, familiesService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
-import './CRUDPage.css';
 
 interface Variant {
   id: string;
@@ -138,124 +137,102 @@ export default function VariantsPage() {
     );
   };
 
-  if (loading) return <div className="loading">Chargement...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center gap-4 py-12 text-lg text-gray-600">
+        <div className="w-6 h-6 border-[3px] border-gray-300 border-t-purple rounded-full animate-spin"></div>
+        Chargement...
+      </div>
+    );
+  }
 
   return (
-    <div className="crud-page">
-      <div className="page-header">
-        <h1>Gestion des Variantes</h1>
-        <button onClick={() => { setShowForm(true); setEditingId(null); setFormData({ familyId: '', name: '', code: '', excludedVariantIds: [] }); setFamilySearch(''); setExcludedVariantSearch(''); }}>
+    <div className="w-full animate-fade-in">
+      <div className="flex justify-between items-center mb-10 pb-4 border-b-2 border-purple/20">
+        <h1 className="m-0 text-3xl font-bold text-purple">Gestion des Variantes</h1>
+        <button 
+          onClick={() => { setShowForm(true); setEditingId(null); setFormData({ familyId: '', name: '', code: '', excludedVariantIds: [] }); setFamilySearch(''); setExcludedVariantSearch(''); }}
+          className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
+        >
           + Nouvelle variante
         </button>
       </div>
 
       {showForm && (
-        <div className="form-card">
-          <h2>{editingId ? 'Modifier' : 'Créer'} une variante</h2>
+        <div className="bg-gradient-to-br from-white to-gray-light/30 p-8 rounded-2xl shadow-xl mb-6 border-2 border-purple/20 animate-slide-in backdrop-blur-sm">
+          <h2 className="mt-0 mb-6 text-2xl font-bold bg-gradient-to-r from-purple to-purple-light bg-clip-text text-transparent">
+            {editingId ? 'Modifier' : 'Créer'} une variante
+          </h2>
           <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label>Famille</label>
+            <div className="mb-5">
+              <label className="block mb-2.5 text-gray-dark font-semibold text-sm uppercase tracking-wide">Famille</label>
               <input
                 type="text"
-                placeholder="Rechercher une famille..."
+                placeholder="🔍 Rechercher une famille..."
                 value={familySearch}
                 onChange={(e) => setFamilySearch(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  marginBottom: '10px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                }}
+                className="w-full px-2 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
               />
-              <div style={{ 
-                border: '1px solid #ddd', 
-                borderRadius: '4px', 
-                padding: '10px', 
-                maxHeight: '200px', 
-                overflowY: 'auto',
-                backgroundColor: '#f9f9f9'
-              }}>
+              <div className="border border-gray-300 rounded p-2.5 max-h-[200px] overflow-y-auto bg-gray-50">
                 {getFilteredFamilies().length === 0 ? (
-                  <p style={{ color: '#666', fontStyle: 'italic', margin: 0 }}>
+                  <p className="text-gray-500 italic m-0">
                     {familySearch ? 'Aucune famille ne correspond à votre recherche' : 'Aucune famille disponible'}
                   </p>
                 ) : (
                   getFilteredFamilies().map((family) => (
                     <label
                       key={family.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: '8px',
-                        cursor: 'pointer',
-                        borderRadius: '4px',
-                        marginBottom: '4px',
-                        transition: 'background-color 0.2s',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#f0f0f0';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
+                      className="flex items-center px-2 py-2 cursor-pointer rounded mb-1 transition-colors duration-200 hover:bg-gray-100"
                     >
                       <input
                         type="checkbox"
                         checked={formData.familyId === family.id}
                         onChange={() => handleFamilyToggle(family.id)}
-                        style={{ marginRight: '8px', cursor: 'pointer' }}
+                        className="mr-1.5 cursor-pointer"
                       />
                       <span>{family.name}</span>
                     </label>
                   ))
                 )}
               </div>
-              <small style={{ display: 'block', marginTop: '5px', color: '#666' }}>
+              <small className="block mt-1.5 text-gray-500">
                 {formData.familyId ? '1 famille sélectionnée' : 'Aucune famille sélectionnée'}
               </small>
             </div>
-            <div className="form-group">
-              <label>Nom</label>
+            <div className="mb-5">
+              <label className="block mb-2.5 text-gray-dark font-semibold text-sm uppercase tracking-wide">Nom</label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
+                className="w-full px-4 py-3.5 border-2 border-gray-light rounded-xl text-base bg-white focus:outline-none focus:border-purple focus:ring-4 focus:ring-purple/20 transition-all duration-300 shadow-sm hover:border-purple/50"
               />
             </div>
-            <div className="form-group">
-              <label>Code</label>
+            <div className="mb-5">
+              <label className="block mb-2.5 text-gray-dark font-semibold text-sm uppercase tracking-wide">Code</label>
               <input
                 type="text"
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                 required
                 placeholder="Ex: 1"
+                className="w-full px-4 py-3.5 border-2 border-gray-light rounded-xl text-base bg-white focus:outline-none focus:border-purple focus:ring-4 focus:ring-purple/20 transition-all duration-300 shadow-sm hover:border-purple/50 font-mono font-semibold"
               />
             </div>
-            <div className="form-group">
-              <label>Variantes exclues (ne peuvent pas être sélectionnées avec cette variante)</label>
+            <div className="mb-5">
+              <label className="block mb-2.5 text-gray-dark font-semibold text-sm uppercase tracking-wide">Variantes exclues (ne peuvent pas être sélectionnées avec cette variante)</label>
               <input
                 type="text"
-                placeholder="Rechercher une variante..."
+                placeholder="🔍 Rechercher une variante..."
                 value={excludedVariantSearch}
                 onChange={(e) => setExcludedVariantSearch(e.target.value)}
                 disabled={!formData.familyId}
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  marginBottom: '10px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                  opacity: !formData.familyId ? 0.5 : 1,
-                }}
+                className={`w-full px-2 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20 ${!formData.familyId ? 'opacity-50' : ''}`}
               />
-              <div className="variants-checkboxes">
+              <div className="flex flex-col gap-3 mt-2 max-h-[200px] overflow-y-auto p-2 border border-gray-300 rounded bg-gray-50">
                 {getFilteredExcludedVariants().length === 0 ? (
-                  <p style={{ color: '#666', fontStyle: 'italic', margin: 0 }}>
+                  <p className="text-gray-500 italic m-0">
                     {!formData.familyId 
                       ? 'Sélectionnez d\'abord une famille pour voir les variantes'
                       : excludedVariantSearch
@@ -264,7 +241,7 @@ export default function VariantsPage() {
                   </p>
                 ) : (
                   getFilteredExcludedVariants().map((variant) => (
-                    <label key={variant.id} className="checkbox-label">
+                    <label key={variant.id} className="flex items-center cursor-pointer px-2 py-2 rounded transition-colors duration-200 hover:bg-gray-100">
                       <input
                         type="checkbox"
                         checked={formData.excludedVariantIds.includes(variant.id)}
@@ -282,89 +259,87 @@ export default function VariantsPage() {
                           }
                         }}
                         disabled={!formData.familyId}
+                        className="mr-1.5 cursor-pointer"
                       />
-                      <span>{variant.name}</span>
+                      <span className="select-none">{variant.name}</span>
                     </label>
                   ))
                 )}
               </div>
             </div>
-            <div className="form-actions">
-              <button type="submit">Enregistrer</button>
-              <button type="button" onClick={() => { setShowForm(false); setEditingId(null); setFamilySearch(''); setExcludedVariantSearch(''); }}>
-                Annuler
+            <div className="flex gap-4 mt-8 pt-6 border-t-2 border-gray-light">
+              <button 
+                type="submit"
+                className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg bg-gradient-to-r from-purple-light to-purple text-white hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100"
+              >
+                ✓ Enregistrer
+              </button>
+              <button 
+                type="button" 
+                onClick={() => { setShowForm(false); setEditingId(null); setFamilySearch(''); setExcludedVariantSearch(''); }}
+                className="flex-1 px-8 py-3.5 border-2 border-gray-dark rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-md bg-white text-gray-dark hover:bg-gray-dark hover:text-white hover:shadow-lg hover:scale-105 active:scale-100"
+              >
+                ✕ Annuler
               </button>
             </div>
           </form>
         </div>
       )}
 
-      <div className="table-container">
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-purple/20 animate-fade-in">
         {variants.length > 0 && (
-          <div style={{ 
-            marginBottom: '20px',
-            paddingTop: '10px',
-            paddingLeft: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-          }}>
-            <div style={{
-              position: 'relative',
-              width: '100%',
-              maxWidth: '400px',
-            }}>
+          <div className="p-4 bg-gray-light border-b-2 border-purple/20">
+            <div className="relative w-full max-w-[400px]">
               <input
                 type="text"
                 placeholder="🔍 Rechercher par nom, code ou famille..."
                 value={tableSearchTerm}
                 onChange={(e) => setTableSearchTerm(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '2px solid #e0e0e0',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  transition: 'all 0.3s ease',
-                  outline: 'none',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#4a90e2';
-                  e.target.style.boxShadow = '0 2px 8px rgba(74, 144, 226, 0.2)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = '#e0e0e0';
-                  e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
-                }}
+                className="w-full px-4 py-3 border-2 border-purple rounded-lg text-sm bg-white text-gray-dark focus:outline-none focus:border-purple-light focus:ring-2 focus:ring-purple/20 transition-all shadow-sm"
               />
             </div>
           </div>
         )}
         {getFilteredVariantsForTable().length === 0 ? (
-          <div className="empty-state-placeholder">
-            <h3>{tableSearchTerm ? 'Aucun résultat' : 'Aucune variante'}</h3>
-            <p>{tableSearchTerm ? 'Aucune variante ne correspond à votre recherche' : 'Créez votre première variante pour commencer'}</p>
+          <div className="py-16 px-8 text-center bg-gray-light">
+            <div className="text-6xl block mb-4 opacity-20">📋</div>
+            <h3 className="text-2xl text-gray-dark mb-2 font-semibold">
+              {tableSearchTerm ? 'Aucun résultat' : 'Aucune variante'}
+            </h3>
+            <p className="text-base text-gray-dark/70 m-0">
+              {tableSearchTerm ? 'Aucune variante ne correspond à votre recherche' : 'Créez votre première variante pour commencer'}
+            </p>
           </div>
         ) : (
-          <table>
-            <thead>
+          <table className="w-full border-collapse">
+            <thead className="bg-gradient-to-r from-purple to-purple-dark text-white">
               <tr>
-                <th>Nom</th>
-                <th>Code</th>
-                <th>Famille</th>
-                <th>Actions</th>
+                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Nom</th>
+                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Code</th>
+                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Famille</th>
+                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {getFilteredVariantsForTable().map((variant) => (
-                <tr key={variant.id}>
-                  <td>{variant.name}</td>
-                  <td>{variant.code}</td>
-                  <td>{variant.family?.name || 'N/A'}</td>
-                  <td>
-                    <button onClick={() => handleEdit(variant)}>Modifier</button>
-                    <button onClick={() => handleDelete(variant.id)} className="delete">
+              {getFilteredVariantsForTable().map((variant, index) => (
+                <tr 
+                  key={variant.id}
+                  className={`transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-light'} hover:bg-gray-hover`}
+                >
+                  <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">{variant.name}</td>
+                  <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-mono font-semibold">{variant.code}</td>
+                  <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">{variant.family?.name || 'N/A'}</td>
+                  <td className="px-6 py-4 text-left border-b border-purple/20">
+                    <button 
+                      onClick={() => handleEdit(variant)}
+                      className="mr-2 px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
+                    >
+                      Modifier
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(variant.id)}
+                      className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg"
+                    >
                       Supprimer
                     </button>
                   </td>
