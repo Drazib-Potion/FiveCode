@@ -29,9 +29,17 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      // Ne pas rediriger si on est déjà sur la page de login
+      // ou si la requête est vers les endpoints d'authentification
+      const isAuthEndpoint = error.config?.url?.includes('/auth/login') || 
+                            error.config?.url?.includes('/auth/register');
+      const isOnLoginPage = window.location.pathname === '/login';
+      
+      if (!isAuthEndpoint && !isOnLoginPage) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
