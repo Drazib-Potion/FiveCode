@@ -24,7 +24,7 @@ interface Variant {
   name: string;
   code: string;
   familyId: string;
-  excludedVariantIds?: string[];
+  variantLevel: 'FIRST' | 'SECOND';
 }
 
 interface TechnicalCharacteristic {
@@ -42,11 +42,13 @@ export default function GeneratorPage() {
   const [technicalCharacteristics, setTechnicalCharacteristics] = useState<TechnicalCharacteristic[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [selectedVariantId, setSelectedVariantId] = useState<string>('');
+  const [selectedVariant1Id, setSelectedVariant1Id] = useState<string>('');
+  const [selectedVariant2Id, setSelectedVariant2Id] = useState<string>('');
   const [values, setValues] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [productSearch, setProductSearch] = useState('');
-  const [variantSearch, setVariantSearch] = useState('');
+  const [variant1Search, setVariant1Search] = useState('');
+  const [variant2Search, setVariant2Search] = useState('');
   const [enumSearch, setEnumSearch] = useState<Record<string, string>>({});
   const [productsLoading, setProductsLoading] = useState(true);
   const [variantsLoading, setVariantsLoading] = useState(false);
@@ -74,45 +76,37 @@ export default function GeneratorPage() {
       if (product) {
         loadVariants(product.family.id);
         // Réinitialiser les sélections
-        setSelectedVariantId('');
+        setSelectedVariant1Id('');
+        setSelectedVariant2Id('');
         setValues({});
-        setVariantSearch('');
+        setVariant1Search('');
+        setVariant2Search('');
       }
     } else {
       setSelectedProduct(null);
       setVariants([]);
-      setSelectedVariantId('');
+      setSelectedVariant1Id('');
+      setSelectedVariant2Id('');
       setTechnicalCharacteristics([]);
       setValues({});
-      setVariantSearch('');
+      setVariant1Search('');
+      setVariant2Search('');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProductId, products]);
-  
-  // Recharger les variantes quand la recherche change (si un produit est sélectionné)
-  useEffect(() => {
-    if (selectedProduct) {
-      const timeoutId = setTimeout(() => {
-        loadVariants(selectedProduct.family.id, variantSearch);
-      }, variantSearch ? 300 : 0);
-
-      return () => clearTimeout(timeoutId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [variantSearch, selectedProduct]);
 
   useEffect(() => {
     if (selectedProduct) {
       // Charger les caractéristiques techniques dès qu'un produit est sélectionné
       // Si une variante est sélectionnée, on charge les caractéristiques pour cette variante
       // Sinon, on charge les caractéristiques qui ne sont pas liées à une variante (tableau vide)
-      const variantIds = selectedVariantId ? [selectedVariantId] : [];
+      const variantIds = [selectedVariant1Id, selectedVariant2Id].filter((id) => !!id) as string[];
       loadTechnicalCharacteristics(selectedProduct.family.id, variantIds);
     } else {
       setTechnicalCharacteristics([]);
       setValues({});
     }
-  }, [selectedProduct, selectedVariantId]);
+  }, [selectedProduct, selectedVariant1Id, selectedVariant2Id]);
 
   const loadProducts = async (search?: string) => {
     try {
@@ -140,10 +134,9 @@ export default function GeneratorPage() {
     }
   };
 
-  const loadVariants = async (familyId: string, search?: string) => {
+  const loadVariants = async (familyId: string) => {
     try {
       setVariantsLoading(true);
-      const searchValue = search !== undefined ? search : variantSearch.trim() || undefined;
       // Charger toutes les variantes sans limite
       let allVariants: Variant[] = [];
       let offset = 0;
@@ -151,7 +144,7 @@ export default function GeneratorPage() {
       let hasMore = true;
 
       while (hasMore) {
-        const response = await variantsService.getAll(familyId, offset, limit, searchValue);
+        const response = await variantsService.getAll(familyId, offset, limit);
         const data = Array.isArray(response) ? response : (response.data || []);
         allVariants = [...allVariants, ...data];
         hasMore = Array.isArray(response) ? data.length === limit : (response.hasMore !== false && data.length === limit);
@@ -190,15 +183,28 @@ export default function GeneratorPage() {
     setValues({ ...values, [technicalCharacteristicId]: value });
   };
 
-  const handleVariantToggle = (variantId: string) => {
-    // Si la variante est déjà sélectionnée, la désélectionner
-    if (selectedVariantId === variantId) {
-      setSelectedVariantId('');
-      return;
-    }
+  const filterVariantsByLevel = (level: 'FIRST' | 'SECOND', searchTerm: string) => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    return variants
+      .filter((variant) => variant.variantLevel === level)
+      .filter((variant) => {
+        if (!normalizedSearch) return true;
+        return (
+          variant.name.toLowerCase().includes(normalizedSearch) ||
+          variant.code.toLowerCase().includes(normalizedSearch)
+        );
+      });
+  };
 
-    // Sinon, sélectionner cette variante (remplace la précédente si elle existe)
-    setSelectedVariantId(variantId);
+  const filteredVariant1 = filterVariantsByLevel('FIRST', variant1Search);
+  const filteredVariant2 = filterVariantsByLevel('SECOND', variant2Search);
+
+  const handleVariant1Toggle = (variantId: string) => {
+    setSelectedVariant1Id((prev) => (prev === variantId ? '' : variantId));
+  };
+
+  const handleVariant2Toggle = (variantId: string) => {
+    setSelectedVariant2Id((prev) => (prev === variantId ? '' : variantId));
   };
 
   const handleGenerate = async () => {
@@ -238,7 +244,8 @@ export default function GeneratorPage() {
       setLoading(true);
       const result = await productGeneratedInfoService.create({
         productId: selectedProductId,
-        variantId: selectedVariantId || undefined,
+        variant1Id: selectedVariant1Id || undefined,
+        variant2Id: selectedVariant2Id || undefined,
         values: valuesToSend,
       });
       
@@ -249,9 +256,11 @@ export default function GeneratorPage() {
       );
       
       // Réinitialiser les sélections après génération
-      setSelectedVariantId('');
+      setSelectedVariant1Id('');
+      setSelectedVariant2Id('');
       setValues({});
-      setVariantSearch('');
+      setVariant1Search('');
+      setVariant2Search('');
     } catch (error: any) {
       console.error('Error generating info:', error);
       await showAlert(
@@ -425,45 +434,90 @@ export default function GeneratorPage() {
           </div>
 
           {selectedProduct && (
-            <div className="mb-4 ">
-              <label className="block mb-2 text-gray-dark font-medium">Variante (sélection unique)</label>
-              <input
-                type="text"
-                placeholder="🔍 Rechercher une variante..."
-                value={variantSearch}
-                onChange={(e) => setVariantSearch(e.target.value)}
-                className="w-full px-3 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
-              />
-              <div className="border border-gray-300 rounded p-2.5 max-h-[200px] overflow-y-auto bg-gray-50">
-                {variantsLoading ? (
-                  <div className="py-8 flex items-center justify-center">
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Loader size="md" />
-                      <span>Chargement...</span>
+            <div className="mb-4 grid gap-6 md:grid-cols-2">
+              <div>
+                <label className="block mb-2 text-gray-dark font-medium">Variante 1 (optionnelle)</label>
+                <input
+                  type="text"
+                  placeholder="🔍 Rechercher une variante 1..."
+                  value={variant1Search}
+                  onChange={(e) => setVariant1Search(e.target.value)}
+                  className="w-full px-3 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
+                />
+                <div className="border border-gray-300 rounded p-2.5 max-h-[200px] overflow-y-auto bg-gray-50">
+                  {variantsLoading ? (
+                    <div className="py-8 flex items-center justify-center">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Loader size="md" />
+                        <span>Chargement...</span>
+                      </div>
                     </div>
-                  </div>
-                ) : variants.length === 0 ? (
-                  <p className="text-gray-500 italic m-0">
-                    {variantSearch 
-                      ? 'Aucune variante ne correspond à votre recherche'
-                      : 'Aucune variante disponible pour cette famille'}
-                  </p>
-                ) : (
-                  <>
-                    {variants.map((variant) => (
-                      <label key={variant.id} className="flex items-center cursor-pointer px-2 py-2 rounded transition-colors duration-200 hover:bg-gray-100">
-                        <input
-                          type="radio"
-                          name="variant-selection"
-                          checked={selectedVariantId === variant.id}
-                          onChange={() => handleVariantToggle(variant.id)}
-                          className="mr-3 cursor-pointer"
-                        />
-                        <span className="select-none">{variant.name}</span>
-                      </label>
-                    ))}
-                  </>
-                )}
+                  ) : (
+                    <>
+                      {filteredVariant1.length === 0 ? (
+                        <p className="text-gray-500 italic m-0">
+                          {variant1Search
+                            ? 'Aucune variante 1 ne correspond à votre recherche'
+                            : 'Aucune variante 1 disponible pour cette famille'}
+                        </p>
+                      ) : (
+                        filteredVariant1.map((variant) => (
+                          <label key={variant.id} className="flex items-center cursor-pointer px-2 py-2 rounded transition-colors duration-200 hover:bg-gray-100">
+                            <input
+                              type="checkbox"
+                              checked={selectedVariant1Id === variant.id}
+                              onChange={() => handleVariant1Toggle(variant.id)}
+                              className="mr-3 cursor-pointer"
+                            />
+                            <span className="select-none">{variant.name} ({variant.code})</span>
+                          </label>
+                        ))
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="block mb-2 text-gray-dark font-medium">Variante 2 (optionnelle)</label>
+                <input
+                  type="text"
+                  placeholder="🔍 Rechercher une variante 2..."
+                  value={variant2Search}
+                  onChange={(e) => setVariant2Search(e.target.value)}
+                  className="w-full px-3 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
+                />
+                <div className="border border-gray-300 rounded p-2.5 max-h-[200px] overflow-y-auto bg-gray-50">
+                  {variantsLoading ? (
+                    <div className="py-8 flex items-center justify-center">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Loader size="md" />
+                        <span>Chargement...</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {filteredVariant2.length === 0 ? (
+                        <p className="text-gray-500 italic m-0">
+                          {variant2Search
+                            ? 'Aucune variante 2 ne correspond à votre recherche'
+                            : 'Aucune variante 2 disponible pour cette famille'}
+                        </p>
+                      ) : (
+                        filteredVariant2.map((variant) => (
+                          <label key={variant.id} className="flex items-center cursor-pointer px-2 py-2 rounded transition-colors duration-200 hover:bg-gray-100">
+                            <input
+                              type="checkbox"
+                              checked={selectedVariant2Id === variant.id}
+                              onChange={() => handleVariant2Toggle(variant.id)}
+                              className="mr-3 cursor-pointer"
+                            />
+                            <span className="select-none">{variant.name} ({variant.code})</span>
+                          </label>
+                        ))
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -488,8 +542,8 @@ export default function GeneratorPage() {
             ) : (
               <div className="text-center py-12 text-gray-500 text-lg">
                 <p>
-                  {selectedVariantId 
-                    ? 'Aucune caractéristique technique définie pour cette combinaison famille/variante'
+                  {selectedVariant1Id || selectedVariant2Id
+                    ? 'Aucune caractéristique technique définie pour cette combinaison famille/variantes'
                     : 'Aucune caractéristique technique définie pour cette famille (sans variante)'}
                 </p>
               </div>

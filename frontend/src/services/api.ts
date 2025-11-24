@@ -103,11 +103,11 @@ export const variantsService = {
     const response = await apiClient.get(`/variants/${id}`);
     return response.data;
   },
-  create: async (data: { familyId: string; name: string; code: string; excludedVariantIds?: string[] }) => {
+  create: async (data: { familyId: string; name: string; code: string; variantLevel: 'FIRST' | 'SECOND' }) => {
     const response = await apiClient.post('/variants', data);
     return response.data;
   },
-  update: async (id: string, data: { familyId?: string; name?: string; code?: string; excludedVariantIds?: string[] }) => {
+  update: async (id: string, data: { familyId?: string; name?: string; code?: string; variantLevel?: 'FIRST' | 'SECOND' }) => {
     const response = await apiClient.patch(`/variants/${id}`, data);
     return response.data;
   },
@@ -185,7 +185,8 @@ export const productsService = {
 export const productGeneratedInfoService = {
   create: async (data: {
     productId: string;
-    variantId?: string;
+    variant1Id?: string;
+    variant2Id?: string;
     values?: Record<string, any>;
   }) => {
     const response = await apiClient.post('/product-generated-infos', data);

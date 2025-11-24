@@ -12,7 +12,11 @@ export class CreateProductGeneratedInfoDto {
 
   @IsUUID()
   @IsOptional()
-  variantId?: string; // Une seule variante (optionnelle)
+  variant1Id?: string; // Variante de niveau 1 (optionnelle)
+
+  @IsUUID()
+  @IsOptional()
+  variant2Id?: string; // Variante de niveau 2 (optionnelle)
 
   @IsObject()
   @IsOptional()

@@ -12,7 +12,7 @@ interface TechnicalCharacteristic {
   enumOptions?: string[] | null;
   enumMultiple?: boolean | null;
   families?: Array<{ family: { id: string; name: string } }>;
-  variants?: Array<{ variant: { id: string; name: string } }>;
+  variants?: Array<{ variant: { id: string; name: string; variantLevel?: 'FIRST' | 'SECOND' } }>;
 }
 
 interface Family {
@@ -24,6 +24,7 @@ interface Variant {
   id: string;
   name: string;
   familyId: string;
+  variantLevel: 'FIRST' | 'SECOND';
   family?: {
     id: string;
     name: string;
@@ -44,11 +45,13 @@ export default function TechnicalCharacteristicsPage() {
     enumOptions: [] as string[],
     enumMultiple: false,
     familyIds: [] as string[],
-    variantIds: [] as string[],
+    variantIdsFirst: [] as string[],
+    variantIdsSecond: [] as string[],
   });
   const [newEnumOption, setNewEnumOption] = useState('');
   const [familySearch, setFamilySearch] = useState('');
-  const [variantSearch, setVariantSearch] = useState('');
+  const [variant1Search, setVariant1Search] = useState('');
+  const [variant2Search, setVariant2Search] = useState('');
   const [tableSearchTerm, setTableSearchTerm] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -173,24 +176,53 @@ export default function TechnicalCharacteristicsPage() {
     return families.filter((family) => family.name.toLowerCase().includes(searchLower));
   };
 
-  // Filtrer les variantes selon les familles sélectionnées et la recherche
-  const getFilteredVariants = () => {
+  // Filtrer les variantes selon la famille sélectionnée, le type (1 ou 2) et la recherche
+  const getFilteredVariantsByLevel = (level: 'FIRST' | 'SECOND', searchTerm: string) => {
     if (formData.familyIds.length === 0) {
-      return []; // Aucune variante affichée si aucune famille n'est sélectionnée
+      return [];
     }
-    let filtered = variants.filter((variant) => formData.familyIds.includes(variant.familyId));
-    
-    // Appliquer le filtre de recherche
-    if (variantSearch) {
-      const searchLower = variantSearch.toLowerCase();
-      filtered = filtered.filter((variant) => 
-        variant.name.toLowerCase().includes(searchLower) ||
-        (variant.family && variant.family.name.toLowerCase().includes(searchLower))
+
+    let filtered = variants.filter(
+      (variant) =>
+        variant.variantLevel === level && formData.familyIds.includes(variant.familyId),
+    );
+
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (variant) =>
+          variant.name.toLowerCase().includes(searchLower) ||
+          (variant.family && variant.family.name.toLowerCase().includes(searchLower)),
       );
     }
-    
+
     return filtered;
   };
+
+const filteredVariant1 = getFilteredVariantsByLevel('FIRST', variant1Search);
+const filteredVariant2 = getFilteredVariantsByLevel('SECOND', variant2Search);
+
+const getAllSelectedVariantIds = () => [
+  ...formData.variantIdsFirst,
+  ...formData.variantIdsSecond,
+];
+
+const getVariantNamesByLevel = (
+  technicalCharacteristic: TechnicalCharacteristic,
+  level: 'FIRST' | 'SECOND',
+) => {
+  if (!technicalCharacteristic.variants) return [];
+  return technicalCharacteristic.variants
+    .map(({ variant }) => {
+      if (!variant) return null;
+      const variantLevel =
+        variant.variantLevel ||
+        variants.find((stateVariant) => stateVariant.id === variant.id)?.variantLevel ||
+        'FIRST';
+      return variantLevel === level ? variant.name : null;
+    })
+    .filter((name): name is string => Boolean(name));
+};
 
 
   const handleFamilyToggle = (familyId: string) => {
@@ -198,30 +230,36 @@ export default function TechnicalCharacteristicsPage() {
     if (isSelected) {
       // Désélectionner la famille et retirer les variantes de cette famille
       const newFamilyIds = formData.familyIds.filter((id) => id !== familyId);
-      const newVariantIds = formData.variantIds.filter((variantId) => {
-        const variant = variants.find((v) => v.id === variantId);
-        return variant && variant.familyId !== familyId;
+      const filterVariantIds = (variantIds: string[]) =>
+        variantIds.filter((variantId) => {
+          const variant = variants.find((v) => v.id === variantId);
+          return variant && variant.familyId !== familyId;
+        });
+      setFormData({
+        ...formData,
+        familyIds: newFamilyIds,
+        variantIdsFirst: filterVariantIds(formData.variantIdsFirst),
+        variantIdsSecond: filterVariantIds(formData.variantIdsSecond),
       });
-      setFormData({ ...formData, familyIds: newFamilyIds, variantIds: newVariantIds });
     } else {
       // Sélectionner la famille
       setFormData({ ...formData, familyIds: [...formData.familyIds, familyId] });
     }
   };
 
-  const handleVariantToggle = (variantId: string) => {
-    const isSelected = formData.variantIds.includes(variantId);
-    if (isSelected) {
-      setFormData({
-        ...formData,
-        variantIds: formData.variantIds.filter((id) => id !== variantId),
-      });
-    } else {
-      setFormData({
-        ...formData,
-        variantIds: [...formData.variantIds, variantId],
-      });
-    }
+  const handleVariantToggle = (variantId: string, level: 'FIRST' | 'SECOND') => {
+    const currentList =
+      level === 'FIRST' ? formData.variantIdsFirst : formData.variantIdsSecond;
+    const isSelected = currentList.includes(variantId);
+    const updatedList = isSelected
+      ? currentList.filter((id) => id !== variantId)
+      : [...currentList, variantId];
+
+    setFormData({
+      ...formData,
+      variantIdsFirst: level === 'FIRST' ? updatedList : formData.variantIdsFirst,
+      variantIdsSecond: level === 'SECOND' ? updatedList : formData.variantIdsSecond,
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -237,17 +275,27 @@ export default function TechnicalCharacteristicsPage() {
         submitData.enumMultiple = formData.enumMultiple;
       }
       if (formData.familyIds.length > 0) submitData.familyIds = formData.familyIds;
-      if (formData.variantIds.length > 0) submitData.variantIds = formData.variantIds;
+      const combinedVariantIds = getAllSelectedVariantIds();
+      if (combinedVariantIds.length > 0) submitData.variantIds = combinedVariantIds;
 
       if (editingId) {
         await technicalCharacteristicsService.update(editingId, submitData);
       } else {
         await technicalCharacteristicsService.create(submitData);
       }
-      setFormData({ name: '', type: 'string', enumOptions: [], enumMultiple: false, familyIds: [], variantIds: [] });
+      setFormData({
+        name: '',
+        type: 'string',
+        enumOptions: [],
+        enumMultiple: false,
+        familyIds: [],
+        variantIdsFirst: [],
+        variantIdsSecond: [],
+      });
       setNewEnumOption('');
       setFamilySearch('');
-      setVariantSearch('');
+      setVariant1Search('');
+      setVariant2Search('');
       setShowForm(false);
       setEditingId(null);
       loadData(true);
@@ -261,15 +309,35 @@ export default function TechnicalCharacteristicsPage() {
   };
 
   const handleEdit = (technicalCharacteristic: TechnicalCharacteristic) => {
+    const variantAssignments = technicalCharacteristic.variants || [];
+    const variantIdsFirst: string[] = [];
+    const variantIdsSecond: string[] = [];
+
+    variantAssignments.forEach(({ variant }) => {
+      if (!variant) return;
+      const level =
+        variant.variantLevel ||
+        variants.find((v) => v.id === variant.id)?.variantLevel ||
+        'FIRST';
+      if (level === 'SECOND') {
+        variantIdsSecond.push(variant.id);
+      } else {
+        variantIdsFirst.push(variant.id);
+      }
+    });
+
     setFormData({
       name: technicalCharacteristic.name,
       type: technicalCharacteristic.type,
       enumOptions: technicalCharacteristic.enumOptions || [],
       enumMultiple: technicalCharacteristic.enumMultiple ?? false,
       familyIds: technicalCharacteristic.families?.map(f => f.family.id) || [],
-      variantIds: technicalCharacteristic.variants?.map(v => v.variant.id) || [],
+      variantIdsFirst,
+      variantIdsSecond,
     });
     setNewEnumOption('');
+    setVariant1Search('');
+    setVariant2Search('');
     setEditingId(technicalCharacteristic.id);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -295,7 +363,23 @@ export default function TechnicalCharacteristicsPage() {
       <div className="flex justify-between items-center mb-10 pb-4 border-b-2 border-purple/20">
         <h1 className="m-0 text-3xl font-bold text-purple">Gestion des Caractéristiques techniques</h1>
         <button 
-          onClick={() => { setShowForm(true); setEditingId(null); setFormData({ name: '', type: 'string', enumOptions: [], enumMultiple: false, familyIds: [], variantIds: [] }); setNewEnumOption(''); setFamilySearch(''); setVariantSearch(''); }}
+          onClick={() => { 
+            setShowForm(true); 
+            setEditingId(null); 
+            setFormData({ 
+              name: '', 
+              type: 'string', 
+              enumOptions: [], 
+              enumMultiple: false, 
+              familyIds: [], 
+              variantIdsFirst: [], 
+              variantIdsSecond: [], 
+            }); 
+            setNewEnumOption(''); 
+            setFamilySearch(''); 
+            setVariant1Search(''); 
+            setVariant2Search(''); 
+          }}
           className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
         >
           + Nouvelle caractéristique technique
@@ -460,51 +544,128 @@ export default function TechnicalCharacteristicsPage() {
               </small>
             </div>
             <div className="mb-5">
-              <label className="block mb-2.5 text-gray-dark font-semibold text-sm uppercase tracking-wide">Variantes (optionnel - filtrées selon les familles sélectionnées)</label>
-              <input
-                type="text"
-                placeholder="🔍 Rechercher une variante..."
-                value={variantSearch}
-                onChange={(e) => setVariantSearch(e.target.value)}
-                disabled={formData.familyIds.length === 0}
-                className={`w-full px-2 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20 ${formData.familyIds.length === 0 ? 'opacity-50' : ''}`}
-              />
-              <div className="border border-gray-300 rounded p-2.5 max-h-[200px] overflow-y-auto bg-gray-50">
-                {getFilteredVariants().length === 0 ? (
-                  <p className="text-gray-500 italic m-0">
-                    {formData.familyIds.length === 0 
-                      ? 'Sélectionnez d\'abord une ou plusieurs familles pour voir les variantes'
-                      : variantSearch
-                      ? 'Aucune variante ne correspond à votre recherche'
-                      : 'Aucune variante disponible pour les familles sélectionnées'}
-                  </p>
-                ) : (
-                  getFilteredVariants().map((variant) => (
-                    <label
-                      key={variant.id}
-                      className="flex items-center px-2 py-2 cursor-pointer rounded mb-1 transition-colors duration-200 hover:bg-gray-100"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.variantIds.includes(variant.id)}
-                        onChange={() => handleVariantToggle(variant.id)}
-                        className="mr-1.5 cursor-pointer"
-                      />
-                      <span>
-                        {variant.name}
-                        {variant.family && (
-                          <span className="text-gray-500 ml-1">
-                            ({variant.family.name})
+              <label className="block mb-2.5 text-gray-dark font-semibold text-sm uppercase tracking-wide">
+                Variantes (optionnel - filtrées selon les familles sélectionnées)
+              </label>
+              <p className="text-sm text-gray-500 mb-4">
+                Associez la caractéristique aux variantes 1 et/ou 2 des familles sélectionnées.
+              </p>
+              <div className="grid gap-6 md:grid-cols-2">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-dark font-semibold text-sm uppercase tracking-wide">
+                      Variantes 1
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {formData.variantIdsFirst.length > 0
+                        ? `${formData.variantIdsFirst.length} sélectionnée(s)`
+                        : 'Aucune sélection'}
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="🔍 Rechercher une variante 1..."
+                    value={variant1Search}
+                    onChange={(e) => setVariant1Search(e.target.value)}
+                    disabled={formData.familyIds.length === 0}
+                    className={`w-full px-2 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20 ${
+                      formData.familyIds.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  />
+                  <div className="border border-gray-300 rounded p-2.5 max-h-[200px] overflow-y-auto bg-gray-50">
+                    {formData.familyIds.length === 0 ? (
+                      <p className="text-gray-500 italic m-0">
+                        Sélectionnez d&apos;abord au moins une famille
+                      </p>
+                    ) : filteredVariant1.length === 0 ? (
+                      <p className="text-gray-500 italic m-0">
+                        {variant1Search
+                          ? 'Aucune variante 1 ne correspond à votre recherche'
+                          : 'Aucune variante 1 disponible pour les familles sélectionnées'}
+                      </p>
+                    ) : (
+                      filteredVariant1.map((variant) => (
+                        <label
+                          key={variant.id}
+                          className="flex items-center px-2 py-2 cursor-pointer rounded mb-1 transition-colors duration-200 hover:bg-gray-100"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={formData.variantIdsFirst.includes(variant.id)}
+                            onChange={() => handleVariantToggle(variant.id, 'FIRST')}
+                            className="mr-1.5 cursor-pointer"
+                          />
+                          <span>
+                            {variant.name}
+                            {variant.family && (
+                              <span className="text-gray-500 ml-1">
+                                ({variant.family.name})
+                              </span>
+                            )}
                           </span>
-                        )}
-                      </span>
-                    </label>
-                  ))
-                )}
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-dark font-semibold text-sm uppercase tracking-wide">
+                      Variantes 2
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {formData.variantIdsSecond.length > 0
+                        ? `${formData.variantIdsSecond.length} sélectionnée(s)`
+                        : 'Aucune sélection'}
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="🔍 Rechercher une variante 2..."
+                    value={variant2Search}
+                    onChange={(e) => setVariant2Search(e.target.value)}
+                    disabled={formData.familyIds.length === 0}
+                    className={`w-full px-2 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20 ${
+                      formData.familyIds.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  />
+                  <div className="border border-gray-300 rounded p-2.5 max-h-[200px] overflow-y-auto bg-gray-50">
+                    {formData.familyIds.length === 0 ? (
+                      <p className="text-gray-500 italic m-0">
+                        Sélectionnez d&apos;abord au moins une famille
+                      </p>
+                    ) : filteredVariant2.length === 0 ? (
+                      <p className="text-gray-500 italic m-0">
+                        {variant2Search
+                          ? 'Aucune variante 2 ne correspond à votre recherche'
+                          : 'Aucune variante 2 disponible pour les familles sélectionnées'}
+                      </p>
+                    ) : (
+                      filteredVariant2.map((variant) => (
+                        <label
+                          key={variant.id}
+                          className="flex items-center px-2 py-2 cursor-pointer rounded mb-1 transition-colors duration-200 hover:bg-gray-100"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={formData.variantIdsSecond.includes(variant.id)}
+                            onChange={() => handleVariantToggle(variant.id, 'SECOND')}
+                            className="mr-1.5 cursor-pointer"
+                          />
+                          <span>
+                            {variant.name}
+                            {variant.family && (
+                              <span className="text-gray-500 ml-1">
+                                ({variant.family.name})
+                              </span>
+                            )}
+                          </span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
-              <small className="block mt-1.5 text-gray-500">
-                {formData.variantIds.length > 0 ? `${formData.variantIds.length} variante(s) sélectionnée(s)` : 'Aucune variante sélectionnée'}
-              </small>
             </div>
             <div className="flex gap-4 mt-8 pt-6 border-t-2 border-gray-light">
               <button 
@@ -517,7 +678,7 @@ export default function TechnicalCharacteristicsPage() {
               </button>
               <button 
                 type="button" 
-                onClick={() => { setShowForm(false); setEditingId(null); setFamilySearch(''); setVariantSearch(''); }}
+                onClick={() => { setShowForm(false); setEditingId(null); setFamilySearch(''); setVariant1Search(''); setVariant2Search(''); }}
                 className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg hover:scale-105 active:scale-100"
               >
                 ✕ Annuler
@@ -546,14 +707,15 @@ export default function TechnicalCharacteristicsPage() {
                 <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Nom</th>
                 <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Type</th>
                 <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Familles</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Variantes</th>
+                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Variantes 1</th>
+                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Variantes 2</th>
                 <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-16 text-center">
+                  <td colSpan={6} className="px-6 py-16 text-center">
                     <div className="flex items-center justify-center gap-4 text-lg text-gray-600">
                       <Loader size="md" />
                       <span>Chargement...</span>
@@ -562,7 +724,7 @@ export default function TechnicalCharacteristicsPage() {
                 </tr>
               ) : technicalCharacteristics.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-16 text-center bg-gray-light">
+                  <td colSpan={6} className="px-6 py-16 text-center bg-gray-light">
                     <div className="text-6xl block mb-4 opacity-20">📋</div>
                     <h3 className="text-2xl text-gray-dark mb-2 font-semibold">
                       {tableSearchTerm ? 'Aucun résultat' : 'Aucune caractéristique technique'}
@@ -573,43 +735,55 @@ export default function TechnicalCharacteristicsPage() {
                   </td>
                 </tr>
               ) : (
-                technicalCharacteristics.map((technicalCharacteristic, index) => (
-                <tr 
-                  key={technicalCharacteristic.id}
-                  className={`transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-light'} hover:bg-gray-hover`}
-                >
-                  <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">{technicalCharacteristic.name}</td>
-                  <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">{formatFieldType(technicalCharacteristic.type)}</td>
-                  <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">
-                    {technicalCharacteristic.families && technicalCharacteristic.families.length > 0
-                      ? technicalCharacteristic.families.map(f => f.family.name).join(', ')
-                      : 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">
-                    {technicalCharacteristic.variants && technicalCharacteristic.variants.length > 0
-                      ? technicalCharacteristic.variants.map(v => v.variant.name).join(', ')
-                      : 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 text-left border-b border-purple/20">
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => handleEdit(technicalCharacteristic)}
-                        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
-                      >
-                        Modifier
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(technicalCharacteristic.id)}
-                        disabled={deletingId === technicalCharacteristic.id}
-                        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:opacity-100 flex items-center gap-2"
-                      >
-                        {deletingId === technicalCharacteristic.id && <Loader size="sm" />}
-                        {deletingId === technicalCharacteristic.id ? 'Suppression...' : 'Supprimer'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-                ))
+                technicalCharacteristics.map((technicalCharacteristic, index) => {
+                  const variantNamesFirst = getVariantNamesByLevel(
+                    technicalCharacteristic,
+                    'FIRST',
+                  );
+                  const variantNamesSecond = getVariantNamesByLevel(
+                    technicalCharacteristic,
+                    'SECOND',
+                  );
+
+                  return (
+                    <tr 
+                      key={technicalCharacteristic.id}
+                      className={`transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-light'} hover:bg-gray-hover`}
+                    >
+                      <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">{technicalCharacteristic.name}</td>
+                      <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">{formatFieldType(technicalCharacteristic.type)}</td>
+                      <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">
+                        {technicalCharacteristic.families && technicalCharacteristic.families.length > 0
+                          ? technicalCharacteristic.families.map(f => f.family.name).join(', ')
+                          : 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">
+                        {variantNamesFirst.length > 0 ? variantNamesFirst.join(', ') : 'Aucune'}
+                      </td>
+                      <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">
+                        {variantNamesSecond.length > 0 ? variantNamesSecond.join(', ') : 'Aucune'}
+                      </td>
+                      <td className="px-6 py-4 text-left border-b border-purple/20">
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => handleEdit(technicalCharacteristic)}
+                            className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all durée-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
+                          >
+                            Modifier
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(technicalCharacteristic.id)}
+                            disabled={deletingId === technicalCharacteristic.id}
+                            className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all durée-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:opacity-100 flex items-center gap-2"
+                          >
+                            {deletingId === technicalCharacteristic.id && <Loader size="sm" />}
+                            {deletingId === technicalCharacteristic.id ? 'Suppression...' : 'Supprimer'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

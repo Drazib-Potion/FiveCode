@@ -51,40 +51,12 @@ export class VariantsService {
         familyId: createVariantDto.familyId,
         name: createVariantDto.name,
         code: createVariantDto.code,
+        variantLevel: createVariantDto.variantLevel,
       },
       include: {
         family: true,
       },
     });
-
-    // Créer les exclusions si des variantes exclues sont spécifiées
-    if (createVariantDto.excludedVariantIds && createVariantDto.excludedVariantIds.length > 0) {
-      // Vérifier que toutes les variantes exclues existent et appartiennent à la même famille
-      const excludedVariants = await this.prisma.variant.findMany({
-        where: {
-          id: { in: createVariantDto.excludedVariantIds },
-          familyId: createVariantDto.familyId,
-        },
-      });
-
-      if (excludedVariants.length !== createVariantDto.excludedVariantIds.length) {
-        throw new BadRequestException(
-          'One or more excluded variants not found or belong to different family',
-        );
-      }
-
-      // Créer les exclusions (bidirectionnelles)
-      for (const excludedVariantId of createVariantDto.excludedVariantIds) {
-        // Créer l'exclusion dans les deux sens (A exclut B ET B exclut A)
-        await this.prisma.variantExclusion.createMany({
-          data: [
-            { variantId1: variant.id, variantId2: excludedVariantId },
-            { variantId1: excludedVariantId, variantId2: variant.id },
-          ],
-          skipDuplicates: true, // Évite les doublons si l'exclusion existe déjà
-        });
-      }
-    }
 
     return variant;
   }
@@ -97,16 +69,6 @@ export class VariantsService {
         technicalCharacteristicVariants: {
           include: {
             technicalCharacteristic: true,
-          },
-        },
-        exclusionsAsVariant1: {
-          include: {
-            variant2: true,
-          },
-        },
-        exclusionsAsVariant2: {
-          include: {
-            variant1: true,
           },
         },
       },
@@ -134,20 +96,8 @@ export class VariantsService {
     const total = allVariants.length;
     const paginatedVariants = allVariants.slice(offset, offset + limit);
 
-    // Ajouter excludedVariantIds à chaque variante
-    const data = paginatedVariants.map((variant) => {
-      const allExclusions = [
-        ...variant.exclusionsAsVariant1.map((e) => e.variant2.id),
-        ...variant.exclusionsAsVariant2.map((e) => e.variant1.id),
-      ];
-      return {
-        ...variant,
-        excludedVariantIds: allExclusions,
-      };
-    });
-
     return {
-      data,
+      data: paginatedVariants,
       total,
       hasMore: offset + limit < total,
     };
@@ -162,16 +112,6 @@ export class VariantsService {
         technicalCharacteristicVariants: {
           include: {
             technicalCharacteristic: true,
-          },
-        },
-        exclusionsAsVariant1: {
-          include: {
-            variant2: true,
-          },
-        },
-        exclusionsAsVariant2: {
-          include: {
-            variant1: true,
           },
         },
       },
@@ -197,20 +137,8 @@ export class VariantsService {
     const total = allVariants.length;
     const paginatedVariants = allVariants.slice(offset, offset + limit);
 
-    // Ajouter excludedVariantIds à chaque variante
-    const data = paginatedVariants.map((variant) => {
-      const allExclusions = [
-        ...variant.exclusionsAsVariant1.map((e) => e.variant2.id),
-        ...variant.exclusionsAsVariant2.map((e) => e.variant1.id),
-      ];
-      return {
-        ...variant,
-        excludedVariantIds: allExclusions,
-      };
-    });
-
     return {
-      data,
+      data: paginatedVariants,
       total,
       hasMore: offset + limit < total,
     };
@@ -226,16 +154,6 @@ export class VariantsService {
             technicalCharacteristic: true,
           },
         },
-        exclusionsAsVariant1: {
-          include: {
-            variant2: true,
-          },
-        },
-        exclusionsAsVariant2: {
-          include: {
-            variant1: true,
-          },
-        },
       },
     });
 
@@ -243,16 +161,7 @@ export class VariantsService {
       throw new NotFoundException(`Variant with ID ${id} not found`);
     }
 
-    // Combiner les exclusions des deux côtés
-    const allExclusions = [
-      ...variant.exclusionsAsVariant1.map((e) => e.variant2.id),
-      ...variant.exclusionsAsVariant2.map((e) => e.variant1.id),
-    ];
-
-    return {
-      ...variant,
-      excludedVariantIds: allExclusions,
-    };
+    return variant;
   }
 
   async update(id: string, updateVariantDto: UpdateVariantDto) {
@@ -299,50 +208,12 @@ export class VariantsService {
         familyId: updateVariantDto.familyId,
         name: updateVariantDto.name,
         code: updateVariantDto.code,
+        variantLevel: updateVariantDto.variantLevel,
       },
       include: {
         family: true,
       },
     });
-
-    // Si excludedVariantIds est fourni, mettre à jour les exclusions
-    if (updateVariantDto.excludedVariantIds !== undefined) {
-      // Supprimer toutes les exclusions existantes pour cette variante
-      await this.prisma.variantExclusion.deleteMany({
-        where: {
-          OR: [{ variantId1: id }, { variantId2: id }],
-        },
-      });
-
-      // Créer les nouvelles exclusions si des variantes exclues sont spécifiées
-      if (updateVariantDto.excludedVariantIds.length > 0) {
-        // Vérifier que toutes les variantes exclues existent et appartiennent à la même famille
-        const excludedVariants = await this.prisma.variant.findMany({
-          where: {
-            id: { in: updateVariantDto.excludedVariantIds },
-            familyId: variant.familyId,
-          },
-        });
-
-        if (excludedVariants.length !== updateVariantDto.excludedVariantIds.length) {
-          throw new BadRequestException(
-            'One or more excluded variants not found or belong to different family',
-          );
-        }
-
-        // Créer les exclusions (bidirectionnelles)
-        for (const excludedVariantId of updateVariantDto.excludedVariantIds) {
-          await this.prisma.variantExclusion.createMany({
-            data: [
-              { variantId1: id, variantId2: excludedVariantId },
-              { variantId1: excludedVariantId, variantId2: id },
-            ],
-            skipDuplicates: true,
-          });
-        }
-      }
-    }
-
     return updatedVariant;
   }
 

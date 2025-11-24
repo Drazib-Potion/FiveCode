@@ -16,7 +16,12 @@ interface ProductGeneratedInfo {
       name: string;
     };
   };
-  variant: {
+  variant1: {
+    id: string;
+    name: string;
+    code: string;
+  } | null;
+  variant2: {
     id: string;
     name: string;
     code: string;
@@ -107,7 +112,8 @@ export default function GeneratedCodesPage() {
         'Nom produit': info.product.name,
         'Code généré': info.generatedCode,
         'Famille': info.product.family.name,
-        'Variante': info.variant ? info.variant.name : 'Aucune',
+        'Variante 1': info.variant1 ? `${info.variant1.name} (${info.variant1.code})` : 'Aucune (0)',
+        'Variante 2': info.variant2 ? `${info.variant2.name} (${info.variant2.code})` : 'Aucune (0)',
         'Date de création': formatDate(info.createdAt),
       };
 
@@ -132,7 +138,8 @@ export default function GeneratedCodesPage() {
       { wch: 25 }, // Code généré
       { wch: 20 }, // Nom produit
       { wch: 15 }, // Famille
-      { wch: 30 }, // Variantes
+      { wch: 25 }, // Variante 1
+      { wch: 25 }, // Variante 2
       { wch: 20 }, // Date de création
     ];
     // Ajouter des largeurs pour les caractéristiques techniques dynamiques (15 caractères par défaut)
@@ -193,7 +200,8 @@ export default function GeneratedCodesPage() {
                 <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Code généré</th>
                 <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Produit</th>
                 <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Famille</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Variantes</th>
+                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Variante 1</th>
+                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Variante 2</th>
                 <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Caractéristiques techniques</th>
                 <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Date de création</th>
                 <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Actions</th>
@@ -223,9 +231,18 @@ export default function GeneratedCodesPage() {
                     <strong className="text-gray-dark">{info.product.family.name}</strong>
                   </td>
                   <td className="px-6 py-4 text-left border-b border-purple/20">
-                    {info.variant ? (
+                    {info.variant1 ? (
                       <span className="text-sm text-gray-dark">
-                        {info.variant.name} ({info.variant.code})
+                        {info.variant1.name} ({info.variant1.code})
+                      </span>
+                    ) : (
+                      <span className="text-gray-500 italic">Aucune</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-left border-b border-purple/20">
+                    {info.variant2 ? (
+                      <span className="text-sm text-gray-dark">
+                        {info.variant2.name} ({info.variant2.code})
                       </span>
                     ) : (
                       <span className="text-gray-500 italic">Aucune</span>

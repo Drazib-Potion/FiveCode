@@ -10,7 +10,7 @@ interface Variant {
   code: string;
   familyId: string;
   family?: { name: string };
-  excludedVariantIds?: string[];
+  variantLevel: 'FIRST' | 'SECOND';
 }
 
 interface Family {
@@ -29,10 +29,9 @@ export default function VariantsPage() {
     familyId: '', 
     name: '', 
     code: '',
-    excludedVariantIds: [] as string[],
+    variantLevel: 'FIRST' as 'FIRST' | 'SECOND',
   });
   const [familySearch, setFamilySearch] = useState('');
-  const [excludedVariantSearch, setExcludedVariantSearch] = useState('');
   const [tableSearchTerm, setTableSearchTerm] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -144,11 +143,10 @@ export default function VariantsPage() {
       if (editingId) {
         await variantsService.update(editingId, formData);
       } else {
-        await variantsService.create(formData as { familyId: string; name: string; code: string; excludedVariantIds?: string[] });
+        await variantsService.create(formData as { familyId: string; name: string; code: string; variantLevel: 'FIRST' | 'SECOND' });
       }
-      setFormData({ familyId: '', name: '', code: '', excludedVariantIds: [] });
+      setFormData({ familyId: '', name: '', code: '', variantLevel: 'FIRST' });
       setFamilySearch('');
-      setExcludedVariantSearch('');
       setShowForm(false);
       setEditingId(null);
       loadData(true);
@@ -166,10 +164,9 @@ export default function VariantsPage() {
       familyId: variant.familyId, 
       name: variant.name, 
       code: variant.code,
-      excludedVariantIds: variant.excludedVariantIds || [],
+      variantLevel: variant.variantLevel,
     });
     setFamilySearch('');
-    setExcludedVariantSearch('');
     setEditingId(variant.id);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -202,27 +199,20 @@ export default function VariantsPage() {
     setFormData({ ...formData, familyId: formData.familyId === familyId ? '' : familyId });
   };
 
-  // Filtrer les variantes exclues selon la recherche
-  const getFilteredExcludedVariants = () => {
-    let filtered = variants.filter(v => v.familyId === formData.familyId && v.id !== editingId);
-    
-    if (excludedVariantSearch) {
-      const searchLower = excludedVariantSearch.toLowerCase();
-      filtered = filtered.filter((variant) => 
-        variant.name.toLowerCase().includes(searchLower) ||
-        variant.code.toLowerCase().includes(searchLower)
-      );
-    }
-    
-    return filtered;
-  };
+  const variantLevelOptions = [
+    { value: 'FIRST' as const, label: 'Variante 1' },
+    { value: 'SECOND' as const, label: 'Variante 2' },
+  ];
+
+  const getVariantLevelLabel = (level: 'FIRST' | 'SECOND') =>
+    level === 'FIRST' ? 'Variante 1' : 'Variante 2';
 
   return (
     <div className="w-full animate-fade-in">
       <div className="flex justify-between items-center mb-10 pb-4 border-b-2 border-purple/20">
         <h1 className="m-0 text-3xl font-bold text-purple">Gestion des Variantes</h1>
         <button 
-          onClick={() => { setShowForm(true); setEditingId(null); setFormData({ familyId: '', name: '', code: '', excludedVariantIds: [] }); setFamilySearch(''); setExcludedVariantSearch(''); }}
+          onClick={() => { setShowForm(true); setEditingId(null); setFormData({ familyId: '', name: '', code: '', variantLevel: 'FIRST' }); setFamilySearch(''); }}
           className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
         >
           + Nouvelle variante
@@ -292,50 +282,24 @@ export default function VariantsPage() {
               />
             </div>
             <div className="mb-5">
-              <label className="block mb-2.5 text-gray-dark font-semibold text-sm uppercase tracking-wide">Variantes exclues (ne peuvent pas être sélectionnées avec cette variante)</label>
-              <input
-                type="text"
-                placeholder="🔍 Rechercher une variante..."
-                value={excludedVariantSearch}
-                onChange={(e) => setExcludedVariantSearch(e.target.value)}
-                disabled={!formData.familyId}
-                className={`w-full px-2 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20 ${!formData.familyId ? 'opacity-50' : ''}`}
-              />
-              <div className="flex flex-col gap-3 mt-2 max-h-[200px] overflow-y-auto p-2 border border-gray-300 rounded bg-gray-50">
-                {getFilteredExcludedVariants().length === 0 ? (
-                  <p className="text-gray-500 italic m-0">
-                    {!formData.familyId 
-                      ? 'Sélectionnez d\'abord une famille pour voir les variantes'
-                      : excludedVariantSearch
-                      ? 'Aucune variante ne correspond à votre recherche'
-                      : 'Aucune autre variante disponible pour cette famille'}
-                  </p>
-                ) : (
-                  getFilteredExcludedVariants().map((variant) => (
-                    <label key={variant.id} className="flex items-center cursor-pointer px-2 py-2 rounded transition-colors duration-200 hover:bg-gray-100">
-                      <input
-                        type="checkbox"
-                        checked={formData.excludedVariantIds.includes(variant.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFormData({
-                              ...formData,
-                              excludedVariantIds: [...formData.excludedVariantIds, variant.id],
-                            });
-                          } else {
-                            setFormData({
-                              ...formData,
-                              excludedVariantIds: formData.excludedVariantIds.filter(id => id !== variant.id),
-                            });
-                          }
-                        }}
-                        disabled={!formData.familyId}
-                        className="mr-1.5 cursor-pointer"
-                      />
-                      <span className="select-none">{variant.name}</span>
-                    </label>
-                  ))
-                )}
+              <label className="block mb-2.5 text-gray-dark font-semibold text-sm uppercase tracking-wide">Type de variante</label>
+              <div className="flex gap-4">
+                {variantLevelOptions.map((option) => (
+                  <label
+                    key={option.value}
+                    className="flex items-center cursor-pointer px-3 py-2 border border-gray-300 rounded-lg transition-colors duration-200 hover:bg-gray-50"
+                  >
+                    <input
+                      type="radio"
+                      name="variant-level"
+                      value={option.value}
+                      checked={formData.variantLevel === option.value}
+                      onChange={() => setFormData({ ...formData, variantLevel: option.value })}
+                      className="mr-2 cursor-pointer"
+                    />
+                    <span className="select-none">{option.label}</span>
+                  </label>
+                ))}
               </div>
             </div>
             <div className="flex gap-4 mt-8 pt-6 border-t-2 border-gray-light">
@@ -349,7 +313,7 @@ export default function VariantsPage() {
               </button>
               <button 
                 type="button" 
-                onClick={() => { setShowForm(false); setEditingId(null); setFamilySearch(''); setExcludedVariantSearch(''); }}
+                onClick={() => { setShowForm(false); setEditingId(null); setFamilySearch(''); }}
                 className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg hover:scale-105 active:scale-100"
               >
                 ✕ Annuler
@@ -377,6 +341,7 @@ export default function VariantsPage() {
               <tr>
                 <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Nom</th>
                 <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Code</th>
+                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Type</th>
                 <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Famille</th>
                 <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Actions</th>
               </tr>
@@ -384,7 +349,7 @@ export default function VariantsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-16 text-center">
+                  <td colSpan={5} className="px-6 py-16 text-center">
                     <div className="flex items-center justify-center gap-4 text-lg text-gray-600">
                       <Loader size="md" />
                       <span>Chargement...</span>
@@ -393,7 +358,7 @@ export default function VariantsPage() {
                 </tr>
               ) : variants.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-16 text-center bg-gray-light">
+                  <td colSpan={5} className="px-6 py-16 text-center bg-gray-light">
                     <div className="text-6xl block mb-4 opacity-20">📋</div>
                     <h3 className="text-2xl text-gray-dark mb-2 font-semibold">
                       {tableSearchTerm ? 'Aucun résultat' : 'Aucune variante'}
@@ -411,6 +376,7 @@ export default function VariantsPage() {
                   >
                     <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">{variant.name}</td>
                     <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-mono font-semibold">{variant.code}</td>
+                    <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark">{getVariantLevelLabel(variant.variantLevel)}</td>
                     <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">{variant.family?.name || 'N/A'}</td>
                     <td className="px-6 py-4 text-left border-b border-purple/20">
                       <div className="flex items-center gap-2">

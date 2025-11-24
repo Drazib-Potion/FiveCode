@@ -30,21 +30,25 @@ export class ProductGeneratedInfoService {
       );
     }
 
-    // Vérifier la variante si elle est fournie
-    let variant = null;
-    if (createDto.variantId) {
-      variant = await this.prisma.variant.findUnique({
-        where: { id: createDto.variantId },
+    // Vérifier les variantes si elles sont fournies
+    const variantChecks = async (variantId: string, expectedLevel: 'FIRST' | 'SECOND') => {
+      const variant = await this.prisma.variant.findUnique({
+        where: { id: variantId },
       });
 
       if (!variant) {
         throw new NotFoundException('Variant not found');
       }
 
-      // Vérifier que la variante appartient à la famille du produit
       if (variant.familyId !== product.familyId) {
         throw new BadRequestException(
           `Variant ${variant.name} does not belong to the product's family`,
+        );
+      }
+
+      if (variant.variantLevel !== expectedLevel) {
+        throw new BadRequestException(
+          `Variant ${variant.name} must be of type ${expectedLevel === 'FIRST' ? 'Variante 1' : 'Variante 2'}`,
         );
       }
 
@@ -53,7 +57,21 @@ export class ProductGeneratedInfoService {
           `Variant ${variant.name} must have a code defined`,
         );
       }
-    }
+
+      return variant;
+    };
+
+    const variant1 = createDto.variant1Id
+      ? await variantChecks(createDto.variant1Id, 'FIRST')
+      : null;
+    const variant2 = createDto.variant2Id
+      ? await variantChecks(createDto.variant2Id, 'SECOND')
+      : null;
+
+    const selectedVariantIds = [
+      variant1?.id,
+      variant2?.id,
+    ].filter((id): id is string => Boolean(id));
 
     // Récupérer les caractéristiques techniques applicables AVANT de vérifier les doublons
     const allTechnicalCharacteristicsResponse = await this.technicalCharacteristicsService.findAll();
@@ -93,8 +111,10 @@ export class ProductGeneratedInfoService {
 
         // Si la caractéristique a des variantes pour cette famille, vérifier si elle correspond à la variante sélectionnée
         const variantIdsForThisFamily = variantsForThisFamily.map((v) => v.variantId);
-        if (createDto.variantId) {
-          return variantIdsForThisFamily.includes(createDto.variantId);
+        if (selectedVariantIds.length > 0) {
+          return selectedVariantIds.some((variantId) =>
+            variantIdsForThisFamily.includes(variantId),
+          );
         }
         // Si aucune variante n'est sélectionnée, la caractéristique s'applique à toute la famille
         return true;
@@ -110,10 +130,12 @@ export class ProductGeneratedInfoService {
     const allProductInfos = await this.prisma.productGeneratedInfo.findMany({
       where: {
         productId: createDto.productId,
-        variantId: createDto.variantId || null,
+        variant1Id: variant1?.id ?? null,
+        variant2Id: variant2?.id ?? null,
       },
       include: {
-        variant: true,
+        variant1: true,
+        variant2: true,
         technicalCharacteristics: {
           include: {
             technicalCharacteristic: true,
@@ -206,9 +228,10 @@ export class ProductGeneratedInfoService {
     const increment = exactVariantMatches.length + 1;
 
     // Générer le code : F{productType.code}{product.code}{variant.code}{incrément6digits}
-    const variantCode = variant?.code || '';
+    const variant1Code = variant1?.code ?? '0';
+    const variant2Code = variant2?.code ?? '0';
     const incrementStr = String(increment).padStart(6, '0');
-    const generatedCode = `F${product.productType.code}${product.code}${variantCode}${incrementStr}`;
+    const generatedCode = `F${product.productType.code}${product.code}${variant1Code}${variant2Code}${incrementStr}`;
 
     // Valider que toutes les caractéristiques techniques définies sont fournies (si des caractéristiques techniques existent et des valeurs sont fournies)
     if (
@@ -233,7 +256,8 @@ export class ProductGeneratedInfoService {
     const generatedInfo = await this.prisma.productGeneratedInfo.create({
       data: {
         productId: createDto.productId,
-        variantId: createDto.variantId || null,
+        variant1Id: variant1?.id ?? null,
+        variant2Id: variant2?.id ?? null,
         generatedCode,
       },
       include: {
@@ -242,7 +266,8 @@ export class ProductGeneratedInfoService {
             family: true,
           },
         },
-        variant: true,
+        variant1: true,
+        variant2: true,
       },
     });
 
@@ -274,7 +299,8 @@ export class ProductGeneratedInfoService {
             family: true,
           },
         },
-        variant: true,
+        variant1: true,
+        variant2: true,
         technicalCharacteristics: {
           include: {
             technicalCharacteristic: true,
@@ -296,7 +322,8 @@ export class ProductGeneratedInfoService {
             family: true,
           },
         },
-        variant: true,
+        variant1: true,
+        variant2: true,
         technicalCharacteristics: {
           include: {
             technicalCharacteristic: true,
@@ -318,7 +345,8 @@ export class ProductGeneratedInfoService {
             family: true,
           },
         },
-        variant: true,
+        variant1: true,
+        variant2: true,
         technicalCharacteristics: {
           include: {
             technicalCharacteristic: true,

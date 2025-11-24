@@ -1,4 +1,9 @@
-import { IsString, IsNotEmpty, IsUUID, IsArray, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsUUID, IsEnum } from 'class-validator';
+
+export enum VariantLevel {
+  FIRST = 'FIRST',
+  SECOND = 'SECOND',
+}
 
 export class CreateVariantDto {
   @IsUUID()
@@ -13,9 +18,7 @@ export class CreateVariantDto {
   @IsNotEmpty()
   code: string; // Code de la variante (unique par famille)
 
-  @IsArray()
-  @IsUUID(undefined, { each: true })
-  @IsOptional()
-  excludedVariantIds?: string[]; // Tableau des IDs de variantes qui excluent cette variante
+  @IsEnum(VariantLevel, { message: 'variantLevel must be FIRST or SECOND' })
+  variantLevel: VariantLevel;
 }
 
