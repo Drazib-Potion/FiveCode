@@ -3,20 +3,7 @@ import { variantsService, familiesService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import Loader from '../components/Loader';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
-
-interface Variant {
-  id: string;
-  name: string;
-  code: string;
-  familyId: string;
-  family?: { name: string };
-  variantLevel: 'FIRST' | 'SECOND';
-}
-
-interface Family {
-  id: string;
-  name: string;
-}
+import { Variant, Family } from '../utils/types';
 
 export default function VariantsPage() {
   const { showAlert, showConfirm } = useModal();

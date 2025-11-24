@@ -8,32 +8,7 @@ import {
 import { useModal } from '../contexts/ModalContext';
 import { formatFieldType } from '../utils/fieldTypeFormatter';
 import Loader from '../components/Loader';
-
-interface Product {
-  id: string;
-  name: string;
-  code: string;
-  family: {
-    id: string;
-    name: string;
-  };
-}
-
-interface Variant {
-  id: string;
-  name: string;
-  code: string;
-  familyId: string;
-  variantLevel: 'FIRST' | 'SECOND';
-}
-
-interface TechnicalCharacteristic {
-  id: string;
-  name: string;
-  type: string;
-  enumOptions?: string[] | null;
-  enumMultiple?: boolean | null;
-}
+import { Product, Variant, TechnicalCharacteristic } from '../utils/types';
 
 export default function GeneratorPage() {
   const { showAlert } = useModal();

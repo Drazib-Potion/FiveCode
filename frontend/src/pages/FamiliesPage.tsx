@@ -3,11 +3,7 @@ import { familiesService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import Loader from '../components/Loader';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
-
-interface Family {
-  id: string;
-  name: string;
-}
+import { Family } from '../utils/types';
 
 export default function FamiliesPage() {
   const { showAlert, showConfirm } = useModal();

@@ -3,40 +3,7 @@ import { productGeneratedInfoService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import * as XLSX from 'xlsx';
 import excelIcon from '../media/excel-icon.png';
-
-interface ProductGeneratedInfo {
-  id: string;
-  generatedCode: string;
-  product: {
-    id: string;
-    name: string;
-    code: string;
-    family: {
-      id: string;
-      name: string;
-    };
-  };
-  variant1: {
-    id: string;
-    name: string;
-    code: string;
-  } | null;
-  variant2: {
-    id: string;
-    name: string;
-    code: string;
-  } | null;
-  technicalCharacteristics: Array<{
-    technicalCharacteristic: {
-      id: string;
-      name: string;
-      type: string;
-    };
-    value: string;
-  }>;
-  createdAt: string;
-  updatedAt: string;
-}
+import { ProductGeneratedInfo } from '../utils/types';
 
 export default function GeneratedCodesPage() {
   const { showAlert, showConfirm } = useModal();
@@ -255,16 +222,18 @@ export default function GeneratedCodesPage() {
                           // Essayer de parser la valeur comme JSON (pour les enums)
                           let displayValue = pf.value;
                           try {
-                            const parsed = JSON.parse(pf.value);
-                            if (Array.isArray(parsed)) {
-                              displayValue = parsed.join(', ');
+                            if (pf.value) {
+                              const parsed = JSON.parse(pf.value);
+                              if (Array.isArray(parsed)) {
+                                displayValue = parsed.join(', ');
+                              }
                             }
                           } catch {
                             // Ce n'est pas du JSON, utiliser la valeur telle quelle
                           }
                           return (
                             <span key={pf.technicalCharacteristic.id} className="text-sm text-gray-dark">
-                              <strong>{pf.technicalCharacteristic.name}:</strong> {displayValue}
+                              <strong>{pf.technicalCharacteristic.name}:</strong> {displayValue || 'N/A'}
                             </span>
                           );
                         })}

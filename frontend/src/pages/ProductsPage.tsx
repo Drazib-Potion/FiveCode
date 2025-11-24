@@ -3,34 +3,7 @@ import { productsService, familiesService, productTypesService } from '../servic
 import { useModal } from '../contexts/ModalContext';
 import Loader from '../components/Loader';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
-
-interface Product {
-  id: string;
-  name: string;
-  code: string;
-  family: {
-    id: string;
-    name: string;
-  };
-  productType: {
-    id: string;
-    name: string;
-    code: string;
-  };
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Family {
-  id: string;
-  name: string;
-}
-
-interface ProductType {
-  id: string;
-  name: string;
-  code: string;
-}
+import { Product, Family, ProductType } from '../utils/types';
 
 export default function ProductsPage() {
   const { showAlert, showConfirm } = useModal();
@@ -426,13 +399,13 @@ export default function ProductsPage() {
                     <strong>{product.family.name}</strong>
                   </td>
                   <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark">
-                    {new Date(product.createdAt).toLocaleString('fr-FR', {
+                    {product.createdAt ? new Date(product.createdAt).toLocaleString('fr-FR', {
                       year: 'numeric',
                       month: '2-digit',
                       day: '2-digit',
                       hour: '2-digit',
                       minute: '2-digit',
-                    })}
+                    }) : 'N/A'}
                   </td>
                   <td className="px-6 py-4 text-left border-b border-purple/20">
                     <button 

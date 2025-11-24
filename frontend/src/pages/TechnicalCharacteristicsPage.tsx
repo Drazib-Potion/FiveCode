@@ -4,32 +4,7 @@ import { useModal } from '../contexts/ModalContext';
 import { formatFieldType, getFieldTypeOptions } from '../utils/fieldTypeFormatter';
 import Loader from '../components/Loader';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
-
-interface TechnicalCharacteristic {
-  id: string;
-  name: string;
-  type: string;
-  enumOptions?: string[] | null;
-  enumMultiple?: boolean | null;
-  families?: Array<{ family: { id: string; name: string } }>;
-  variants?: Array<{ variant: { id: string; name: string; variantLevel?: 'FIRST' | 'SECOND' } }>;
-}
-
-interface Family {
-  id: string;
-  name: string;
-}
-
-interface Variant {
-  id: string;
-  name: string;
-  familyId: string;
-  variantLevel: 'FIRST' | 'SECOND';
-  family?: {
-    id: string;
-    name: string;
-  };
-}
+import { TechnicalCharacteristic, Family, Variant } from '../utils/types';
 
 export default function TechnicalCharacteristicsPage() {
   const { showAlert, showConfirm } = useModal();

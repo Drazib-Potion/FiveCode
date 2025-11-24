@@ -3,12 +3,7 @@ import { productTypesService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import Loader from '../components/Loader';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
-
-interface ProductType {
-  id: string;
-  name: string;
-  code: string;
-}
+import { ProductType } from '../utils/types';
 
 export default function ProductTypesPage() {
   const { showAlert, showConfirm } = useModal();
