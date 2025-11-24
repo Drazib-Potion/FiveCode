@@ -25,7 +25,9 @@ export class VariantsService {
 
     // Vérifier que le code n'existe pas déjà pour cette famille (insensible à la casse et aux accents)
     const existingByCode = familyVariants.find(
-      (v) => normalizeString(v.code) === normalizeString(createVariantDto.code),
+      (v) =>
+        v.variantLevel === createVariantDto.variantLevel &&
+        normalizeString(v.code) === normalizeString(createVariantDto.code),
     );
 
     if (existingByCode) {
@@ -36,7 +38,9 @@ export class VariantsService {
 
     // Vérifier que le nom n'existe pas déjà pour cette famille (insensible à la casse et aux accents)
     const existingByName = familyVariants.find(
-      (v) => normalizeString(v.name) === normalizeString(createVariantDto.name),
+      (v) =>
+        v.variantLevel === createVariantDto.variantLevel &&
+        normalizeString(v.name) === normalizeString(createVariantDto.name),
     );
 
     if (existingByName) {
@@ -167,38 +171,51 @@ export class VariantsService {
   async update(id: string, updateVariantDto: UpdateVariantDto) {
     const variant = await this.findOne(id);
 
-    // Récupérer toutes les variantes de cette famille (sauf la variante actuelle) pour comparaison case-insensitive
+    const targetFamilyId = updateVariantDto.familyId ?? variant.familyId;
+    const targetVariantLevel = updateVariantDto.variantLevel ?? variant.variantLevel;
+    const targetCode = updateVariantDto.code ?? variant.code;
+    const targetName = updateVariantDto.name ?? variant.name;
+
+    if (updateVariantDto.familyId && updateVariantDto.familyId !== variant.familyId) {
+      const family = await this.prisma.family.findUnique({
+        where: { id: updateVariantDto.familyId },
+      });
+
+      if (!family) {
+        throw new NotFoundException(`Family with ID ${updateVariantDto.familyId} not found`);
+      }
+    }
+
+    // Récupérer toutes les variantes de la famille cible (sauf la variante actuelle) pour comparaison case-insensitive
     const familyVariants = await this.prisma.variant.findMany({
       where: {
-        familyId: variant.familyId,
+        familyId: targetFamilyId,
         id: { not: id }, // Exclure la variante actuelle
       },
     });
 
-    // Si le code est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse et aux accents)
-    if (updateVariantDto.code && normalizeString(updateVariantDto.code) !== normalizeString(variant.code)) {
-      const existingByCode = familyVariants.find(
-        (v) => normalizeString(v.code) === normalizeString(updateVariantDto.code),
-      );
+    const existingByCode = familyVariants.find(
+      (v) =>
+        v.variantLevel === targetVariantLevel &&
+        normalizeString(v.code) === normalizeString(targetCode),
+    );
 
-      if (existingByCode) {
-        throw new BadRequestException(
-          `Une variante avec le code "${updateVariantDto.code}" existe déjà pour cette famille`,
-        );
-      }
+    if (existingByCode) {
+      throw new BadRequestException(
+        `Une variante avec le code "${targetCode}" existe déjà pour cette famille et ce type`,
+      );
     }
 
-    // Si le nom est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse et aux accents)
-    if (updateVariantDto.name && normalizeString(updateVariantDto.name) !== normalizeString(variant.name)) {
-      const existingByName = familyVariants.find(
-        (v) => normalizeString(v.name) === normalizeString(updateVariantDto.name),
-      );
+    const existingByName = familyVariants.find(
+      (v) =>
+        v.variantLevel === targetVariantLevel &&
+        normalizeString(v.name) === normalizeString(targetName),
+    );
 
-      if (existingByName) {
-        throw new BadRequestException(
-          `Une variante avec le nom "${updateVariantDto.name}" existe déjà pour cette famille`,
-        );
-      }
+    if (existingByName) {
+      throw new BadRequestException(
+        `Une variante avec le nom "${targetName}" existe déjà pour cette famille et ce type`,
+      );
     }
 
     // Mettre à jour la variante (sans les exclusions pour l'instant)

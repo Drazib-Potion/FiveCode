@@ -457,8 +457,8 @@ export default function GeneratorPage() {
                       {filteredVariant1.length === 0 ? (
                         <p className="text-gray-500 italic m-0">
                           {variant1Search
-                            ? 'Aucune variante 1 ne correspond à votre recherche'
-                            : 'Aucune variante 1 disponible pour cette famille'}
+                            ? 'Aucune variante 1 ne correspond à votre recherche (code "0" sera utilisé)'
+                            : 'Aucune variante 1 disponible pour cette famille (code "0" sera utilisé)'}
                         </p>
                       ) : (
                         filteredVariant1.map((variant) => (
@@ -499,8 +499,8 @@ export default function GeneratorPage() {
                       {filteredVariant2.length === 0 ? (
                         <p className="text-gray-500 italic m-0">
                           {variant2Search
-                            ? 'Aucune variante 2 ne correspond à votre recherche'
-                            : 'Aucune variante 2 disponible pour cette famille'}
+                            ? 'Aucune variante 2 ne correspond à votre recherche (code "0" sera utilisé)'
+                            : 'Aucune variante 2 disponible pour cette famille (code "0" sera utilisé)'}
                         </p>
                       ) : (
                         filteredVariant2.map((variant) => (

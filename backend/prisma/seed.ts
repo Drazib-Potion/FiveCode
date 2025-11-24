@@ -1,85 +1,237 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, VariantLevel } from '@prisma/client';
 
+interface CsvRow {
+  productName: string;
+  productCode: string;
+  productFamily: string;
+  variant1Family: string;
+  variant1Name: string;
+  variant1Code: string;
+  variant2Family: string;
+  variant2Name: string;
+  variant2Code: string;
+}
+
+interface VariantDefinition {
+  familyName: string;
+  name: string;
+  code: string;
+  level: VariantLevel;
+}
+
+const RAW_CSV = `PRODUIT;CODE;FAMILLE PRODUIT;;FAMILLE PRODUIT;VARIANTE 1;CODE;;FAMILLE PRODUIT;VARIANTE 2;CODE
+ACCESSOIRE;CB;ACCESSOIRE BMS;;ACCESSOIRE BMS;SANS VARIANTE;0;;ACCESSOIRE BMS;SANS VARIANTE;0
+AUTOMATE PROGRAMMABLE;AU;ACCESSOIRE BMS;;ALIMENTATION ELECTRIQUE;SANS VARIANTE;0;;ALIMENTATION ELECTRIQUE;SANS VARIANTE;0
+BORNIER;BN;ACCESSOIRE BMS;;ALIMENTATION ELECTRIQUE;TRANSFORMATEUR;T;;ALIMENTATION ELECTRIQUE;TRANSFORMATEUR;T
+CARTE;CT;ACCESSOIRE BMS;;ANCRAGE;SANS VARIANTE;0;;ANCRAGE;SANS VARIANTE;0
+ECRAN;TV;ACCESSOIRE BMS;;BOBINE ELECTRIQUE;SANS VARIANTE;0;;BOBINE ELECTRIQUE;SANS VARIANTE;0
+EXTENSION RACK;ER;ACCESSOIRE BMS;;CABLE;SANS VARIANTE;0;;CABLE;SANS VARIANTE;0
+HUB TELECOMMUNICATION;HT;ACCESSOIRE BMS;;CHAUDIERE;SANS VARIANTE;0;;CLAPET ANTI RETOUR;SANS VARIANTE;0
+LICENCE LOGICIEL;LL;ACCESSOIRE BMS;;CLAPET ANTI RETOUR;CLAPET A DISQUE;1;;COFFRET ELECTRIQUE;SANS VARIANTE;0
+MODULE TELECOMMUNICATION;MT;ACCESSOIRE BMS;;CLAPET ANTI RETOUR;CLAPET A BILLE;2;;COLLE;SANS VARIANTE;0
+RELAIS;RL;ACCESSOIRE BMS;;CLAPET ANTI RETOUR;CLAPET A BATTANT;3;;COMPENSATEUR;SANS VARIANTE;0
+ALIMENTATION ELECTRIQUE;AE;ALIMENTATION ELECTRIQUE;;COFFRET ELECTRIQUE;SANS VARIANTE;0;;COMPOSANT ELECTRONIQUE;SANS VARIANTE;0
+ANCRAGE;AG;ANCRAGE;;COFFRET ELECTRIQUE;ACCESSOIRE DE CABLAGE;A;;CONNECTEUR ELEC. RAPIDE;SANS VARIANTE;0
+BOBINE ELECTRIQUE;AC;BOBINE ELECTRIQUE;;COLLE;SANS VARIANTE;0;;CONNECTEUR ELEC. RAPIDE;SANS VARIANTE;0
+CABLE ELECTRIQUE;CA;CABLE;;COMPENSATEUR;A BRIDE;1;;CONNECTEUR ELECTRIQUE;CONNECTEUR DROIT;D
+CABLE MECANIQUE;AB;CABLE;;COMPENSATEUR;A SOUDER;2;;CONNECTEUR ELECTRIQUE;CONNECTEUR CIRCULAIRE;C
+CHAUDIERE;CH;CHAUDIERE;;COMPOSANT ELECTRONIQUE;SANS VARIANTE;0;;CONNECTEUR ELECTRIQUE;SANS VARIANTE;0
+CLAPET ANTI RETOUR;AA;CLAPET ANTI RETOUR;;CONNECTEUR ELEC. RAPIDE;AVEC ISOLANT;I;;DEBITMETRE A ROUE;ENTRE-BRIDE;E
+COFFRET ELECTRIQUE;CO;COFFRET ELECTRIQUE;;CONNECTEUR ELEC. RAPIDE;MALE/FEMELLE;M;;DEBITMETRE A ROUE;A BRIDE;A
+COLLE;CL;COLLE;;CONNECTEUR ELECTRIQUE;EMBASE;E;;DEBITMETRE A ROUE;FILETE;F
+FREIN FILET;FF;COLLE;;CONNECTEUR ELECTRIQUE;FICHE / CONNECTEUR;F;;DEBITMETRE A TRANSMETTEUR;ENTRE-BRIDE;E
+MASTIC;MA;COLLE;;CONNECTEUR ELECTRIQUE;SANS VARIANTE;0;;DEBITMETRE A TRANSMETTEUR;A BRIDE;A
+COMPENSATEUR;CP;COMPENSATEUR;;CONNECTEUR ELECTRIQUE;CONTACT DE CONNECTEURS;C;;DEBITMETRE A TRANSMETTEUR;FILETE;F
+SEMI-CONDUCTEUR;SC;COMPOSANT ELECTRONIQUE;;CONNECTEUR ELECTRIQUE;BORNIER;B;;DETECTEUR;SANS VARIANTE;0
+FICHE BANANE;FB;CONNECTEUR ELEC. RAPIDE;;CONNECTEUR ELECTRIQUE;CONNECTEUR PRE-CABLE;P;;DETENDEUR;A BRIDE;A
+PINCE CROCODILE;PC;CONNECTEUR ELEC. RAPIDE;;CONNECTEUR ELECTRIQUE;A BOULE;A;;DETENDEUR;SW;S
+CONNECTEUR ELECTRIQUE;CE;CONNECTEUR ELECTRIQUE;;DEBITMETRE A ROUE;SANS VARIANTE;0;;DETENDEUR;BW;B
+DEBITMETRE (TYPE KOBOLD);DR;DEBITMETRE A ROUE;;DEBITMETRE A TRANSMETTEUR;1 TETE;1;;DETENDEUR;FILETE;F
+DEBITMETRE MASSIQUE;DM;DEBITMETRE A TRANSMETTEUR;;DEBITMETRE A TRANSMETTEUR;2 TETES;2;;DETENDEUR;ENTRE-BRIDE;E
+DEBITMETRE VORTEX;DV;DEBITMETRE A TRANSMETTEUR;;DETECTEUR;SANS VARIANTE;0;;DOIGT DE GANT;NPTM;A
+CAPTEUR O2;DO;DETECTEUR;;DETECTEUR;DETECTEUR UV;U;;DOIGT DE GANT;NPTF;B
+CELLULE DETECTION FLAMME;DF;DETECTEUR;;DETECTEUR;DETECTEUR IR;I;;DOIGT DE GANT;GAZM;C
+DETECTEUR INDUCTIF;DT;DETECTEUR;;DETECTEUR;CAPTEUR PYROMETRIQUE;P;;DOIGT DE GANT;GAZF;D
+DETENDEUR;DE;DETENDEUR;;DETECTEUR;DETECTEUR O2;D;;DOIGT DE GANT;SANS VARIANTE;0
+DOIGT DE GANT;DG;DOIGT DE GANT;;DETECTEUR;INDUCTIF;A;;ELECTRODE;SANS VARIANTE;0
+BOUGIE;BO;ELECTRODE;;DETENDEUR;AVEC CLAPET DE SECURITE;A;;ELECTRODE DE SOUDURE;SANS VARIANTE;0
+ELECTRODE DE COMBUSTION;EC;ELECTRODE;;DETENDEUR;SANS CLAPET DE SECURITE;S;;ELECTROVANNE;SANS VARIANTE;0
+ISOLATEUR CERAMIQUE (ELECTRODE);IC;ELECTRODE;;DOIGT DE GANT;GAZ;G;;FILTRE;SANS VARIANTE;0
+ELECTRODE DE SOUDURE;EL;ELECTRODE DE SOUDURE;;DOIGT DE GANT;AIR;A;;FLEXIBLE;SANS VARIANTE;0
+ELECTROVANNE;EV;ELECTROVANNE;;DOIGT DE GANT;FIOUL LOURD;L;;FLEXIBLE;A BRIDE;B
+FIL ELECTRIQUE;FI;FIL;;DOIGT DE GANT;FIOUL DOMESTIQUE;D;;FLEXIBLE;BW;S
+FILTRE A PANIER DUPLEX FIOUL;FD;FILTRE;;DOIGT DE GANT;SANS VARIANTE;0;;FLEXIBLE;FILETE;F
+FILTRE A PANIER POSTE DE DETENTE;FG;FILTRE;;ELECTRODE;ALLUMAGE;A;;FLEXIBLE;BRIDE+FILETE;C
+FILTRE A PANIER SIMPLEX FIOUL;FS;FILTRE;;ELECTRODE;IONISATION;I;;FLEXIBLE;BRIDE+BW;D
+FILTRE AUTO-NETTOYANT;FN;FILTRE;;ELECTRODE;SANS VARIANTE;0;;FLEXIBLE;FILETE+BW;E
+FILTRE RAMPE AIR;FA;FILTRE;;ELECTRODE;ISOLATION SEULE;S;;JOINT;SANS VARIANTE;0
+FILTRE Y;FY;FILTRE;;ELECTRODE;CONNECTEUR ELECTRODE;C;;JOINT;SANS VARIANTE;0
+TAMIS;TA;FILTRE;;ELECTRODE;ALLUMAGE OU IONISATION;B;;MANOMETRE;SANS VARIANTE;0
+FLEXIBLE CAOUTCHOUC;FC;FLEXIBLE;;ELECTRODE;ALLUMAGE ET IONISATION;D;;MATERIEL HYDRAULIQUE;SANS VARIANTE;0
+FLEXIBLE CERAMIQUE;FR;FLEXIBLE;;ELECTRODE DE SOUDURE;INOX;I;;OPTIQUE;SANS VARIANTE;0
+FLEXIBLE INOX;FL;FLEXIBLE;;ELECTRODE DE SOUDURE;ACIER;A;;OUTIL;SANS VARIANTE;0
+FLEXIBLE PLASTIQUE;FP;FLEXIBLE;;ELECTROVANNE;SANS VARIANTE;0;;POMPE;FIOUL LOURD;L
+GAINE THERMORETRACTABLE;GT;GAINES THERMO;;FIL;SANS VARIANTE;0;;POMPE;FIOUL DOMESTIQUE;D
+JOINT;JN;JOINT;;FILTRE;SANS VARIANTE;0;;POMPE;FLUIDE THERMIQUE;T
+MANOMETRE;MN;MANOMETRE;;FLEXIBLE;ONDULEUX INOX;O;;POMPE;SANS VARIANTE;0
+DIVISEUR DE DEBIT;DB;MATERIEL HYDRAULIQUE;;FLEXIBLE;CERAMIC;C;;PRESSE-ETOUPE;SANS VARIANTE;0
+MOTO-REDUCTEUR;MR;MOTO-REDUCTEURS;;FLEXIBLE;CAOUTCHOUC;A;;RACCORD MECANIQUE;SANS VARIANTE;0
+MIROIR;MI;OPTIQUE;;FLEXIBLE;SANS VARIANTE;0;;SERVOMOTEUR;SANS VARIANTE;0
+PROJECTEUR OPTIQUE;PO;OPTIQUE;;GAINES THERMO;SANS VARIANTE;0;;SOUFFLE;SANS VARIANTE;0
+CLE DYNAMOMETRIQUE;CY;OUTIL;;JOINT;TORIQUE;T;;TAMIS;SANS VARIANTE;0
+POMPE A MAIN;PM;POMPE;;JOINT;PLAT;P;;THERMOMETRE;SANS VARIANTE;0
+POMPE A PALETTE;PP;POMPE;;JOINT;EN V;V;;THERMOSTAT;SANS VARIANTE;0
+POMPE A VIS;PV;POMPE;;JOINT;A LEVRE;L;;TRANSMETTEUR DE PRESSION;SANS VARIANTE;0
+PRESSE-ETOUPE;PE;PRESSE-ETOUPE;;JOINT;BAGUE BS;B;;TRANSMETTEUR DE TEMPERATURE;SANS VARIANTE;0
+COUDE;CD;RACCORD MECANIQUE;;JOINT;SANS VARIANTE;0;;TUBE;SANS VARIANTE;0
+CROIX;CX;RACCORD MECANIQUE;;JOINT;METALLOPLASTIQUE;M;;TUBES PLASTIQUES;SANS VARIANTE;0
+MAMELON;MM;RACCORD MECANIQUE;;JOINT;CUIVRE;C;;VANNE AUTOMATIQUE;SANS VARIANTE;0
+MANCHON;MC;RACCORD MECANIQUE;;MANOMETRE;SANS VARIANTE;0;;VANNE AUTOMATIQUE;ENTRE-BRIDE;E
+RACCORD CANELE;RC;RACCORD MECANIQUE;;MATERIEL HYDRAULIQUE;SANS VARIANTE;0;;VANNE AUTOMATIQUE;A BRIDE;A
+RACCORD FILETE;RF;RACCORD MECANIQUE;;MOTO-REDUCTEURS;SANS VARIANTE;0;;VANNE AUTOMATIQUE;SW;S
+REDUCTION;RD;RACCORD MECANIQUE;;OPTIQUE;MIROIR DE PREMIERE SURFACE;P;;VANNE AUTOMATIQUE;BW;B
+TE;TE;RACCORD MECANIQUE;;OPTIQUE;SANS VARIANTE;0;;VANNE AUTOMATIQUE;FILETE;F
+RACCORD RAPIDE;RR;RACCORD RAPIDE;;OUTIL;SANS VARIANTE;0;;VANNE MANUELLE;SANS VARIANTE;0
+RECHAUFFEUR;RE;RECHAUFFEUR;;POMPE;SANS VARIANTE;0;;VANNE MANUELLE;ENTRE-BRIDE;E
+RESSORT;RS;RESSORT;;POMPE;VOLUMETRIQUE;V;;VANNE MANUELLE;A BRIDE;A
+SERVOMOTEUR;SE;SERVOMOTEUR;;POMPE;CENTRIFUGE;C;;VANNE MANUELLE;SW;S
+SOUFFLE;SO;SOUFFLE;;POMPE;A MAIN;M;;VANNE MANUELLE;BW;B
+THERMOMETRE;TM;THERMOMETRE;;PRESSE-ETOUPE;PRESSE-ETOUPE;P;;VANNE MANUELLE;FILETE;F
+THERMOSTAT;TS;THERMOSTAT;;PRESSE-ETOUPE;JOINT DE PE;J;;VENTILATEUR;SANS CALO, SANS INSONORISATION;0
+TRANSMETTEUR DE PRESSION;TP;TRANSMETTEUR;;PRESSE-ETOUPE;ECROU DE PE;E;;VENTILATEUR;CALORIFUGE;C
+TRANSMETTEUR DE TEMPERATURE;TT;TRANSMETTEUR;;PRESSE-ETOUPE;RONDELLE DE PE;R;;VENTILATEUR;INSONORISATION;I
+TUBE;TU;TUBE;;PRESSE-ETOUPE;BOUCHON DE PE;B;;VENTILATEUR NANOX COMPACT;SANS INSONORISATION;0
+VANNE A SOUPAPE AUTO;VF;VANNE;;RACCORD MECANIQUE;SANS VARIANTE;0;;VENTILATEUR NANOX COMPACT;CALORIFUGE;C
+VANNE BS AUTO;VC;VANNE;;RACCORD MECANIQUE;UNION;U;;VENTILATEUR NANOX COMPACT;INSONORISATION;I
+VANNE PAPILLON;VD;VANNE;;RACCORD RAPIDE;SANS VARIANTE;0;;VERIN;SANS VARIANTE;0
+MANIFOLD;AF;VANNE;;RACCORD RAPIDE;PRISE DE PRESSION;A;;VERRE;SANS VARIANTE;0
+VANNE OPERCULE;VO;VANNE;;RECHAUFFEUR;SANS VARIANTE;0;;VANNE;DN08;A
+VANNE POINTEAU;VT;VANNE;;SERVOMOTEUR;SANS VARIANTE;0;;VANNE;DN10;B
+VANNE SOUPAPE;VS;VANNE;;SOUFFLE;SANS VARIANTE;0;;VANNE;DN15;C
+VANNE BS;VB;VANNE;;TAMIS;SANS VARIANTE;0;;VANNE;DN20;D
+VANNE GUILLOTINE;VG;VANNE;;THERMOMETRE;SANS VARIANTE;0;;VANNE;DN25;E
+VANNE PAPILLON;VP;VANNE;;THERMOSTAT;SANS VARIANTE;0;;VANNE;DN40;F
+VANNE SOUPAPE CLAPET PARABOLIQUE;VI;VANNE;;TRANSMETTEUR DE PRESSION;SANS VARIANTE;0;;VANNE;DN50;G
+VANNE SOUPAPE A SOUFFLET;VJ;VANNE;;TRANSMETTEUR DE TEMPERATURE;SANS VARIANTE;0;;VANNE;DN80;H
+VENTILATEUR AIR PRIMAIRE;AP;VENTILATEUR;;TUBE;SANS VARIANTE;0;;VANNE;DN100;I
+VENTILATEUR AIR SECONDAIRE;AS;VENTILATEUR;;VANNE AUTOMATIQUE;SANS VARIANTE;0;;VANNE;DN150;J
+VENTILATEUR DE DILUTION;AD;VENTILATEUR;;VANNE AUTOMATIQUE;AVEC FIN DE COURSE;F;;VANNE;DN200;K
+VENTILATEUR DE SECOURS;AR;VENTILATEUR;;VANNE AUTOMATIQUE;SANS FIN DE COURSE;S;;VANNE;DN250;L
+VENTILATEUR NANOX COMPACT;AN;VENTILATEUR NANOX COMPACT;;VANNE MANUELLE;SANS VARIANTE;0;;VANNE;DN300;M
+VERIN HYDRAULIQUE;VH;VERIN;;VANNE MANUELLE;AVEC FIN DE COURSE;F;;VANNE;DN350;N
+VERIN MECANIQUE;VM;VERIN;;VANNE MANUELLE;SANS FIN DE COURSE;S;;VANNE;DN400;O
+VERIN PNEUMATIQUE;VA;VERIN;;VENTILATEUR;AVEC SILENCIEUX;S;;VANNE;DN450;P
+VERRE;VE;VERRE;;VENTILATEUR;NU;0;;VANNE;DN500;Q
+;;;;VENTILATEUR NANOX COMPACT;TAILLE 1 GAUCHE;1;;VANNE;DN600;R
+;;;;VENTILATEUR NANOX COMPACT;TAILLE 1 DROITE;2;;VANNE;DN32;S
+;;;;VENTILATEUR NANOX COMPACT;TAILLE 2 GAUCHE;3;;VANNE;DN65;T
+;;;;VENTILATEUR NANOX COMPACT;TAILLE 2 DROITE;4;;VANNE;DN125;U
+;;;;VENTILATEUR NANOX COMPACT;TAILLE 3 GAUCHE;5;;;;
+;;;;VENTILATEUR NANOX COMPACT;TAILLE 3 DROITE;6;;;;
+;;;;VERIN;SANS VARIANTE;0;;;;
+;;;;VERRE;SANS VARIANTE;0;;;;
+;;;;VANNE;AUTOMATIQUE;A;;;;
+;;;;VANNE;MANUEL;M;;;;
+;;;;;;;;;;`;
 const prisma = new PrismaClient();
+
+const clean = (value?: string) => (value ?? '').replace(/\s+/g, ' ').trim();
+
+function parseRawCsv(): CsvRow[] {
+  return RAW_CSV.trim()
+    .split(/\r?\n/)
+    .slice(1)
+    .map((line) => line.split(';'))
+    .map((cells) => {
+      while (cells.length < 11) {
+        cells.push('');
+      }
+
+      const [
+        productName,
+        productCode,
+        productFamily,
+        _,
+        rawVariant1Family,
+        variant1Name,
+        variant1Code,
+        __,
+        rawVariant2Family,
+        variant2Name,
+        variant2Code,
+      ] = cells;
+
+      const sanitizedProductFamily = clean(productFamily);
+      return {
+        productName: clean(productName),
+        productCode: clean(productCode),
+        productFamily: sanitizedProductFamily,
+        variant1Family: clean(rawVariant1Family) || sanitizedProductFamily,
+        variant1Name: clean(variant1Name),
+        variant1Code: clean(variant1Code),
+        variant2Family: clean(rawVariant2Family) || sanitizedProductFamily,
+        variant2Name: clean(variant2Name),
+        variant2Code: clean(variant2Code),
+      };
+    })
+    .filter((row) =>
+      Object.values(row).some((value) => value && value.length > 0),
+    );
+}
+
 async function main() {
   console.log('🌱 Starting seeding...');
 
-  // Fonction helper pour créer ou récupérer une famille
-  async function getOrCreateFamily(name: string) {
-    let family = await prisma.family.findFirst({
-      where: { name: name.toLowerCase() },
-    });
-    if (!family) {
-      family = await prisma.family.create({
-        data: {
-          name: name.toLowerCase(),
-        },
-      });
+  const rows = parseRawCsv();
+
+  const familyCache = new Map<string, string>();
+  async function getFamilyId(name: string) {
+    const normalized = clean(name);
+    if (!normalized) {
+      throw new Error('Nom de famille manquant dans le CSV');
     }
-    return family;
+    if (familyCache.has(normalized)) {
+      return familyCache.get(normalized)!;
+    }
+    let family = await prisma.family.findFirst({ where: { name: normalized } });
+    if (!family) {
+      family = await prisma.family.create({ data: { name: normalized } });
+    }
+    familyCache.set(normalized, family.id);
+    return family.id;
   }
 
-  // Fonction helper pour créer une variante
-  async function createVariant(familyId: string, name: string, code: string) {
+  const variantCache = new Set<string>();
+  async function createVariant(def: VariantDefinition) {
+    const familyId = await getFamilyId(def.familyName);
+    const cacheKey = `${familyId}:${def.code || def.name}:${def.level}`;
+    if (variantCache.has(cacheKey)) return;
+
+    const code = clean(def.code) || '0';
+    const name = clean(def.name) || 'Sans variante';
+
     await prisma.variant.upsert({
       where: {
-        familyId_code: {
-          familyId: familyId,
-          code: code,
+        familyId_code_variantLevel: {
+          familyId,
+          code,
+          variantLevel: def.level,
         },
       },
-      update: {},
+      update: {
+        name,
+      },
       create: {
-        familyId: familyId,
-        name: name,
-        code: code,
+        familyId,
+        name,
+        code,
+        variantLevel: def.level,
       },
     });
+
+    variantCache.add(cacheKey);
   }
 
-  // Fonction helper pour créer une caractéristique technique et l'associer à une famille
-  async function createTechnicalCharacteristic(
-    name: string,
-    type: string,
-    enumOptions: string[],
-    familyId: string,
-    enumMultiple: boolean = false,
-  ) {
-    // Créer ou récupérer la caractéristique technique
-    let techChar = await prisma.technicalCharacteristic.findFirst({
-      where: { name: name },
-    });
-
-    if (!techChar) {
-      techChar = await prisma.technicalCharacteristic.create({
-        data: {
-          name: name,
-          type: type,
-          enumOptions: enumOptions,
-          enumMultiple: enumMultiple,
-        },
-      });
-    }
-
-    // Associer la caractéristique à la famille
-    await prisma.technicalCharacteristicFamily.upsert({
-      where: {
-        technicalCharacteristicId_familyId: {
-          technicalCharacteristicId: techChar.id,
-          familyId: familyId,
-        },
-      },
-      update: {},
-      create: {
-        technicalCharacteristicId: techChar.id,
-        familyId: familyId,
-      },
-    });
-
-    return techChar;
-  }
-
-  // Créer le type de produit Commerce
   const productTypeCommerce = await prisma.productType.upsert({
     where: { code: 'C' },
     update: {},
@@ -91,167 +243,64 @@ async function main() {
 
   console.log('✅ Product type Commerce created');
 
-  // Créer toutes les familles
-  const familleChaudiere = await getOrCreateFamily('Chaudière');
-  const famillePompe = await getOrCreateFamily('Pompe');
-  const familleVentilateur = await getOrCreateFamily('Ventilateur');
-  const familleVerin = await getOrCreateFamily('Vérin');
-  const familleVanne = await getOrCreateFamily('Vanne');
-  const familleRechauffeurs = await getOrCreateFamily('Réchauffeurs');
-  const familleMotoReducteurs = await getOrCreateFamily('Moto-réducteurs');
-  const familleDebitmetresRoues = await getOrCreateFamily('Débitmètres à roues');
-  const familleDebitmetresTransmetteur = await getOrCreateFamily('Débitmètres à transmetteur');
-  const familleFiltres = await getOrCreateFamily('Filtres');
-  const familleVentilateursNanoxCompact = await getOrCreateFamily('Ventilateurs Nanox Compact');
+  // Créer toutes les familles présentes dans le CSV
+  for (const row of rows) {
+    if (row.productFamily) await getFamilyId(row.productFamily);
+    if (row.variant1Family) await getFamilyId(row.variant1Family);
+    if (row.variant2Family) await getFamilyId(row.variant2Family);
+  }
+  console.log('✅ Families created/updated');
 
-  console.log('✅ Families created');
+  // Créer les variantes pour les deux niveaux
+  for (const row of rows) {
+    if (row.variant1Name) {
+      await createVariant({
+        familyName: row.variant1Family,
+        name: row.variant1Name,
+        code: row.variant1Code || '0',
+        level: 'FIRST',
+      });
+    }
+    if (row.variant2Name) {
+      await createVariant({
+        familyName: row.variant2Family,
+        name: row.variant2Name,
+        code: row.variant2Code || '0',
+        level: 'SECOND',
+      });
+    }
+  }
+  console.log('✅ Variants created/updated');
 
-  // Variantes Variante 1
-
-  // Chaudière - Variante 1
-  await createVariant(familleChaudiere.id, 'Sans variante', '0');
-
-  // Débitmètres à roues - Variante 1
-  await createVariant(familleDebitmetresRoues.id, 'Sans variante', '0');
-
-  // Débitmètres à transmetteur - Variante 1
-  await createVariant(familleDebitmetresTransmetteur.id, '1 tête', '1');
-  await createVariant(familleDebitmetresTransmetteur.id, '2 têtes', '2');
-
-  // Réchauffeurs - Variante 1
-  await createVariant(familleRechauffeurs.id, 'Sans variante', '0');
-
-  // Vannes - Variante 1
-  await createVariant(familleVanne.id, 'Manuelle', 'H');
-  await createVariant(familleVanne.id, 'Motorisée', 'M');
-
-  // Ventilateur Nanox compact - Variante 1
-  // Note: Le tableau montre "Ventilateur Nanox compact" mais la famille est "Ventilateur"
-  // On crée ces variantes pour la famille Ventilateur
-  await createVariant(familleVentilateur.id, 'taille 1 gauche', '1');
-  await createVariant(familleVentilateur.id, 'taille 1 droite', '2');
-  await createVariant(familleVentilateur.id, 'taille 2 gauche', '3');
-  await createVariant(familleVentilateur.id, 'taille 2 droite', '4');
-  await createVariant(familleVentilateur.id, 'taille 3 gauche', '5');
-  await createVariant(familleVentilateur.id, 'taille 3 droite', '6');
-  await createVariant(familleVentilateur.id, 'Avec Silencieux', 'S');
-  await createVariant(familleVentilateur.id, 'Nu', '0');
-
-  // Variantes Variante 2
-
-  // Débitmètres à roues - Variante 2
-  await createVariant(familleDebitmetresRoues.id, 'Entre-Bride', 'E');
-  await createVariant(familleDebitmetresRoues.id, 'à Brides', 'A');
-  await createVariant(familleDebitmetresRoues.id, 'Fileté', 'F');
-
-  // Débitmètres à transmetteur - Variante 2
-  await createVariant(familleDebitmetresTransmetteur.id, 'Entre-Bride', 'E');
-  await createVariant(familleDebitmetresTransmetteur.id, 'à Brides', 'A');
-  await createVariant(familleDebitmetresTransmetteur.id, 'Fileté', 'F');
-
-  // Vannes - Variante 2
-  await createVariant(familleVanne.id, 'Entre-Bride', 'E');
-  await createVariant(familleVanne.id, 'à Brides', 'A');
-  await createVariant(familleVanne.id, 'SW', 'S');
-  await createVariant(familleVanne.id, 'BW', 'B');
-  await createVariant(familleVanne.id, 'Fileté', 'F');
-
-  // Ventilateur Nanox compact - Variante 2
-  await createVariant(familleVentilateur.id, 'Sans insonorisation', '0');
-  await createVariant(familleVentilateur.id, 'Calorifuge', 'C');
-  await createVariant(familleVentilateur.id, 'Insonorisation', 'I');
-
-  // Ventilateurs - Variante 2
-  await createVariant(familleVentilateur.id, 'Sans calo, sans insonorisation', '0');
-  await createVariant(familleVentilateur.id, 'Calorifuge', 'C');
-  await createVariant(familleVentilateur.id, 'Insonorisation', 'I');
-
-  console.log('✅ Variants created');
-
-  // Créer les caractéristiques techniques pour la famille Chaudière
-  await createTechnicalCharacteristic(
-    'FLUIDE THERMIQUE',
-    'enum',
-    ['FLUIDE THERMIQUE'],
-    familleChaudiere.id,
-    false,
-  );
-
-  await createTechnicalCharacteristic(
-    'Combustion',
-    'enum',
-    ['FIOUL DOMESTIQUE', 'FIOUL LOURD'],
-    familleChaudiere.id,
-    false,
-  );
-
-  await createTechnicalCharacteristic(
-    'Pthermique',
-    'enum',
-    ['1300,00 kW', '1200,00 kW'],
-    familleChaudiere.id,
-    false,
-  );
-
-  await createTechnicalCharacteristic(
-    'Pos',
-    'enum',
-    ['VERTICALE', 'HORIZONTALE'],
-    familleChaudiere.id,
-    false,
-  );
-
-  console.log('✅ Technical characteristics created for Chaudière');
-
-  // Fonction helper pour créer un produit
-  async function createProduct(
-    name: string,
-    code: string,
-    familyId: string,
-    productTypeId: string,
-  ) {
+  const createdProducts = new Set<string>();
+  for (const row of rows) {
+    if (
+      !row.productCode ||
+      !row.productName ||
+      !row.productFamily ||
+      createdProducts.has(row.productCode)
+    ) {
+      continue;
+    }
+    const familyId = await getFamilyId(row.productFamily);
     await prisma.product.upsert({
-      where: { code: code },
-      update: {},
+      where: { code: row.productCode },
+      update: {
+        name: row.productName,
+        familyId,
+        productTypeId: productTypeCommerce.id,
+      },
       create: {
-        name: name,
-        code: code,
-        familyId: familyId,
-        productTypeId: productTypeId,
+        name: row.productName,
+        code: row.productCode,
+        familyId,
+        productTypeId: productTypeCommerce.id,
       },
     });
+    createdProducts.add(row.productCode);
   }
 
-  // Créer tous les produits
-  await createProduct('Chaudières', 'CH', familleChaudiere.id, productTypeCommerce.id);
-  await createProduct('Débitmètre (type Kobold)', 'DR', familleDebitmetresRoues.id, productTypeCommerce.id);
-  await createProduct('Débitmètre massique', 'DM', familleDebitmetresTransmetteur.id, productTypeCommerce.id);
-  await createProduct('Débitmètre vortex', 'DV', familleDebitmetresTransmetteur.id, productTypeCommerce.id);
-  await createProduct('Filtre à panier duplex fioul', 'FD', familleFiltres.id, productTypeCommerce.id);
-  await createProduct('Filtre à panier poste de détente', 'FG', familleFiltres.id, productTypeCommerce.id);
-  await createProduct('Filtre à panier simplex fioul', 'FS', familleFiltres.id, productTypeCommerce.id);
-  await createProduct('Filtre auto-nettoyant', 'FN', familleFiltres.id, productTypeCommerce.id);
-  await createProduct('Filtre rampe air', 'FA', familleFiltres.id, productTypeCommerce.id);
-  await createProduct('Filtres Y', 'FY', familleFiltres.id, productTypeCommerce.id);
-  await createProduct('Moto-réducteur', 'MR', familleMotoReducteurs.id, productTypeCommerce.id);
-  await createProduct('Pompes à palette', 'PP', famillePompe.id, productTypeCommerce.id);
-  await createProduct('Pompes à vis', 'PV', famillePompe.id, productTypeCommerce.id);
-  await createProduct('Réchauffeurs', 'RE', familleRechauffeurs.id, productTypeCommerce.id);
-  await createProduct('Vanne à opercule', 'VO', familleVanne.id, productTypeCommerce.id);
-  await createProduct('Vanne à pointeau', 'VT', familleVanne.id, productTypeCommerce.id);
-  await createProduct('Vanne à soupape (tous type)', 'VS', familleVanne.id, productTypeCommerce.id);
-  await createProduct('Vanne BS', 'VB', familleVanne.id, productTypeCommerce.id);
-  await createProduct('Vanne guillotine', 'VG', familleVanne.id, productTypeCommerce.id);
-  await createProduct('Vanne papillon', 'VP', familleVanne.id, productTypeCommerce.id);
-  await createProduct('Ventilateur Air Primaire', 'AP', familleVentilateur.id, productTypeCommerce.id);
-  await createProduct('Ventilateur Air Secondaire', 'AS', familleVentilateur.id, productTypeCommerce.id);
-  await createProduct('Ventilateur de dilution', 'AD', familleVentilateur.id, productTypeCommerce.id);
-  await createProduct('Ventilateur de secours', 'AR', familleVentilateur.id, productTypeCommerce.id);
-  await createProduct('Ventilateur Nanox compact', 'AN', familleVentilateursNanoxCompact.id, productTypeCommerce.id);
-  await createProduct('Vérins hydrauliques', 'VH', familleVerin.id, productTypeCommerce.id);
-  await createProduct('Vérins pneumatiques', 'VZ', familleVerin.id, productTypeCommerce.id);
-
-  console.log('✅ Products created');
+  console.log(`✅ ${createdProducts.size} products created/updated`);
   console.log('🌱 Seeding finished!');
 }
 
@@ -263,3 +312,4 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+

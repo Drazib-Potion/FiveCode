@@ -64,7 +64,7 @@ model Variant {
   generatedInfosAsVariant1         ProductGeneratedInfo[] @relation("Variant1Infos")
   generatedInfosAsVariant2         ProductGeneratedInfo[] @relation("Variant2Infos")
 
-  @@unique([familyId, code]) // Le code doit être unique par famille
+  @@unique([familyId, code, variantLevel]) // Permet d'avoir des codes identiques pour variantes 1 et 2
   @@map("variants")
 }
 
