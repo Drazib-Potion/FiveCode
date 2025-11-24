@@ -140,7 +140,8 @@ export default function ProductsPage() {
 
   const loadFamilies = async () => {
     try {
-      const data = await familiesService.getAll();
+      const response = await familiesService.getAll();
+      const data = Array.isArray(response) ? response : (response.data || []);
       setFamilies(data);
     } catch (error) {
       console.error('Error loading families:', error);
@@ -149,7 +150,8 @@ export default function ProductsPage() {
 
   const loadProductTypes = async () => {
     try {
-      const data = await productTypesService.getAll();
+      const response = await productTypesService.getAll();
+      const data = Array.isArray(response) ? response : (response.data || []);
       setProductTypes(data);
     } catch (error) {
       console.error('Error loading product types:', error);
