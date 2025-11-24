@@ -1,7 +1,5 @@
 import axios from 'axios';
 
-// Utilise la variable d'environnement VITE_API_URL (obligatoire)
-// En dev et prod: /api (proxyfié par Vite en dev, par Nginx en prod)
 const API_BASE_URL = import.meta.env.VITE_API_URL
 
 if (!API_BASE_URL) {
@@ -15,7 +13,6 @@ const apiClient = axios.create({
   },
 });
 
-// Intercepteur pour ajouter le token
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -24,15 +21,11 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Intercepteur pour gérer les erreurs
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Ne pas rediriger si on est déjà sur la page de login
-      // ou si la requête est vers les endpoints d'authentification
-      const isAuthEndpoint = error.config?.url?.includes('/auth/login') || 
-                            error.config?.url?.includes('/auth/register');
+      const isAuthEndpoint = error.config?.url?.includes('/auth/login') || error.config?.url?.includes('/auth/register');
       const isOnLoginPage = window.location.pathname === '/login';
       
       if (!isAuthEndpoint && !isOnLoginPage) {
@@ -45,7 +38,6 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Auth Service
 export const authService = {
   login: async (email: string, password: string) => {
     const response = await apiClient.post('/auth/login', { email, password });
@@ -57,7 +49,6 @@ export const authService = {
   },
 };
 
-// Families Service
 export const familiesService = {
   getAll: async (offset: number = 0, limit: number = 50, search?: string) => {
     const params = new URLSearchParams();
@@ -88,7 +79,6 @@ export const familiesService = {
   },
 };
 
-// Variants Service
 export const variantsService = {
   getAll: async (familyId?: string, offset: number = 0, limit: number = 50, search?: string) => {
     const params = new URLSearchParams();
@@ -117,13 +107,10 @@ export const variantsService = {
   },
 };
 
-// Technical Characteristics Service
 export const technicalCharacteristicsService = {
   getAll: async (familyId?: string, variantIds?: string, offset: number = 0, limit: number = 50, search?: string) => {
     const params = new URLSearchParams();
     if (familyId) params.append('familyId', familyId);
-    // Toujours passer variantIds si familyId est présent, même si c'est une chaîne vide
-    // Cela permet au backend de distinguer entre "toutes les caractéristiques" et "caractéristiques sans variante"
     if (familyId && variantIds !== undefined) {
       params.append('variantIds', variantIds);
     }
@@ -157,7 +144,6 @@ export const technicalCharacteristicsService = {
   },
 };
 
-// Products Service
 export const productsService = {
   create: async (data: { name: string; code: string; familyId: string }) => {
     const response = await apiClient.post('/products', data);
@@ -181,7 +167,6 @@ export const productsService = {
   },
 };
 
-// Product Generated Info Service
 export const productGeneratedInfoService = {
   create: async (data: {
     productId: string;
@@ -209,7 +194,6 @@ export const productGeneratedInfoService = {
   },
 };
 
-// Product Types Service
 export const productTypesService = {
   getAll: async (offset: number = 0, limit: number = 50, search?: string) => {
     const params = new URLSearchParams();
