@@ -36,6 +36,7 @@ export default function TechnicalCharacteristicsPage() {
   const [technicalCharacteristics, setTechnicalCharacteristics] = useState<TechnicalCharacteristic[]>([]);
   const [families, setFamilies] = useState<Family[]>([]);
   const [variants, setVariants] = useState<Variant[]>([]);
+  const [loadingVariants, setLoadingVariants] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -121,7 +122,6 @@ export default function TechnicalCharacteristicsPage() {
     offsetRef.current = 0;
     loadData(true);
     loadFamilies();
-    loadVariants();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -147,15 +147,49 @@ export default function TechnicalCharacteristicsPage() {
     }
   };
 
-  const loadVariants = async () => {
-    try {
-      const data = await variantsService.getAll();
-      const variantsData = Array.isArray(data) ? data : (data.data || []);
-      setVariants(variantsData);
-    } catch (error) {
-      console.error('Error loading variants:', error);
-    }
-  };
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchVariantsForFamilies = async () => {
+      if (formData.familyIds.length === 0) {
+        setVariants([]);
+        return;
+      }
+
+      setLoadingVariants(true);
+      try {
+        const responses = await Promise.all(
+          formData.familyIds.map((familyId) => variantsService.getAll(familyId, 0, 500)),
+        );
+
+        const aggregatedVariants = responses.flatMap((response) =>
+          Array.isArray(response) ? response : response.data || [],
+        );
+
+        if (!cancelled) {
+          const uniqueVariants = Array.from(
+            new Map(aggregatedVariants.map((variant) => [variant.id, variant])).values(),
+          );
+          setVariants(uniqueVariants);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Error loading variants for selected families:', error);
+          setVariants([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingVariants(false);
+        }
+      }
+    };
+
+    fetchVariantsForFamilies();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [formData.familyIds]);
 
   const loadMore = useCallback(() => {
     if (!loadingMore && hasMore && !tableSearchTerm.trim()) {
@@ -577,6 +611,11 @@ const getVariantNamesByLevel = (
                       <p className="text-gray-500 italic m-0">
                         Sélectionnez d&apos;abord au moins une famille
                       </p>
+                    ) : loadingVariants ? (
+                      <div className="flex items-center gap-2 text-gray-600 text-sm">
+                        <Loader size="sm" />
+                        <span>Chargement des variantes...</span>
+                      </div>
                     ) : filteredVariant1.length === 0 ? (
                       <p className="text-gray-500 italic m-0">
                         {variant1Search
@@ -634,6 +673,11 @@ const getVariantNamesByLevel = (
                       <p className="text-gray-500 italic m-0">
                         Sélectionnez d&apos;abord au moins une famille
                       </p>
+                    ) : loadingVariants ? (
+                      <div className="flex items-center gap-2 text-gray-600 text-sm">
+                        <Loader size="sm" />
+                        <span>Chargement des variantes...</span>
+                      </div>
                     ) : filteredVariant2.length === 0 ? (
                       <p className="text-gray-500 italic m-0">
                         {variant2Search
