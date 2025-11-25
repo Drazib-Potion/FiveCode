@@ -143,6 +143,48 @@ describe('ProductGeneratedInfoService', () => {
       });
       expect(result).toEqual(expectedFull);
     });
+
+    it('considère les valeurs techniques comme identiques sans tenir compte de la casse', async () => {
+      const product = {
+        id: 'product-1',
+        familyId: 'family-1',
+        productType: { code: 'PT', name: 'Type' },
+        code: 'PROD1',
+      };
+      prisma.product.findUnique?.mockResolvedValue(product);
+      technicalService.findAll.mockResolvedValue({
+        data: [
+          {
+            id: 'tc-1',
+            name: 'Couleur',
+            families: [{ familyId: 'family-1' }],
+            variants: [],
+          },
+        ],
+      });
+      prisma.productGeneratedInfo.findMany?.mockResolvedValue([
+        {
+          id: 'generated-1',
+          productId: 'product-1',
+          variant1Id: null,
+          variant2Id: null,
+          technicalCharacteristics: [
+            {
+              technicalCharacteristicId: 'tc-1',
+              value: 'Blue',
+              technicalCharacteristic: { id: 'tc-1' },
+            },
+          ],
+        },
+      ]);
+
+      await expect(
+        service.create({
+          productId: 'product-1',
+          values: { 'tc-1': 'blue' },
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
   });
 });
 

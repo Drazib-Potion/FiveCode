@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductGeneratedInfoDto } from './dto/create-product-generated-info.dto';
 import { TechnicalCharacteristicsService } from '../technical-characteristics/technical-characteristics.service';
+import { normalizeString } from '../utils/string-normalizer';
 
 @Injectable()
 export class ProductGeneratedInfoService {
@@ -31,7 +32,10 @@ export class ProductGeneratedInfoService {
     }
 
     // Vérifier les variantes si elles sont fournies
-    const variantChecks = async (variantId: string, expectedLevel: 'FIRST' | 'SECOND') => {
+    const variantChecks = async (
+      variantId: string,
+      expectedLevel: 'FIRST' | 'SECOND',
+    ) => {
       const variant = await this.prisma.variant.findUnique({
         where: { id: variantId },
       });
@@ -208,8 +212,15 @@ export class ProductGeneratedInfoService {
             const requestValue = requestValues[technicalCharacteristicId] ?? null; // S'assurer que c'est null si non défini
             const matchValue = matchValues[technicalCharacteristicId] ?? null; // S'assurer que c'est null si non défini
 
-            // Les deux doivent être null ou avoir la même valeur (comparaison stricte)
-            if (requestValue !== matchValue) {
+            // Les deux doivent être null ou avoir la même valeur (comparaison insensible à la casse)
+            const normalizedRequestValue = requestValue
+              ? normalizeString(String(requestValue).trim())
+              : null;
+            const normalizedMatchValue = matchValue
+              ? normalizeString(String(matchValue).trim())
+              : null;
+
+            if (normalizedRequestValue !== normalizedMatchValue) {
               allValuesMatch = false;
               break;
             }
