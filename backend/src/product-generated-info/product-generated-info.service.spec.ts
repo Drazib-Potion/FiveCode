@@ -31,7 +31,9 @@ describe('ProductGeneratedInfoService', () => {
         service.create({
           productId: 'product-1',
           values: {},
-        }),
+          },
+          'test@test.com',
+        ),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
@@ -57,7 +59,9 @@ describe('ProductGeneratedInfoService', () => {
           productId: 'product-1',
           variant1Id: 'variant-1',
           values: {},
-        }),
+        },
+          'test@test.com',
+        ),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
@@ -84,7 +88,9 @@ describe('ProductGeneratedInfoService', () => {
           productId: 'product-1',
           variant1Id: 'variant-1',
           values: {},
-        }),
+        },
+        'test@test.com',
+        ),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
@@ -126,7 +132,7 @@ describe('ProductGeneratedInfoService', () => {
         variant1Id: 'variant-1',
         variant2Id: 'variant-2',
         values: {},
-      });
+      }, 'test@test.com');
 
       expect(prisma.productGeneratedInfo.create).toHaveBeenCalledWith({
         data: {
@@ -134,6 +140,8 @@ describe('ProductGeneratedInfoService', () => {
           variant1Id: 'variant-1',
           variant2Id: 'variant-2',
           generatedCode: expect.any(String),
+          updatedBy: 'test@test.com',
+          createdBy: 'test@test.com',
         },
         include: {
           product: { include: { family: true } },
@@ -182,7 +190,9 @@ describe('ProductGeneratedInfoService', () => {
         service.create({
           productId: 'product-1',
           values: { 'tc-1': 'blue' },
-        }),
+        },
+          'test@test.com',
+        ),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
