@@ -171,6 +171,7 @@ export default function GeneratedCodesPage() {
                 <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Variante 2</th>
                 <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Caractéristiques techniques</th>
                 <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Date de création</th>
+                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Créé par</th>
                 <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -243,6 +244,7 @@ export default function GeneratedCodesPage() {
                     )}
                   </td>
                   <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark">{formatDate(info.createdAt)}</td>
+                  <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark">{info.createdBy}</td>
                   <td className="px-6 py-4 text-left border-b border-purple/20">
                     <button
                       onClick={() => handleDelete(info.id)}

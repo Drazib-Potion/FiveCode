@@ -15,7 +15,7 @@ export class ProductGeneratedInfoService {
     private technicalCharacteristicsService: TechnicalCharacteristicsService,
   ) {}
 
-  async create(createDto: CreateProductGeneratedInfoDto) {
+  async create(createDto: CreateProductGeneratedInfoDto, userEmail: string) {
     // Vérifier que le produit existe
     const product = await this.prisma.product.findUnique({
       where: { id: createDto.productId },
@@ -270,6 +270,8 @@ export class ProductGeneratedInfoService {
         variant1Id: variant1?.id ?? null,
         variant2Id: variant2?.id ?? null,
         generatedCode,
+        createdBy: userEmail,
+        updatedBy: userEmail,
       },
       include: {
         product: {

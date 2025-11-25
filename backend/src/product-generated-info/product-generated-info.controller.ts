@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Body, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
+  Request,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ProductGeneratedInfoService } from './product-generated-info.service';
 import { CreateProductGeneratedInfoDto } from './dto/create-product-generated-info.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -11,8 +22,15 @@ export class ProductGeneratedInfoController {
   ) {}
 
   @Post()
-  create(@Body() createDto: CreateProductGeneratedInfoDto) {
-    return this.productGeneratedInfoService.create(createDto);
+  create(
+    @Body() createDto: CreateProductGeneratedInfoDto,
+    @Request() req: any,
+  ) {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      throw new UnauthorizedException('User email not found in request');
+    }
+    return this.productGeneratedInfoService.create(createDto, userEmail);
   }
 
   @Get()
@@ -33,4 +51,3 @@ export class ProductGeneratedInfoController {
     return this.productGeneratedInfoService.remove(id);
   }
 }
-

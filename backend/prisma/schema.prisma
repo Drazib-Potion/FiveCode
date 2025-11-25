@@ -107,8 +107,10 @@ model ProductGeneratedInfo {
   variant1Id    String?
   variant2Id    String?
   generatedCode String   @unique // Le code généré unique
+  createdBy     String?   // Email de l'utilisateur qui a créé le code
+  updatedBy     String? // Email de l'utilisateur qui a modifié le code
   createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  updatedAt     DateTime @updatedAt // Utilisé comme lastModifiedDate
 
   product                  Product                          @relation(fields: [productId], references: [id], onDelete: Cascade)
   variant1                 Variant?                         @relation("Variant1Infos", fields: [variant1Id], references: [id], onDelete: Cascade)

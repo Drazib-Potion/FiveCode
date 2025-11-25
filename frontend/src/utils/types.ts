@@ -80,5 +80,7 @@ export interface ProductGeneratedInfo {
   }>;
   createdAt: string;
   updatedAt: string;
+  createdBy: string;
+  updatedBy: string;
 }
 
