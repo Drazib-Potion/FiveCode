@@ -114,7 +114,7 @@ export default function TechnicalCharacteristicsPage() {
 
   const loadFamilies = async () => {
     try {
-      const data = await familiesService.getAll();
+      const data = await familiesService.getAll(0, 9999);
       const familiesData = Array.isArray(data) ? data : (data.data || []);
       setFamilies(familiesData);
     } catch (error) {
