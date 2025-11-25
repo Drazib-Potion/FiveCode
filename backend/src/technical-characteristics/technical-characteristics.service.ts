@@ -477,4 +477,3 @@ export class TechnicalCharacteristicsService {
     });
   }
 }
-

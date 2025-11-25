@@ -17,7 +17,12 @@ describe('VariantsService', () => {
     it('crée une variante quand le code est unique pour le niveau ciblé', async () => {
       prisma.family.findUnique?.mockResolvedValue({ id: 'family-1' });
       prisma.variant.findMany?.mockResolvedValue([
-        { id: 'variant-2', code: '1', name: 'Variante existante', variantLevel: VariantLevel.SECOND },
+        {
+          id: 'variant-2',
+          code: '1',
+          name: 'Variante existante',
+          variantLevel: VariantLevel.SECOND,
+        },
       ]);
       const createdVariant = {
         id: 'variant-1',
@@ -42,7 +47,12 @@ describe('VariantsService', () => {
     it('refuse les doublons de code pour un même niveau de variante', async () => {
       prisma.family.findUnique?.mockResolvedValue({ id: 'family-1' });
       prisma.variant.findMany?.mockResolvedValue([
-        { id: 'variant-2', code: '1', name: 'Variante existante', variantLevel: VariantLevel.FIRST },
+        {
+          id: 'variant-2',
+          code: '1',
+          name: 'Variante existante',
+          variantLevel: VariantLevel.FIRST,
+        },
       ]);
 
       await expect(
@@ -55,10 +65,15 @@ describe('VariantsService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it('refuse les doublons de nom pour un même niveau de variante', async () => {
+    it('refuse les doublons de nom peu importe le niveau de variante', async () => {
       prisma.family.findUnique?.mockResolvedValue({ id: 'family-1' });
       prisma.variant.findMany?.mockResolvedValue([
-        { id: 'variant-2', code: '2', name: '1 tête', variantLevel: VariantLevel.FIRST },
+        {
+          id: 'variant-2',
+          code: '2',
+          name: '1 tête',
+          variantLevel: VariantLevel.SECOND,
+        },
       ]);
 
       await expect(
@@ -124,7 +139,13 @@ describe('VariantsService', () => {
 
     it('refuse les doublons de code sur le même niveau', async () => {
       prisma.variant.findMany?.mockResolvedValue([
-        { id: 'variant-2', familyId: 'family-1', name: 'Autre', code: '2', variantLevel: VariantLevel.FIRST },
+        {
+          id: 'variant-2',
+          familyId: 'family-1',
+          name: 'Autre',
+          code: '2',
+          variantLevel: VariantLevel.FIRST,
+        },
       ]);
 
       await expect(
@@ -134,9 +155,15 @@ describe('VariantsService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it('refuse les doublons de nom sur le même niveau', async () => {
+    it('refuse les doublons de nom même sur un autre niveau', async () => {
       prisma.variant.findMany?.mockResolvedValue([
-        { id: 'variant-2', familyId: 'family-1', name: 'Doublon', code: '2', variantLevel: VariantLevel.FIRST },
+        {
+          id: 'variant-2',
+          familyId: 'family-1',
+          name: 'Doublon',
+          code: '2',
+          variantLevel: VariantLevel.SECOND,
+        },
       ]);
 
       await expect(
@@ -174,4 +201,3 @@ describe('VariantsService', () => {
     });
   });
 });
-

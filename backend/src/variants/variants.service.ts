@@ -38,9 +38,7 @@ export class VariantsService {
 
     // Vérifier que le nom n'existe pas déjà pour cette famille (insensible à la casse et aux accents)
     const existingByName = familyVariants.find(
-      (v) =>
-        v.variantLevel === createVariantDto.variantLevel &&
-        normalizeString(v.name) === normalizeString(createVariantDto.name),
+      (v) => normalizeString(v.name) === normalizeString(createVariantDto.name),
     );
 
     if (existingByName) {
@@ -207,14 +205,12 @@ export class VariantsService {
     }
 
     const existingByName = familyVariants.find(
-      (v) =>
-        v.variantLevel === targetVariantLevel &&
-        normalizeString(v.name) === normalizeString(targetName),
+      (v) => normalizeString(v.name) === normalizeString(targetName),
     );
 
     if (existingByName) {
       throw new BadRequestException(
-        `Une variante avec le nom "${targetName}" existe déjà pour cette famille et ce type`,
+        `Une variante avec le nom "${targetName}" existe déjà pour cette famille`,
       );
     }
 
