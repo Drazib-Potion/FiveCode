@@ -271,6 +271,35 @@ const getVariantNamesByLevel = (
     });
   };
 
+  const handleToggleAllVariants = (level: 'FIRST' | 'SECOND') => {
+    const filteredVariants = level === 'FIRST' ? filteredVariant1 : filteredVariant2;
+    const currentList = level === 'FIRST' ? formData.variantIdsFirst : formData.variantIdsSecond;
+    
+    // Vérifier si toutes les variantes filtrées sont déjà sélectionnées
+    const allSelected = filteredVariants.length > 0 && 
+      filteredVariants.every(variant => currentList.includes(variant.id));
+    
+    if (allSelected) {
+      // Décocher toutes les variantes filtrées
+      const filteredIds = filteredVariants.map(v => v.id);
+      const updatedList = currentList.filter(id => !filteredIds.includes(id));
+      setFormData({
+        ...formData,
+        variantIdsFirst: level === 'FIRST' ? updatedList : formData.variantIdsFirst,
+        variantIdsSecond: level === 'SECOND' ? updatedList : formData.variantIdsSecond,
+      });
+    } else {
+      // Cocher toutes les variantes filtrées
+      const filteredIds = filteredVariants.map(v => v.id);
+      const updatedList = [...new Set([...currentList, ...filteredIds])];
+      setFormData({
+        ...formData,
+        variantIdsFirst: level === 'FIRST' ? updatedList : formData.variantIdsFirst,
+        variantIdsSecond: level === 'SECOND' ? updatedList : formData.variantIdsSecond,
+      });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -553,12 +582,6 @@ const getVariantNamesByLevel = (
               </small>
             </div>
             <div className="mb-5">
-              <label className="block mb-2.5 text-gray-dark font-semibold text-sm uppercase tracking-wide">
-                Variantes (optionnel - filtrées selon les familles sélectionnées)
-              </label>
-              <p className="text-sm text-gray-500 mb-4">
-                Associez la caractéristique aux variantes 1 et/ou 2 des familles sélectionnées.
-              </p>
               <div className="grid gap-6 md:grid-cols-2">
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -581,6 +604,18 @@ const getVariantNamesByLevel = (
                       formData.familyIds.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
                     }`}
                   />
+                  {formData.familyIds.length > 0 && filteredVariant1.length > 0 && (
+                    <label className="flex items-center px-2 py-1.5 mb-2 cursor-pointer rounded bg-purple/10 hover:bg-purple/20 transition-colors duration-200">
+                      <input
+                        type="checkbox"
+                        checked={filteredVariant1.length > 0 && 
+                          filteredVariant1.every(variant => formData.variantIdsFirst.includes(variant.id))}
+                        onChange={() => handleToggleAllVariants('FIRST')}
+                        className="mr-1.5 cursor-pointer"
+                      />
+                      <span className="text-sm font-medium text-purple">Tout cocher / Tout décocher</span>
+                    </label>
+                  )}
                   <div className="border border-gray-300 rounded p-2.5 max-h-[200px] overflow-y-auto bg-gray-50">
                     {formData.familyIds.length === 0 ? (
                       <p className="text-gray-500 italic m-0">
@@ -643,6 +678,18 @@ const getVariantNamesByLevel = (
                       formData.familyIds.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
                     }`}
                   />
+                  {formData.familyIds.length > 0 && filteredVariant2.length > 0 && (
+                    <label className="flex items-center px-2 py-1.5 mb-2 cursor-pointer rounded bg-purple/10 hover:bg-purple/20 transition-colors duration-200">
+                      <input
+                        type="checkbox"
+                        checked={filteredVariant2.length > 0 && 
+                          filteredVariant2.every(variant => formData.variantIdsSecond.includes(variant.id))}
+                        onChange={() => handleToggleAllVariants('SECOND')}
+                        className="mr-1.5 cursor-pointer"
+                      />
+                      <span className="text-sm font-medium text-purple">Tout cocher / Tout décocher</span>
+                    </label>
+                  )}
                   <div className="border border-gray-300 rounded p-2.5 max-h-[200px] overflow-y-auto bg-gray-50">
                     {formData.familyIds.length === 0 ? (
                       <p className="text-gray-500 italic m-0">

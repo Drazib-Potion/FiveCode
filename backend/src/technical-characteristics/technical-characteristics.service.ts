@@ -265,8 +265,9 @@ export class TechnicalCharacteristicsService {
       },
     });
 
-    // Filtrer selon la logique : si pas de variantes pour cette famille, s'applique à toute la famille
-    // Sinon, vérifier si une des variantes sélectionnées correspond
+    // Filtrer selon la logique stricte : la caractéristique est associée uniquement à ce qui est explicitement coché
+    // Si variantIds est vide, on cherche les caractéristiques qui s'appliquent à toute la famille (sans variantes spécifiques)
+    // Si variantIds n'est pas vide, on cherche uniquement les caractéristiques qui ont ces variantes spécifiques associées
     let filtered = allTechnicalCharacteristics.filter((technicalCharacteristic) => {
       // Récupérer les variantes associées avec leur famille (en filtrant les null/undefined)
       const associatedVariants = (technicalCharacteristic.variants || [])
@@ -281,16 +282,23 @@ export class TechnicalCharacteristicsService {
         (v) => v.familyId === familyId,
       );
 
-      // Si la caractéristique n'a pas de variantes pour cette famille, elle s'applique à toute la famille
-      if (variantsForThisFamily.length === 0) {
-        return true;
+      // Si on cherche des variantes spécifiques (variantIds n'est pas vide)
+      if (variantIds.length > 0) {
+        // La caractéristique doit avoir des variantes associées pour cette famille
+        // ET au moins une de ces variantes doit correspondre aux variantes recherchées
+        if (variantsForThisFamily.length === 0) {
+          return false; // Pas de variantes associées, donc ne s'applique pas aux variantes spécifiques
+        }
+        const variantIdsForThisFamily = variantsForThisFamily.map((v) => v.variantId);
+        return variantIds.some((variantId) =>
+          variantIdsForThisFamily.includes(variantId),
+        );
+      } else {
+        // Si on ne cherche pas de variantes spécifiques (variantIds est vide)
+        // On retourne uniquement les caractéristiques qui n'ont pas de variantes associées pour cette famille
+        // (caractéristiques qui s'appliquent à toute la famille sans restriction de variantes)
+        return variantsForThisFamily.length === 0;
       }
-
-      // Si la caractéristique a des variantes pour cette famille, vérifier si une correspond aux variantes sélectionnées
-      const variantIdsForThisFamily = variantsForThisFamily.map((v) => v.variantId);
-      return variantIds.some((variantId) =>
-        variantIdsForThisFamily.includes(variantId),
-      );
     });
 
     // Appliquer la recherche avec normalisation si nécessaire

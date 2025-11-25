@@ -108,20 +108,23 @@ export class ProductGeneratedInfoService {
           (v) => v.familyId === product.familyId
         );
 
-        // Si la caractéristique n'a pas de variantes pour cette famille, elle s'applique à toute la famille
+        // Logique stricte : la caractéristique est associée uniquement à ce qui est explicitement coché
+        // Si la caractéristique n'a pas de variantes pour cette famille
         if (variantsForThisFamily.length === 0) {
-          return true;
+          // Elle s'applique uniquement si aucune variante spécifique n'est sélectionnée
+          return selectedVariantIds.length === 0;
         }
 
-        // Si la caractéristique a des variantes pour cette famille, vérifier si elle correspond à la variante sélectionnée
+        // Si la caractéristique a des variantes pour cette famille
         const variantIdsForThisFamily = variantsForThisFamily.map((v) => v.variantId);
+        // Elle s'applique uniquement si des variantes sont sélectionnées ET qu'au moins une correspond
         if (selectedVariantIds.length > 0) {
           return selectedVariantIds.some((variantId) =>
             variantIdsForThisFamily.includes(variantId),
           );
         }
-        // Si aucune variante n'est sélectionnée, la caractéristique s'applique à toute la famille
-        return true;
+        // Si aucune variante n'est sélectionnée mais que la caractéristique a des variantes associées, elle ne s'applique pas
+        return false;
       }
     );
 

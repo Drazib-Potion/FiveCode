@@ -113,7 +113,7 @@ export default function ProductsPage() {
 
   const loadFamilies = async () => {
     try {
-      const response = await familiesService.getAll();
+      const response = await familiesService.getAll(0, 9999);
       const data = Array.isArray(response) ? response : (response.data || []);
       setFamilies(data);
     } catch (error) {
@@ -123,7 +123,7 @@ export default function ProductsPage() {
 
   const loadProductTypes = async () => {
     try {
-      const response = await productTypesService.getAll();
+      const response = await productTypesService.getAll(0, 9999);
       const data = Array.isArray(response) ? response : (response.data || []);
       setProductTypes(data);
     } catch (error) {

@@ -90,7 +90,7 @@ export default function GeneratorPage() {
       // Charger tous les produits sans limite
       let allProducts: Product[] = [];
       let offset = 0;
-      const limit = 1000;
+      const limit = 50;
       let hasMore = true;
 
       while (hasMore) {
