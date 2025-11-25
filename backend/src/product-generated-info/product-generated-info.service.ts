@@ -238,14 +238,50 @@ export class ProductGeneratedInfoService {
       }
     }
 
-    // Calculer l'incrément (commence à 1)
-    const increment = exactVariantMatches.length + 1;
-
-    // Générer le code : F{productType.code}{product.code}{variant.code}{incrément6digits}
+    // Calculer l'incrément en réutilisant le plus petit incrément disponible
+    // Extraire les incréments existants des codes générés
     const variant1Code = variant1?.code ?? '0';
     const variant2Code = variant2?.code ?? '0';
-    const incrementStr = String(increment).padStart(6, '0');
-    const generatedCode = `F${product.productType.code}${product.code}${variant1Code}${variant2Code}${incrementStr}`;
+    const codePrefix = `F${product.productType.code}${product.code}${variant1Code}${variant2Code}`;
+    
+    const existingIncrements = new Set<number>();
+    for (const info of exactVariantMatches) {
+      if (info.generatedCode && info.generatedCode.startsWith(codePrefix)) {
+        // Extraire les 6 derniers caractères (l'incrément)
+        const incrementPart = info.generatedCode.slice(-6);
+        const incrementNumber = parseInt(incrementPart, 10);
+        if (!isNaN(incrementNumber)) {
+          existingIncrements.add(incrementNumber);
+        }
+      }
+    }
+    
+    // Trouver le plus petit incrément disponible (commence à 1)
+    let increment = 1;
+    while (existingIncrements.has(increment)) {
+      increment++;
+    }
+    
+    // Générer le code avec l'incrément trouvé et vérifier qu'il n'existe pas déjà
+    let generatedCode: string;
+    let codeExists = true;
+    
+    while (codeExists) {
+      const incrementStr = String(increment).padStart(6, '0');
+      generatedCode = `${codePrefix}${incrementStr}`;
+      
+      // Vérifier si ce code existe déjà (double vérification de sécurité)
+      const existingCode = await this.prisma.productGeneratedInfo.findUnique({
+        where: { generatedCode },
+      });
+      
+      if (!existingCode) {
+        codeExists = false;
+      } else {
+        // Si par hasard ce code existe déjà, incrémenter et recommencer
+        increment++;
+      }
+    }
 
     // Valider que toutes les caractéristiques techniques définies sont fournies (si des caractéristiques techniques existent et des valeurs sont fournies)
     if (
@@ -272,7 +308,7 @@ export class ProductGeneratedInfoService {
         productId: createDto.productId,
         variant1Id: variant1?.id ?? null,
         variant2Id: variant2?.id ?? null,
-        generatedCode,
+        generatedCode, // Utiliser le code généré qui est garanti unique
         createdBy: userEmail,
         updatedBy: userEmail,
       },
