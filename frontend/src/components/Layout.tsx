@@ -107,7 +107,7 @@ export default function Layout() {
               `nav-link ${isActive ? 'nav-active' : ''}`
             }
           >
-            Caractéristiques techniques
+            Carac. techniques
           </NavLink>
           <span className="nav-separator" style={{ color: 'rgba(255, 255, 255, 0.3)', fontSize: '1.2rem', userSelect: 'none' }}>|</span>
           {canEditContent && (
