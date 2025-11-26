@@ -1,10 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authService } from '../services/api';
-
-interface User {
-  id: string;
-  email: string;
-}
+import { User } from '../utils/types';
 
 interface AuthContextType {
   user: User | null;
@@ -14,6 +10,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  canEditContent: boolean;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -45,15 +43,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(getInitialToken());
   const [isInitialized, setIsInitialized] = useState(false);
 
-  useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
-    }
-    setIsInitialized(true);
+  const logout = useCallback(() => {
+    setToken(null);
+    setUser(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const initialize = async () => {
+      const storedToken = localStorage.getItem('token');
+      if (!storedToken) {
+        if (isMounted) {
+          setIsInitialized(true);
+        }
+        return;
+      }
+
+      setToken(storedToken);
+      const storedUserData = getInitialUser();
+      if (storedUserData && isMounted) {
+        setUser(storedUserData);
+      }
+
+      try {
+        const profile = await authService.getProfile();
+        if (isMounted) {
+          setUser(profile);
+          localStorage.setItem('user', JSON.stringify(profile));
+        }
+      } catch (error) {
+        console.error('Unable to refresh profile', error);
+        if (isMounted) {
+          logout();
+        }
+      } finally {
+        if (isMounted) {
+          setIsInitialized(true);
+        }
+      }
+    };
+
+    initialize();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [logout]);
 
   const login = async (email: string, password: string) => {
     const response = await authService.login(email, password);
@@ -71,12 +109,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('user', JSON.stringify(response.user));
   };
 
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-  };
+  const canEditContent = user?.role === 'MANAGER' || user?.role === 'ADMIN';
+  const isAdmin = user?.role === 'ADMIN';
 
   return (
     <AuthContext.Provider
@@ -88,6 +122,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         register,
         logout,
+        canEditContent,
+        isAdmin,
       }}
     >
       {children}

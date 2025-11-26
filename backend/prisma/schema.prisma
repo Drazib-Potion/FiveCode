@@ -15,10 +15,17 @@ enum VariantLevel {
   SECOND
 }
 
+enum Role {
+  CONSULTATION
+  MANAGER
+  ADMIN
+}
+
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
   password  String
+  role      Role     @default(ADMIN)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

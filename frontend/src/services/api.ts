@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { User } from '../utils/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL
 
@@ -45,6 +46,10 @@ export const authService = {
   },
   register: async (email: string, password: string) => {
     const response = await apiClient.post('/auth/register', { email, password });
+    return response.data;
+  },
+  getProfile: async () => {
+    const response = await apiClient.get('/auth/me');
     return response.data;
   },
 };
@@ -221,6 +226,17 @@ export const productTypesService = {
   },
   delete: async (id: string) => {
     const response = await apiClient.delete(`/product-types/${id}`);
+    return response.data;
+  },
+};
+
+export const usersService = {
+  getAll: async () => {
+    const response = await apiClient.get('/users');
+    return response.data;
+  },
+  updateRole: async (id: string, role: User['role']) => {
+    const response = await apiClient.patch(`/users/${id}/role`, { role });
     return response.data;
   },
 };

@@ -5,10 +5,12 @@ import * as XLSX from 'xlsx';
 import excelIcon from '../media/excel-icon.png';
 import { ProductGeneratedInfo } from '../utils/types';
 import DataTable from '../components/DataTable';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function GeneratedCodesPage() {
   const MAX_VALUE_LENGTH = 30;
   const { showAlert, showConfirm } = useModal();
+  const { canEditContent } = useAuth();
   const [generatedInfos, setGeneratedInfos] = useState<ProductGeneratedInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -133,6 +135,20 @@ export default function GeneratedCodesPage() {
         ),
       },
       {
+        header: 'Date de modification',
+        render: (info: ProductGeneratedInfo) => (
+          <span className="text-gray-dark">
+            {formatDate(info.updatedAt)}
+          </span>
+        ),
+      },
+      {
+        header: 'Modifié par',
+        render: (info: ProductGeneratedInfo) => (
+          <span className="text-gray-dark">{info.updatedBy}</span>
+        ),
+      },
+      {
         header: 'Créé par',
         render: (info: ProductGeneratedInfo) => (
           <span className="text-gray-dark">{info.createdBy}</span>
@@ -142,22 +158,27 @@ export default function GeneratedCodesPage() {
     [],
   );
 
-  const renderGeneratedActions = (info: ProductGeneratedInfo) => (
-    <div className="flex items-center gap-2">
-      <button
-        onClick={() => handleStartEditing(info)}
-        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
-      >
-        Modifier
-      </button>
-      <button
-        onClick={() => handleDelete(info.id)}
-        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg"
-      >
-        Supprimer
-      </button>
-    </div>
-  );
+  const renderGeneratedActions = (info: ProductGeneratedInfo) => {
+    if (!canEditContent) {
+      return null;
+    }
+    return (
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => handleStartEditing(info)}
+          className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
+        >
+          Modifier
+        </button>
+        <button
+          onClick={() => handleDelete(info.id)}
+          className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg"
+        >
+          Supprimer
+        </button>
+      </div>
+    );
+  };
 
   const generatedSearchFields = (info: ProductGeneratedInfo) =>
     [
@@ -175,6 +196,7 @@ export default function GeneratedCodesPage() {
       .map((value) => value as string);
 
   const handleDelete = async (id: string) => {
+    if (!canEditContent) return;
     const confirmed = await showConfirm(
       'Êtes-vous sûr de vouloir supprimer ce code généré ?',
     );
@@ -193,6 +215,7 @@ export default function GeneratedCodesPage() {
   };
 
   const handleStartEditing = (info: ProductGeneratedInfo) => {
+    if (!canEditContent) return;
     setEditingInfo(info);
     const initialValues: Record<string, any> = {};
     info.technicalCharacteristics.forEach((tech) => {
@@ -207,6 +230,14 @@ export default function GeneratedCodesPage() {
     setEditingErrors({});
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    if (!canEditContent) {
+      setEditingInfo(null);
+      setEditingValues({});
+      setEditingErrors({});
+    }
+  }, [canEditContent]);
 
   const handleEditValueChange = (technicalCharacteristicId: string, value: any) => {
     if (typeof value === 'string') {
@@ -452,13 +483,13 @@ export default function GeneratedCodesPage() {
                 : 'Utilisez le générateur pour créer des codes produits'
               : undefined
           }
-          renderActions={renderGeneratedActions}
+          renderActions={canEditContent ? renderGeneratedActions : undefined}
           searchPlaceholder="🔍 Rechercher un code généré..."
           searchTerm={searchTerm}
           onSearch={(term) => setSearchTerm(term)}
           searchFields={generatedSearchFields}
         />
-        {editingInfo && (
+        {canEditContent && editingInfo && (
           <div className="bg-purple-light/10 rounded-xl shadow-lg border-2 border-purple/40 mb-6 p-6">
             <div className="flex items-center justify-between gap-4">
               <div>

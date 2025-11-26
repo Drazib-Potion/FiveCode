@@ -3,13 +3,16 @@ import { FamiliesService } from './families.service';
 import { CreateFamilyDto } from './dto/create-family.dto';
 import { UpdateFamilyDto } from './dto/update-family.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('families')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class FamiliesController {
   constructor(private readonly familiesService: FamiliesService) {}
 
   @Post()
+  @Roles('MANAGER', 'ADMIN')
   create(@Body() createFamilyDto: CreateFamilyDto) {
     return this.familiesService.create(createFamilyDto);
   }
@@ -27,11 +30,13 @@ export class FamiliesController {
   }
 
   @Patch(':id')
+  @Roles('MANAGER', 'ADMIN')
   update(@Param('id') id: string, @Body() updateFamilyDto: UpdateFamilyDto) {
     return this.familiesService.update(id, updateFamilyDto);
   }
 
   @Delete(':id')
+  @Roles('MANAGER', 'ADMIN')
   remove(@Param('id') id: string) {
     return this.familiesService.remove(id);
   }

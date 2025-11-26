@@ -6,6 +6,7 @@ import Loader from '../components/Loader';
 import DataTable from '../components/DataTable';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { TechnicalCharacteristic, Family, Variant } from '../utils/types';
+import { useAuth } from '../contexts/AuthContext';
 
 type FormDataState = {
   name: string;
@@ -37,6 +38,7 @@ const createInitialFormData = (): FormDataState => ({
 
 export default function TechnicalCharacteristicsPage() {
   const { showAlert, showConfirm } = useModal();
+  const { canEditContent } = useAuth();
   const [technicalCharacteristics, setTechnicalCharacteristics] = useState<TechnicalCharacteristic[]>([]);
   const [families, setFamilies] = useState<Family[]>([]);
   const [variants, setVariants] = useState<Variant[]>([]);
@@ -133,6 +135,13 @@ export default function TechnicalCharacteristicsPage() {
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableSearchTerm]);
+
+  useEffect(() => {
+    if (!canEditContent) {
+      setShowForm(false);
+      setEditingId(null);
+    }
+  }, [canEditContent]);
 
   const loadFamilies = async () => {
     try {
@@ -419,6 +428,7 @@ const getVariantNamesByLevel = (
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
+    if (!canEditContent) return;
     e.preventDefault();
     setSubmitting(true);
     if (enumOptionError) {
@@ -473,6 +483,7 @@ const getVariantNamesByLevel = (
   };
 
   const handleEdit = (technicalCharacteristic: TechnicalCharacteristic) => {
+    if (!canEditContent) return;
     const variantAssignments = technicalCharacteristic.variants || [];
     const variantIdsFirst: string[] = [];
     const variantIdsSecond: string[] = [];
@@ -513,6 +524,7 @@ const getVariantNamesByLevel = (
   };
 
   const handleDelete = async (id: string) => {
+    if (!canEditContent) return;
     const confirmed = await showConfirm('Êtes-vous sûr de vouloir supprimer cette caractéristique technique ?');
     if (!confirmed) return;
     setDeletingId(id);
@@ -531,24 +543,26 @@ const getVariantNamesByLevel = (
     <div className="w-full animate-fade-in">
       <div className="flex justify-between items-center mb-10 pb-4 border-b-2 border-purple/20">
         <h1 className="m-0 text-3xl font-bold text-purple">Gestion des Caractéristiques techniques</h1>
-        <button 
-        onClick={() => { 
-          setShowForm(true); 
-          setEditingId(null); 
-          setFormData(createInitialFormData()); 
-          setNewEnumOption(''); 
-          setEnumOptionError('');
-          setFamilySearch(''); 
-          setVariant1Search(''); 
-          setVariant2Search(''); 
-        }}
-          className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
-        >
-          + Nouvelle caractéristique technique
-        </button>
+        {canEditContent && (
+          <button 
+            onClick={() => { 
+              setShowForm(true); 
+              setEditingId(null); 
+              setFormData(createInitialFormData()); 
+              setNewEnumOption(''); 
+              setEnumOptionError('');
+              setFamilySearch(''); 
+              setVariant1Search(''); 
+              setVariant2Search(''); 
+            }}
+            className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
+          >
+            + Nouvelle caractéristique technique
+          </button>
+        )}
       </div>
 
-      {showForm && (
+      {canEditContent && showForm && (
         <div className="bg-gradient-to-br from-white to-gray-light/30 p-8 rounded-2xl shadow-xl mb-6 border-2 border-purple/20 animate-slide-in backdrop-blur-sm">
           <h2 className="mt-0 mb-6 text-2xl font-bold bg-gradient-to-r from-purple to-purple-light bg-clip-text text-transparent">
             {editingId ? 'Modifier' : 'Créer'} une caractéristique technique
@@ -920,7 +934,7 @@ const getVariantNamesByLevel = (
                 : 'Créez votre première caractéristique technique pour commencer'
               : undefined
           }
-          renderActions={renderTechnicalActions}
+          renderActions={canEditContent ? renderTechnicalActions : undefined}
           searchPlaceholder="🔍 Rechercher par nom, type, famille ou variante..."
           searchTerm={tableSearchTerm}
           onSearch={(term) => setTableSearchTerm(term)}

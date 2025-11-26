@@ -8,6 +8,7 @@ import { TechnicalCharacteristicsModule } from './technical-characteristics/tech
 import { ProductsModule } from './products/products.module';
 import { ProductGeneratedInfoModule } from './product-generated-info/product-generated-info.module';
 import { ProductTypesModule } from './product-types/product-types.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ProductTypesModule } from './product-types/product-types.module';
     ProductsModule,
     ProductGeneratedInfoModule,
     ProductTypesModule,
+    UsersModule,
   ],
 })
 export class AppModule {}

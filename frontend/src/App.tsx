@@ -8,17 +8,35 @@ import ProductsPage from './pages/ProductsPage';
 import GeneratorPage from './pages/GeneratorPage';
 import GeneratedCodesPage from './pages/GeneratedCodesPage';
 import ProductTypesPage from './pages/ProductTypesPage';
+import AdminUsersPage from './pages/AdminUsersPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ModalProvider } from './contexts/ModalContext';
+import { User } from './utils/types';
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isInitialized } = useAuth();
+type ProtectedRouteProps = {
+  children: React.ReactNode;
+  roles?: Array<User['role']>;
+};
+
+function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
+  const { isAuthenticated, isInitialized, user } = useAuth();
 
   if (!isInitialized) {
     return <div className="loading">Chargement...</div>;
   }
   
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+
+  if (roles && roles.length > 0) {
+    const userRole = user?.role;
+    if (!userRole || !roles.includes(userRole)) {
+      return <Navigate to="/" replace />;
+    }
+  }
+  
+  return <>{children}</>;
 }
 
 function NotFoundRoute() {
@@ -49,8 +67,23 @@ function AppRoutes() {
         <Route path="products" element={<ProductsPage />} />
         <Route path="variants" element={<VariantsPage />} />
         <Route path="technical-characteristics" element={<TechnicalCharacteristicsPage />} />
+        <Route
+          path="generator"
+          element={
+            <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+              <GeneratorPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="generated-codes" element={<GeneratedCodesPage />} />
-        <Route path="generator" element={<GeneratorPage />} />
+        <Route
+          path="admin/users"
+          element={
+            <ProtectedRoute roles={['ADMIN']}>
+              <AdminUsersPage />
+            </ProtectedRoute>
+          }
+        />
       </Route>
       <Route path="*" element={<NotFoundRoute />} />
     </Routes>

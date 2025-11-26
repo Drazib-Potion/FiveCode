@@ -2,13 +2,16 @@ import { Controller, Get, Post, Body, Param, Delete, UseGuards, Query } from '@n
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('products')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Post()
+  @Roles('MANAGER', 'ADMIN')
   create(@Body() createProductDto: CreateProductDto) {
     return this.productsService.create(createProductDto);
   }
@@ -26,6 +29,7 @@ export class ProductsController {
   }
 
   @Delete(':id')
+  @Roles('MANAGER', 'ADMIN')
   remove(@Param('id') id: string) {
     return this.productsService.remove(id);
   }

@@ -5,9 +5,11 @@ import Loader from '../components/Loader';
 import DataTable from '../components/DataTable';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { Product, Family, ProductType } from '../utils/types';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function ProductsPage() {
   const { showAlert, showConfirm } = useModal();
+  const { canEditContent } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [families, setFamilies] = useState<Family[]>([]);
   const [productTypes, setProductTypes] = useState<ProductType[]>([]);
@@ -100,6 +102,12 @@ export default function ProductsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableSearchTerm]);
 
+  useEffect(() => {
+    if (!canEditContent) {
+      setShowForm(false);
+    }
+  }, [canEditContent]);
+
   const loadMore = useCallback(() => {
     if (!loadingMore && hasMore && !tableSearchTerm.trim()) {
       loadProducts(false);
@@ -133,6 +141,7 @@ export default function ProductsPage() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
+    if (!canEditContent) return;
     e.preventDefault();
     setSubmitting(true);
     try {
@@ -151,6 +160,7 @@ export default function ProductsPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!canEditContent) return;
     const confirmed = await showConfirm('Êtes-vous sûr de vouloir supprimer ce produit ?');
     if (!confirmed) return;
     setDeletingId(id);
@@ -255,21 +265,23 @@ export default function ProductsPage() {
       <div className="flex justify-between items-center mb-10 pb-4 border-b-2 border-purple/20">
         <h1 className="m-0 text-3xl font-bold text-purple">Liste des Produits</h1>
         <div className="flex gap-4">
-          <button
-            onClick={() => {
-              setShowForm(true);
-              setFormData({ name: '', code: '', familyId: '', productTypeId: '' });
-              setFamilySearch('');
-              setProductTypeSearch('');
-            }}
-            className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
-          >
-            + Nouveau produit
-          </button>
+          {canEditContent && (
+            <button
+              onClick={() => {
+                setShowForm(true);
+                setFormData({ name: '', code: '', familyId: '', productTypeId: '' });
+                setFamilySearch('');
+                setProductTypeSearch('');
+              }}
+              className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
+            >
+              + Nouveau produit
+            </button>
+          )}
         </div>
       </div>
 
-      {showForm && (
+      {canEditContent && showForm && (
         <div className="bg-gradient-to-br from-white to-gray-light/30 p-8 rounded-2xl shadow-xl mb-6 border-2 border-purple/20 animate-slide-in backdrop-blur-sm">
           <h2 className="mt-0 mb-6 text-2xl font-bold bg-gradient-to-r from-purple to-purple-light bg-clip-text text-transparent">
             Créer un produit
@@ -399,7 +411,7 @@ export default function ProductsPage() {
                 : 'Créez votre premier produit pour commencer'
               : undefined
           }
-          renderActions={renderProductActions}
+          renderActions={canEditContent ? renderProductActions : undefined}
           searchPlaceholder="🔍 Rechercher par nom, code, famille ou type..."
           searchTerm={tableSearchTerm}
           onSearch={(term) => setTableSearchTerm(term)}

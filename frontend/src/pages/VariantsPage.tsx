@@ -5,9 +5,11 @@ import Loader from '../components/Loader';
 import DataTable from '../components/DataTable';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { Variant, Family } from '../utils/types';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function VariantsPage() {
   const { showAlert, showConfirm } = useModal();
+  const { canEditContent } = useAuth();
   const [variants, setVariants] = useState<Variant[]>([]);
   const [families, setFamilies] = useState<Family[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,6 +104,13 @@ export default function VariantsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableSearchTerm]);
 
+  useEffect(() => {
+    if (!canEditContent) {
+      setShowForm(false);
+      setEditingId(null);
+    }
+  }, [canEditContent]);
+
   const loadFamilies = async () => {
     try {
       const data = await familiesService.getAll(0, 9999);
@@ -125,6 +134,7 @@ export default function VariantsPage() {
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
+    if (!canEditContent) return;
     e.preventDefault();
     setSubmitting(true);
     try {
@@ -148,6 +158,7 @@ export default function VariantsPage() {
   };
 
   const handleEdit = (variant: Variant) => {
+    if (!canEditContent) return;
     setFormData({ 
       familyId: variant.familyId, 
       name: variant.name, 
@@ -161,6 +172,7 @@ export default function VariantsPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!canEditContent) return;
     const confirmed = await showConfirm('Êtes-vous sûr de vouloir supprimer cette variante ?');
     if (!confirmed) return;
     setDeletingId(id);
@@ -252,15 +264,17 @@ export default function VariantsPage() {
     <div className="w-full animate-fade-in">
       <div className="flex justify-between items-center mb-10 pb-4 border-b-2 border-purple/20">
         <h1 className="m-0 text-3xl font-bold text-purple">Gestion des Variantes</h1>
-        <button 
-          onClick={() => { setShowForm(true); setEditingId(null); setFormData({ familyId: '', name: '', code: '', variantLevel: 'FIRST' }); setFamilySearch(''); }}
-          className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
-        >
-          + Nouvelle variante
-        </button>
+        {canEditContent && (
+          <button 
+            onClick={() => { setShowForm(true); setEditingId(null); setFormData({ familyId: '', name: '', code: '', variantLevel: 'FIRST' }); setFamilySearch(''); }}
+            className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
+          >
+            + Nouvelle variante
+          </button>
+        )}
       </div>
 
-      {showForm && (
+      {canEditContent && showForm && (
         <div className="bg-gradient-to-br from-white to-gray-light/30 p-8 rounded-2xl shadow-xl mb-6 border-2 border-purple/20 animate-slide-in backdrop-blur-sm">
           <h2 className="mt-0 mb-6 text-2xl font-bold bg-gradient-to-r from-purple to-purple-light bg-clip-text text-transparent">
             {editingId ? 'Modifier' : 'Créer'} une variante
@@ -376,7 +390,7 @@ export default function VariantsPage() {
                 : 'Créez votre première variante pour commencer'
               : undefined
           }
-          renderActions={renderVariantActions}
+          renderActions={canEditContent ? renderVariantActions : undefined}
           searchPlaceholder="🔍 Rechercher par nom, code ou famille..."
           searchTerm={tableSearchTerm}
           onSearch={(term) => setTableSearchTerm(term)}

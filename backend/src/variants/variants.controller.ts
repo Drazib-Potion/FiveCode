@@ -3,13 +3,16 @@ import { VariantsService } from './variants.service';
 import { CreateVariantDto } from './dto/create-variant.dto';
 import { UpdateVariantDto } from './dto/update-variant.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('variants')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class VariantsController {
   constructor(private readonly variantsService: VariantsService) {}
 
   @Post()
+  @Roles('MANAGER', 'ADMIN')
   create(@Body() createVariantDto: CreateVariantDto) {
     return this.variantsService.create(createVariantDto);
   }
@@ -30,11 +33,13 @@ export class VariantsController {
   }
 
   @Patch(':id')
+  @Roles('MANAGER', 'ADMIN')
   update(@Param('id') id: string, @Body() updateVariantDto: UpdateVariantDto) {
     return this.variantsService.update(id, updateVariantDto);
   }
 
   @Delete(':id')
+  @Roles('MANAGER', 'ADMIN')
   remove(@Param('id') id: string) {
     return this.variantsService.remove(id);
   }

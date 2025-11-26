@@ -5,9 +5,11 @@ import Loader from '../components/Loader';
 import DataTable from '../components/DataTable';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { ProductType } from '../utils/types';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function ProductTypesPage() {
   const { showAlert, showConfirm } = useModal();
+  const { canEditContent } = useAuth();
   const [productTypes, setProductTypes] = useState<ProductType[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -38,6 +40,13 @@ export default function ProductTypesPage() {
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
+
+  useEffect(() => {
+    if (!canEditContent) {
+      setShowForm(false);
+      setEditingId(null);
+    }
+  }, [canEditContent]);
 
   const loadData = useCallback(async (reset: boolean = false, search?: string) => {
     try {
@@ -138,6 +147,7 @@ export default function ProductTypesPage() {
   };
 
   const handleEdit = (productType: ProductType) => {
+    if (!canEditContent) return;
     setFormData({
       name: productType.name,
       code: productType.code,
@@ -148,6 +158,7 @@ export default function ProductTypesPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!canEditContent) return;
     const confirmed = await showConfirm('Êtes-vous sûr de vouloir supprimer ce type de produit ?');
     if (!confirmed) return;
     setDeletingId(id);
@@ -205,12 +216,14 @@ export default function ProductTypesPage() {
     <div className="w-full animate-fade-in">
       <div className="flex justify-between items-center mb-10 pb-4 border-b-2 border-purple/20">
         <h1 className="m-0 text-3xl font-bold text-purple">Gestion des Types de produit</h1>
-        <button 
-          onClick={() => { setShowForm(true); setEditingId(null); setFormData({ name: '', code: '' }); }}
-          className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
-        >
-          + Nouveau type de produit
-        </button>
+        {canEditContent && (
+          <button 
+            onClick={() => { setShowForm(true); setEditingId(null); setFormData({ name: '', code: '' }); }}
+            className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
+          >
+            + Nouveau type de produit
+          </button>
+        )}
       </div>
 
       {showForm && (
@@ -274,7 +287,7 @@ export default function ProductTypesPage() {
                 : 'Créez votre premier type de produit pour commencer'
               : undefined
           }
-          renderActions={renderProductTypeActions}
+          renderActions={canEditContent ? renderProductTypeActions : undefined}
           searchPlaceholder="🔍 Rechercher par nom ou code..."
           searchTerm={searchTerm}
           onSearch={(term) => setSearchTerm(term)}

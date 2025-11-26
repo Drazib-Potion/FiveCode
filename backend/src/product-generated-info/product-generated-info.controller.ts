@@ -15,15 +15,18 @@ import { ProductGeneratedInfoService } from './product-generated-info.service';
 import { CreateProductGeneratedInfoDto } from './dto/create-product-generated-info.dto';
 import { UpdateProductGeneratedInfoDto } from './dto/update-product-generated-info.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('product-generated-infos')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ProductGeneratedInfoController {
   constructor(
     private readonly productGeneratedInfoService: ProductGeneratedInfoService,
   ) {}
 
   @Post()
+  @Roles('MANAGER', 'ADMIN')
   create(
     @Body() createDto: CreateProductGeneratedInfoDto,
     @Request() req: any,
@@ -49,11 +52,13 @@ export class ProductGeneratedInfoController {
   }
 
   @Delete(':id')
+  @Roles('MANAGER', 'ADMIN')
   remove(@Param('id') id: string) {
     return this.productGeneratedInfoService.remove(id);
   }
 
   @Patch(':id')
+  @Roles('MANAGER', 'ADMIN')
   update(
     @Param('id') id: string,
     @Body() updateDto: UpdateProductGeneratedInfoDto,

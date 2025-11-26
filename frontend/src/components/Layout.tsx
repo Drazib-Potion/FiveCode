@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import logo from '../media/fives-logo-white.png';
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, logout, canEditContent, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -110,15 +110,19 @@ export default function Layout() {
             Caractéristiques techniques
           </NavLink>
           <span className="nav-separator" style={{ color: 'rgba(255, 255, 255, 0.3)', fontSize: '1.2rem', userSelect: 'none' }}>|</span>
-          <NavLink 
-            to="/generator" 
-            className={({ isActive }) => 
-              `nav-link ${isActive ? 'nav-active' : ''}`
-            }
-          >
-            Générateur
-          </NavLink>
-          <span className="nav-separator" style={{ color: 'rgba(255, 255, 255, 0.3)', fontSize: '1.2rem', userSelect: 'none' }}>|</span>
+          {canEditContent && (
+            <>
+              <NavLink 
+                to="/generator" 
+                className={({ isActive }) => 
+                  `nav-link ${isActive ? 'nav-active' : ''}`
+                }
+              >
+                Générateur
+              </NavLink>
+              <span className="nav-separator" style={{ color: 'rgba(255, 255, 255, 0.3)', fontSize: '1.2rem', userSelect: 'none' }}>|</span>
+            </>
+          )}
           <NavLink 
             to="/generated-codes" 
             className={({ isActive }) => 
@@ -127,6 +131,19 @@ export default function Layout() {
           >
             Codes Générés
           </NavLink>
+          {isAdmin && (
+            <>
+              <span className="nav-separator" style={{ color: 'rgba(255, 255, 255, 0.3)', fontSize: '1.2rem', userSelect: 'none' }}>|</span>
+              <NavLink 
+                to="/admin/users" 
+                className={({ isActive }) => 
+                  `nav-link ${isActive ? 'nav-active' : ''}`
+                }
+              >
+                Administration
+              </NavLink>
+            </>
+          )}
         </div>
         <div className="nav-user" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
           <span className="user-email" style={{ fontSize: '0.875rem' }}>{user?.email}</span>
@@ -205,15 +222,17 @@ export default function Layout() {
             >
               Caractéristiques techniques
             </NavLink>
-            <NavLink 
-              to="/generator" 
-              className={({ isActive }) => 
-                `nav-link ${isActive ? 'nav-active' : ''}`
-              }
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Générateur
-            </NavLink>
+            {canEditContent && (
+              <NavLink 
+                to="/generator" 
+                className={({ isActive }) => 
+                  `nav-link ${isActive ? 'nav-active' : ''}`
+                }
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Générateur
+              </NavLink>
+            )}
             <NavLink 
               to="/generated-codes" 
               className={({ isActive }) => 
@@ -223,6 +242,17 @@ export default function Layout() {
             >
               Codes Générés
             </NavLink>
+            {isAdmin && (
+              <NavLink 
+                to="/admin/users" 
+                className={({ isActive }) => 
+                  `nav-link ${isActive ? 'nav-active' : ''}`
+                }
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Administration
+              </NavLink>
+            )}
           </div>
         )}
       </nav>

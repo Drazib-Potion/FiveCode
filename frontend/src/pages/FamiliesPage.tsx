@@ -5,9 +5,11 @@ import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import DataTable from '../components/DataTable';
 import Loader from '../components/Loader';
 import { Family } from '../utils/types';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function FamiliesPage() {
   const { showAlert, showConfirm } = useModal();
+  const { canEditContent } = useAuth();
   const [families, setFamilies] = useState<Family[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -101,6 +103,13 @@ export default function FamiliesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
 
+  useEffect(() => {
+    if (!canEditContent) {
+      setShowForm(false);
+      setEditingId(null);
+    }
+  }, [canEditContent]);
+
   const loadMore = useCallback(() => {
     if (!loadingMore && hasMore && !searchTerm.trim()) {
       loadFamilies(false);
@@ -136,6 +145,7 @@ export default function FamiliesPage() {
   };
 
   const handleEdit = (family: Family) => {
+    if (!canEditContent) return;
     setFormData({ name: family.name });
     setEditingId(family.id);
     setShowForm(true);
@@ -143,6 +153,7 @@ export default function FamiliesPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!canEditContent) return;
     const confirmed = await showConfirm('Êtes-vous sûr de vouloir supprimer cette famille ?');
     if (!confirmed) return;
     setDeletingId(id);
@@ -193,12 +204,19 @@ export default function FamiliesPage() {
     <div className="w-full animate-fade-in">
       <div className="flex justify-between items-center mb-10 pb-4 border-b-2 border-purple/20 page-header-responsive">
         <h1 className="m-0 text-3xl font-bold text-purple">Gestion des Familles</h1>
-        <button 
-          onClick={() => { setShowForm(true); setEditingId(null); setFormData({ name: '' }); }}
-          className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
-        >
-          + Nouvelle famille
-        </button>
+        {canEditContent && (
+          <button 
+            onClick={() => {
+              if (!canEditContent) return;
+              setShowForm(true);
+              setEditingId(null);
+              setFormData({ name: '' });
+            }}
+            className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
+          >
+            + Nouvelle famille
+          </button>
+        )}
       </div>
 
       {showForm && (
@@ -250,7 +268,7 @@ export default function FamiliesPage() {
                 : 'Créez votre première famille pour commencer'
               : undefined
           }
-          renderActions={renderFamilyActions}
+          renderActions={canEditContent ? renderFamilyActions : undefined}
           searchPlaceholder="🔍 Rechercher par nom..."
           searchTerm={searchTerm}
           onSearch={(term) => setSearchTerm(term)}

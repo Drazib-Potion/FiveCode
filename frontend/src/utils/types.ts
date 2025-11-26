@@ -1,3 +1,9 @@
+export interface User {
+  id: string;
+  email: string;
+  role: 'CONSULTATION' | 'MANAGER' | 'ADMIN';
+}
+
 export interface Family {
   id: string;
   name: string;

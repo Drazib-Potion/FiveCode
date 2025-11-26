@@ -3,13 +3,16 @@ import { TechnicalCharacteristicsService } from './technical-characteristics.ser
 import { CreateTechnicalCharacteristicDto } from './dto/create-technical-characteristic.dto';
 import { UpdateTechnicalCharacteristicDto } from './dto/update-technical-characteristic.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('technical-characteristics')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class TechnicalCharacteristicsController {
   constructor(private readonly technicalCharacteristicsService: TechnicalCharacteristicsService) {}
 
   @Post()
+  @Roles('MANAGER', 'ADMIN')
   create(@Body() createTechnicalCharacteristicDto: CreateTechnicalCharacteristicDto) {
     return this.technicalCharacteristicsService.create(createTechnicalCharacteristicDto);
   }
@@ -50,11 +53,13 @@ export class TechnicalCharacteristicsController {
   }
 
   @Patch(':id')
+  @Roles('MANAGER', 'ADMIN')
   update(@Param('id') id: string, @Body() updateTechnicalCharacteristicDto: UpdateTechnicalCharacteristicDto) {
     return this.technicalCharacteristicsService.update(id, updateTechnicalCharacteristicDto);
   }
 
   @Delete(':id')
+  @Roles('MANAGER', 'ADMIN')
   remove(@Param('id') id: string) {
     return this.technicalCharacteristicsService.remove(id);
   }
