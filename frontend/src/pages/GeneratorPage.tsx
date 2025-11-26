@@ -245,6 +245,14 @@ export default function GeneratorPage() {
     }));
   };
 
+  const handleResetForm = () => {
+    setVariantSelection(createInitialVariantSelection());
+    setValues({});
+    setVariant1Search('');
+    setVariant2Search('');
+    setEnumSearch({});
+  };
+
   const handleGenerate = async () => {
     if (!selectedProductId) {
       await showAlert('Veuillez sélectionner un produit', 'warning');
@@ -315,11 +323,6 @@ export default function GeneratorPage() {
         'success',
       );
       
-      // Réinitialiser les sélections après génération
-      setVariantSelection(createInitialVariantSelection());
-      setValues({});
-      setVariant1Search('');
-      setVariant2Search('');
     } catch (error: any) {
       console.error('Error generating info:', error);
       await showAlert(
@@ -645,7 +648,15 @@ export default function GeneratorPage() {
               </div>
             )}
 
-            <div className="mt-8 pt-8 border-t-2 border-gray-200 flex justify-center">
+            <div className="mt-8 pt-8 border-t-2 border-gray-200 flex justify-center gap-4">
+              <button
+                type="button"
+                onClick={handleResetForm}
+                disabled={loading}
+                className="px-10 py-4 border-2 border-purple text-purple font-semibold rounded-xl transition-all duration-300 hover:bg-purple/10 disabled:border-gray-300 disabled:text-gray-400 disabled:cursor-not-allowed"
+              >
+                Réinitialiser
+              </button>
               <button 
                 onClick={handleGenerate} 
                 disabled={loading}
