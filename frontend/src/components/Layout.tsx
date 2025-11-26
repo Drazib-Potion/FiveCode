@@ -35,7 +35,7 @@ export default function Layout() {
             style={{ height: '70px', width: 'auto', marginBottom: '10px' }}
           />
           <h1 className="nav-title" style={{ fontSize: '1.5rem', margin: 0, fontWeight: 600, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
-            Configurateur de Produits
+            Base Article
           </h1>
         </div>
         <button
@@ -62,7 +62,7 @@ export default function Layout() {
           alignItems: 'center',
           flex: 1,
           justifyContent: 'center',
-          margin: '0 2rem',
+          margin: '0 1rem',
           flexWrap: 'wrap'
         }}>
           <NavLink 
@@ -145,24 +145,88 @@ export default function Layout() {
             </>
           )}
         </div>
-        <div className="nav-user" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
-          <span className="user-email" style={{ fontSize: '0.875rem' }}>{user?.email}</span>
-          <button 
+        <div
+          className="nav-user"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            flexShrink: 0,
+            backgroundColor: 'rgba(255, 255, 255, 0.12)',
+            padding: '0.35rem 0.75rem',
+            borderRadius: '999px',
+            border: '1px solid rgba(255,255,255,0.3)',
+            boxShadow: '0 0 10px rgba(0,0,0,0.15)',
+          }}
+        >
+          <span
+            className="user-email"
+            style={{
+              fontSize: '0.9rem',
+              fontWeight: 500,
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+            }}
+          >
+            <span
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(255,255,255,0.3)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.8rem',
+              }}
+            >
+              {user?.email?.[0] ?? 'U'}
+            </span>
+            {user?.email}
+          </span>
+          {isAdmin && (
+            <button
+              onClick={() => navigate('/admin/users')}
+              className="nav-admin-btn"
+              style={{
+                backgroundColor: 'transparent',
+                border: '1px solid rgba(255,255,255,0.4)',
+                color: 'white',
+                padding: '0.25rem 0.75rem',
+                borderRadius: '999px',
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.12)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              Panel admin
+            </button>
+          )}
+          <button
             onClick={handleLogout}
             className="logout-btn"
             style={{
               backgroundColor: '#e74c3c',
               color: 'white',
               border: 'none',
-              padding: '0.5rem 1rem',
-              borderRadius: '4px',
+              padding: '0.4rem 1rem',
+              borderRadius: '999px',
               cursor: 'pointer',
               transition: 'background-color 0.2s',
-              fontSize: '0.875rem',
-              whiteSpace: 'nowrap'
+              fontSize: '0.85rem',
+              whiteSpace: 'nowrap',
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#c0392b'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#e74c3c'}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#c0392b')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#e74c3c')}
           >
             Déconnexion
           </button>
