@@ -239,17 +239,6 @@ export default function FamiliesPage() {
       )}
 
       <div className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-purple/20 animate-fade-in">
-        <div className="p-4 bg-gray-light border-b-2 border-purple/20">
-          <div className="relative w-full max-w-[400px]">
-            <input
-              type="text"
-              placeholder="🔍 Rechercher par nom..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-purple rounded-lg text-sm bg-white text-gray-dark focus:outline-none focus:border-purple-light focus:ring-2 focus:ring-purple/20 transition-all shadow-sm"
-            />
-          </div>
-        </div>
         <DataTable
           columns={familyColumns}
           data={families}
@@ -262,9 +251,12 @@ export default function FamiliesPage() {
               : undefined
           }
           renderActions={renderFamilyActions}
+          searchPlaceholder="🔍 Rechercher par nom..."
+          searchTerm={searchTerm}
+          onSearch={(term) => setSearchTerm(term)}
         />
         {hasMore && !searchTerm.trim() && (
-      <div ref={observerTarget} className="py-4 flex items-center justify-center">
+          <div ref={observerTarget} className="py-4 flex items-center justify-center">
             {loadingMore && (
               <div className="flex items-center gap-2 text-gray-600">
                 <Loader size="sm" />

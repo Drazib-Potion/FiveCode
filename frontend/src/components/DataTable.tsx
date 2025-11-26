@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import Loader from '../components/Loader';
 
 type Column<T> = {
@@ -18,11 +19,17 @@ type DataTableProps<T> = {
   actionsHeader?: React.ReactNode;
   rowKey?: (item: T, index: number) => string;
   actionCellClassName?: string;
+  searchPlaceholder?: string;
+  searchTerm?: string;
+  onSearch?: (term: string) => void;
+  searchFields?: (item: T) => string[];
+  filterFunction?: (item: T, term: string) => boolean;
 };
 
 const defaultHeaderClass =
   'px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider';
-const defaultCellClass = 'px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium';
+const defaultCellClass =
+  'px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium';
 
 function DataTable<T>({
   columns,
@@ -35,14 +42,95 @@ function DataTable<T>({
   actionsHeader = 'Actions',
   rowKey,
   actionCellClassName,
+  searchPlaceholder,
+  searchTerm,
+  onSearch,
+  searchFields,
+  filterFunction,
 }: DataTableProps<T>) {
   const totalColumns = columns.length + (renderActions ? 1 : 0);
   const computeRowKey = rowKey || ((_: T, index: number) => `row-${index}`);
 
+  const isControlled = searchTerm !== undefined;
+  const [localTerm, setLocalTerm] = useState(searchTerm ?? '');
+
+  useEffect(() => {
+    if (isControlled) {
+      setLocalTerm(searchTerm ?? '');
+    }
+  }, [isControlled, searchTerm]);
+
+  const currentSearchTerm = isControlled ? searchTerm ?? '' : localTerm;
+
+  const handleSearchChange = (value: string) => {
+    if (!isControlled) {
+      setLocalTerm(value);
+    }
+    if (onSearch) {
+      onSearch(value);
+    }
+  };
+
+  const normalizedTerm = currentSearchTerm.trim().toLowerCase();
+  const canFilter = Boolean(
+    normalizedTerm && (searchFields || filterFunction),
+  );
+
+  const filteredData = useMemo(() => {
+    if (!canFilter) return data;
+    return data.filter((item) => {
+      if (filterFunction) {
+        return filterFunction(item, normalizedTerm);
+      }
+      if (!searchFields) {
+        return true;
+      }
+      return searchFields(item).some(
+        (value) => value?.toLowerCase().includes(normalizedTerm),
+      );
+    });
+  }, [canFilter, data, filterFunction, normalizedTerm, searchFields]);
+
+  const showSearchBar = Boolean(
+    searchPlaceholder ||
+      onSearch ||
+      searchFields ||
+      filterFunction ||
+      searchTerm !== undefined,
+  );
+
+  const searchBar = showSearchBar ? (
+    <div className="mb-3 flex justify-start">
+      <div className="w-full max-w-[380px]">
+        <input
+          type="text"
+          placeholder={searchPlaceholder || 'Rechercher...'}
+          value={currentSearchTerm}
+          onChange={(event) => handleSearchChange(event.target.value)}
+          className="w-full px-3 py-2 border border-purple/40 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:border-purple/40"
+        />
+      </div>
+    </div>
+  ) : null;
+
+  const headerBlocks = [];
+  if (searchBar) {
+    headerBlocks.push(searchBar);
+  }
+  if (headerContent) {
+    headerBlocks.push(headerContent);
+  }
+
+  const rows = canFilter ? filteredData : data;
+
   return (
     <div className="table-responsive">
-      {headerContent && (
-        <div className="px-4 py-3 border-b-2 border-purple/20 bg-white">{headerContent}</div>
+      {headerBlocks.length > 0 && (
+        <div className="px-4 py-3 border-b-2 border-purple/20 bg-white">
+          {headerBlocks.map((block, index) => (
+            <div key={`header-block-${index}`}>{block}</div>
+          ))}
+        </div>
       )}
       <table className="w-full border-collapse">
         <thead className="bg-gradient-to-r from-purple to-purple-dark text-white">
@@ -70,7 +158,7 @@ function DataTable<T>({
                 </div>
               </td>
             </tr>
-          ) : data.length === 0 ? (
+          ) : rows.length === 0 ? (
             <tr>
               <td
                 colSpan={totalColumns}
@@ -80,7 +168,7 @@ function DataTable<T>({
               </td>
             </tr>
           ) : (
-            data.map((item, index) => (
+            rows.map((item, index) => (
               <tr
                 key={computeRowKey(item, index)}
                 className={`transition-colors duration-200 ${

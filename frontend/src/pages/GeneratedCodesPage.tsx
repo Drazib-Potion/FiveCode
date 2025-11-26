@@ -35,7 +35,7 @@ export default function GeneratedCodesPage() {
     }
   };
 
-  const formatTechnicalValue = (value?: string) => {
+  const formatTechnicalValue = (value?: string | null) => {
     let displayValue = value || '';
     if (!value) return displayValue;
     try {
@@ -58,27 +58,6 @@ export default function GeneratedCodesPage() {
       minute: '2-digit',
     });
   };
-
-  const filteredGeneratedInfos = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-    if (!normalizedSearch) return generatedInfos;
-
-    return generatedInfos.filter((info) => {
-      const candidates = [
-        info.generatedCode,
-        info.product.name,
-        info.product.code,
-        info.product.family.name,
-        info.variant1?.name,
-        info.variant1?.code,
-        info.variant2?.name,
-        info.variant2?.code,
-      ];
-      return candidates.some(
-        (value) => value && value.toLowerCase().includes(normalizedSearch),
-      );
-    });
-  }, [generatedInfos, searchTerm]);
 
   const generatedColumns = useMemo(
     () => [
@@ -136,11 +115,11 @@ export default function GeneratedCodesPage() {
           }
           return (
             <div className="flex flex-col gap-1">
-              {info.technicalCharacteristics.map((pf) => (
-                <span key={pf.technicalCharacteristic.id} className="text-sm text-gray-dark">
-                  <strong>{pf.technicalCharacteristic.name}:</strong> {formatTechnicalValue(pf.value)}
-                </span>
-              ))}
+          {info.technicalCharacteristics.map((pf) => (
+            <span key={pf.technicalCharacteristic.id} className="text-sm text-gray-dark">
+              <strong>{pf.technicalCharacteristic.name}:</strong> {formatTechnicalValue(pf.value)}
+            </span>
+          ))}
             </div>
           );
         },
@@ -179,6 +158,21 @@ export default function GeneratedCodesPage() {
       </button>
     </div>
   );
+
+  const generatedSearchFields = (info: ProductGeneratedInfo) =>
+    [
+      info.generatedCode,
+      info.product.name,
+      info.product.code,
+      info.product.family.name,
+      info.variant1?.name,
+      info.variant1?.code,
+      info.variant2?.name,
+      info.variant2?.code,
+      ...(info.technicalCharacteristics?.map((pf) => pf.value) || []),
+    ]
+      .filter((value): value is string => Boolean(value))
+      .map((value) => value as string);
 
   const handleDelete = async (id: string) => {
     const confirmed = await showConfirm(
@@ -448,28 +442,21 @@ export default function GeneratedCodesPage() {
 
       <div className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-purple/20 animate-fade-in">
         <DataTable
-          headerContent={
-            <div className="p-4 bg-white">
-              <input
-                type="text"
-                placeholder="🔍 Rechercher un code généré..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-purple rounded-lg text-sm bg-white text-gray-dark focus:outline-none focus:border-purple-light focus:ring-2 focus:ring-purple/20 transition-all shadow-sm"
-              />
-            </div>
-          }
           columns={generatedColumns}
-          data={filteredGeneratedInfos}
+          data={generatedInfos}
           loading={loading}
           emptyMessage={
-            filteredGeneratedInfos.length === 0
+            generatedInfos.length === 0
               ? searchTerm
                 ? 'Aucun code généré ne correspond à votre recherche'
                 : 'Utilisez le générateur pour créer des codes produits'
               : undefined
           }
           renderActions={renderGeneratedActions}
+          searchPlaceholder="🔍 Rechercher un code généré..."
+          searchTerm={searchTerm}
+          onSearch={(term) => setSearchTerm(term)}
+          searchFields={generatedSearchFields}
         />
         {editingInfo && (
           <div className="bg-purple-light/10 rounded-xl shadow-lg border-2 border-purple/40 mb-6 p-6">

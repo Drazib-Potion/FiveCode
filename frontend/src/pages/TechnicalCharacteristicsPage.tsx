@@ -909,17 +909,6 @@ const getVariantNamesByLevel = (
       )}
 
       <div className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-purple/20 animate-fade-in">
-        <div className="p-4 bg-gray-light border-b-2 border-purple/20">
-          <div className="relative w-full max-w-[400px]">
-            <input
-              type="text"
-              placeholder="🔍 Rechercher par nom, type, famille ou variante..."
-              value={tableSearchTerm}
-              onChange={(e) => setTableSearchTerm(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-purple rounded-lg text-sm bg-white text-gray-dark focus:outline-none focus:border-purple-light focus:ring-2 focus:ring-purple/20 transition-all shadow-sm"
-            />
-          </div>
-        </div>
         <DataTable
           columns={technicalColumns}
           data={technicalCharacteristics}
@@ -932,6 +921,9 @@ const getVariantNamesByLevel = (
               : undefined
           }
           renderActions={renderTechnicalActions}
+          searchPlaceholder="🔍 Rechercher par nom, type, famille ou variante..."
+          searchTerm={tableSearchTerm}
+          onSearch={(term) => setTableSearchTerm(term)}
         />
         {hasMore && !tableSearchTerm.trim() && (
           <div ref={observerTarget} className="py-4 flex items-center justify-center">
