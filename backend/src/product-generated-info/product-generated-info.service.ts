@@ -329,11 +329,13 @@ export class ProductGeneratedInfoService {
       for (const technicalCharacteristic of uniqueTechnicalCharacteristics) {
         const value = createDto.values[(technicalCharacteristic as any).id];
         if (value !== undefined && value !== null && value !== '') {
+          const stringValue = String(value);
+          this.ensureValueLength(stringValue);
           await this.prisma.productTechnicalCharacteristic.create({
             data: {
               generatedInfoId: generatedInfo.id,
               technicalCharacteristicId: (technicalCharacteristic as any).id,
-              value: String(value),
+              value: stringValue,
             },
           });
         }
@@ -342,6 +344,13 @@ export class ProductGeneratedInfoService {
 
     // Retourner la ProductGeneratedInfo complète
     return this.findOne(generatedInfo.id);
+  }
+
+  private ensureValueLength(value: string) {
+    const MAX_LENGTH = 30;
+    if (value.length > MAX_LENGTH) {
+      throw new BadRequestException(`Les valeurs des caractéristiques techniques sont limitées à ${MAX_LENGTH} caractères`);
+    }
   }
 
   async update(id: string, updateDto: UpdateProductGeneratedInfoDto, userEmail: string) {
@@ -354,11 +363,13 @@ export class ProductGeneratedInfoService {
 
       for (const [technicalCharacteristicId, value] of Object.entries(updateDto.values)) {
         if (value !== undefined && value !== null && value !== '') {
+          const stringValue = String(value);
+          this.ensureValueLength(stringValue);
           await this.prisma.productTechnicalCharacteristic.create({
             data: {
               generatedInfoId: id,
               technicalCharacteristicId,
-              value: String(value),
+              value: stringValue,
             },
           });
         }

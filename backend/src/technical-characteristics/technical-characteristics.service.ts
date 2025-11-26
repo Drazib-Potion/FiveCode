@@ -4,6 +4,8 @@ import { CreateTechnicalCharacteristicDto } from './dto/create-technical-charact
 import { UpdateTechnicalCharacteristicDto } from './dto/update-technical-characteristic.dto';
 import { normalizeString } from '../utils/string-normalizer';
 
+const MAX_ENUM_OPTION_LENGTH = 30;
+
 @Injectable()
 export class TechnicalCharacteristicsService {
   constructor(private prisma: PrismaService) {}
@@ -15,6 +17,7 @@ export class TechnicalCharacteristicsService {
       throw new BadRequestException(`Type de caractéristique technique invalide. Doit être l'un de : ${validTypes.join(', ')}`);
     }
 
+    let filteredEnumOptions: string[] | null = null;
     // Si le type est "enum", vérifier que enumOptions est fourni et non vide
     if (createTechnicalCharacteristicDto.type === 'enum') {
       if (!createTechnicalCharacteristicDto.enumOptions || createTechnicalCharacteristicDto.enumOptions.length === 0) {
@@ -25,6 +28,8 @@ export class TechnicalCharacteristicsService {
       if (filteredOptions.length === 0) {
         throw new BadRequestException('Au moins une option enum valide est requise');
       }
+      this.ensureEnumOptionsLength(filteredOptions);
+      filteredEnumOptions = filteredOptions;
     }
 
     // Récupérer toutes les caractéristiques techniques pour comparaison case-insensitive
@@ -73,9 +78,7 @@ export class TechnicalCharacteristicsService {
       data: {
         name: createTechnicalCharacteristicDto.name,
         type: createTechnicalCharacteristicDto.type,
-        enumOptions: createTechnicalCharacteristicDto.type === 'enum' && createTechnicalCharacteristicDto.enumOptions
-          ? createTechnicalCharacteristicDto.enumOptions.filter(opt => opt.trim().length > 0)
-          : null,
+        enumOptions: filteredEnumOptions,
         enumMultiple: createTechnicalCharacteristicDto.type === 'enum' 
           ? (createTechnicalCharacteristicDto.enumMultiple ?? false)
           : null,
@@ -381,6 +384,7 @@ export class TechnicalCharacteristicsService {
       if (filteredOptions.length === 0) {
         throw new BadRequestException('Au moins une option enum valide est requise');
       }
+      this.ensureEnumOptionsLength(filteredOptions);
     }
 
     // Récupérer toutes les caractéristiques techniques (sauf la caractéristique actuelle) pour comparaison case-insensitive
@@ -433,7 +437,9 @@ export class TechnicalCharacteristicsService {
     // Gérer enumOptions
     if (updateTechnicalCharacteristicDto.type === 'enum' || (finalType === 'enum' && updateTechnicalCharacteristicDto.enumOptions !== undefined)) {
       const enumOptions = updateTechnicalCharacteristicDto.enumOptions || (technicalCharacteristic.enumOptions as string[] | null) || [];
-      updateData.enumOptions = enumOptions.filter(opt => opt.trim().length > 0);
+      const filteredOptions = enumOptions.filter(opt => opt.trim().length > 0);
+      this.ensureEnumOptionsLength(filteredOptions);
+      updateData.enumOptions = filteredOptions;
     } else if (updateTechnicalCharacteristicDto.type && updateTechnicalCharacteristicDto.type !== 'enum') {
       // Si on change le type vers autre chose que enum, supprimer enumOptions et enumMultiple
       updateData.enumOptions = null;
@@ -482,6 +488,14 @@ export class TechnicalCharacteristicsService {
     await this.findOne(id);
     return this.prisma.technicalCharacteristic.delete({
       where: { id },
+    });
+  }
+
+  private ensureEnumOptionsLength(options: string[]) {
+    options.forEach((option) => {
+      if (option.length > MAX_ENUM_OPTION_LENGTH) {
+        throw new BadRequestException(`Les options enum sont limitées à ${MAX_ENUM_OPTION_LENGTH} caractères`);
+      }
     });
   }
 }

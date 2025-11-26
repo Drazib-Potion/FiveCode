@@ -45,6 +45,7 @@ export default function GeneratorPage() {
   const [variantSelection, setVariantSelection] = useState<VariantSelectionState>(() =>
     createInitialVariantSelection(),
   );
+  const MAX_TECH_VALUE_LENGTH = 30;
   const [values, setValues] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [productSearch, setProductSearch] = useState('');
@@ -53,6 +54,7 @@ export default function GeneratorPage() {
   const [enumSearch, setEnumSearch] = useState<Record<string, string>>({});
   const [productsLoading, setProductsLoading] = useState(true);
   const [variantsLoading, setVariantsLoading] = useState(false);
+  const [valueErrors, setValueErrors] = useState<Record<string, string>>({});
 
   const isSansVariantSelected = (level: 'FIRST' | 'SECOND') =>
     level === 'FIRST'
@@ -99,6 +101,7 @@ export default function GeneratorPage() {
         // Réinitialiser les sélections
         setVariantSelection(createInitialVariantSelection());
         setValues({});
+        setValueErrors({});
         setVariant1Search('');
         setVariant2Search('');
       }
@@ -108,6 +111,7 @@ export default function GeneratorPage() {
       setVariantSelection(createInitialVariantSelection());
       setTechnicalCharacteristics([]);
       setValues({});
+      setValueErrors({});
       setVariant1Search('');
       setVariant2Search('');
     }
@@ -205,6 +209,35 @@ export default function GeneratorPage() {
     setValues({ ...values, [technicalCharacteristicId]: value });
   };
 
+  const setCharacteristicError = (technicalCharacteristicId: string | null, message?: string) => {
+    if (!technicalCharacteristicId) return;
+    setValueErrors((prev) => {
+      const next = { ...prev };
+      if (message) {
+        next[technicalCharacteristicId] = message;
+      } else {
+        delete next[technicalCharacteristicId];
+      }
+      return next;
+    });
+  };
+
+  const handleValueChangeWithLimit = (
+    technicalCharacteristicId: string,
+    value: any,
+    rawValue?: string,
+  ) => {
+    if (rawValue && rawValue.length > MAX_TECH_VALUE_LENGTH) {
+      setCharacteristicError(
+        technicalCharacteristicId,
+        `Limité à ${MAX_TECH_VALUE_LENGTH} caractères.`,
+      );
+      return;
+    }
+    setCharacteristicError(technicalCharacteristicId);
+    handleValueChange(technicalCharacteristicId, value);
+  };
+
   const getMatchingVariants = (level: 'FIRST' | 'SECOND', searchTerm: string) => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     return variants
@@ -248,6 +281,7 @@ export default function GeneratorPage() {
   const handleResetForm = () => {
     setVariantSelection(createInitialVariantSelection());
     setValues({});
+    setValueErrors({});
     setVariant1Search('');
     setVariant2Search('');
     setEnumSearch({});
@@ -275,6 +309,11 @@ export default function GeneratorPage() {
         `Veuillez sélectionner une variante 2 ou cocher "${SANS_VARIANT_LABEL}"`,
         'warning',
       );
+      return;
+    }
+
+    if (Object.keys(valueErrors).length > 0) {
+      await showAlert('Corrigez les champs qui dépassent 30 caractères avant de générer.', 'warning');
       return;
     }
 
@@ -350,13 +389,27 @@ export default function GeneratorPage() {
 
       case 'number':
         return (
-          <input
-            type="number"
-            value={value}
-            onChange={(e) => handleValueChange(technicalCharacteristic.id, parseFloat(e.target.value) || 0)}
-            required
-            className="w-full px-3 py-3 border border-gray-300 rounded text-base focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
-          />
+          <div>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={value}
+              onChange={(e) => handleValueChangeWithLimit(
+                technicalCharacteristic.id,
+                e.target.value,
+                e.target.value,
+              )}
+              required
+              className={`w-full px-3 py-3 border border-gray-300 rounded text-base focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20 ${valueErrors[technicalCharacteristic.id] ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : ''}`}
+              placeholder="Nombre"
+              maxLength={MAX_TECH_VALUE_LENGTH}
+            />
+            {valueErrors[technicalCharacteristic.id] && (
+              <small className="block mt-1 text-xs text-red-600">
+                {valueErrors[technicalCharacteristic.id]}
+              </small>
+            )}
+          </div>
         );
 
       case 'enum': {
@@ -428,13 +481,20 @@ export default function GeneratorPage() {
 
       default:
         return (
-          <input
-            type="text"
-            value={value}
-            onChange={(e) => handleValueChange(technicalCharacteristic.id, e.target.value)}
-            required
-            className="w-full px-3 py-3 border border-gray-300 rounded text-base focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
-          />
+          <div>
+            <input
+              type="text"
+              value={value}
+              onChange={(e) => handleValueChangeWithLimit(technicalCharacteristic.id, e.target.value, e.target.value)}
+              required
+              className={`w-full px-3 py-3 border border-gray-300 rounded text-base focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20 ${valueErrors[technicalCharacteristic.id] ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : ''}`}
+            />
+            {valueErrors[technicalCharacteristic.id] && (
+              <small className="block mt-1 text-xs text-red-600">
+                {valueErrors[technicalCharacteristic.id]}
+              </small>
+            )}
+          </div>
         );
     }
   };

@@ -6,11 +6,13 @@ import excelIcon from '../media/excel-icon.png';
 import { ProductGeneratedInfo } from '../utils/types';
 
 export default function GeneratedCodesPage() {
+  const MAX_VALUE_LENGTH = 30;
   const { showAlert, showConfirm } = useModal();
   const [generatedInfos, setGeneratedInfos] = useState<ProductGeneratedInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingInfo, setEditingInfo] = useState<ProductGeneratedInfo | null>(null);
   const [editingValues, setEditingValues] = useState<Record<string, any>>({});
+  const [editingErrors, setEditingErrors] = useState<Record<string, string>>({});
   const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
@@ -57,18 +59,26 @@ export default function GeneratedCodesPage() {
       let parsedValue: any = tech.value ?? '';
       if (char.type === 'boolean') {
         parsedValue = tech.value === 'true';
-      } else if (char.type === 'number') {
-        parsedValue = tech.value ? parseFloat(tech.value) : '';
-      } else if (char.type === 'enum') {
-        parsedValue = tech.value ?? '';
       }
       initialValues[tech.technicalCharacteristic.id] = parsedValue;
     });
     setEditingValues(initialValues);
+    setEditingErrors({});
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleEditValueChange = (technicalCharacteristicId: string, value: any) => {
+    if (typeof value === 'string') {
+      setEditingErrors((prev) => {
+        const next = { ...prev };
+        if (value.length > MAX_VALUE_LENGTH) {
+          next[technicalCharacteristicId] = `Limité à ${MAX_VALUE_LENGTH} caractères.`;
+        } else {
+          delete next[technicalCharacteristicId];
+        }
+        return next;
+      });
+    }
     setEditingValues((prev) => ({
       ...prev,
       [technicalCharacteristicId]: value,
@@ -78,10 +88,15 @@ export default function GeneratedCodesPage() {
   const handleCancelEdit = () => {
     setEditingInfo(null);
     setEditingValues({});
+    setEditingErrors({});
   };
 
   const handleSaveEdit = async () => {
     if (!editingInfo) return;
+    if (Object.keys(editingErrors).length > 0) {
+      await showAlert('Corrigez les champs en rouge avant d’enregistrer.', 'warning');
+      return;
+    }
     setSavingEdit(true);
     try {
       await productGeneratedInfoService.update(editingInfo.id, { values: editingValues });
@@ -120,15 +135,18 @@ export default function GeneratedCodesPage() {
 
       case 'number':
         return (
-          <input
-            type="number"
-            value={value === '' || value === undefined ? '' : value}
-            onChange={(e) => handleEditValueChange(
-              char.id,
-              e.target.value === '' ? '' : parseFloat(e.target.value),
+          <>
+            <input
+              type="number"
+              value={value === '' || value === undefined ? '' : value}
+              onChange={(e) => handleEditValueChange(char.id, e.target.value)}
+              className="w-full px-3 py-2 border border-purple/40 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
+              maxLength={MAX_VALUE_LENGTH}
+            />
+            {editingErrors[char.id] && (
+              <span className="text-xs text-red-600 mt-1">{editingErrors[char.id]}</span>
             )}
-            className="w-full px-3 py-2 border border-purple/40 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
-          />
+          </>
         );
 
       case 'enum': {
@@ -168,12 +186,18 @@ export default function GeneratedCodesPage() {
 
       default:
         return (
-          <input
-            type="text"
-            value={value ?? ''}
-            onChange={(e) => handleEditValueChange(char.id, e.target.value)}
-            className="w-full px-3 py-2 border border-purple/40 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
-          />
+          <>
+            <input
+              type="text"
+              value={value ?? ''}
+              onChange={(e) => handleEditValueChange(char.id, e.target.value)}
+              className="w-full px-3 py-2 border border-purple/40 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
+              maxLength={MAX_VALUE_LENGTH}
+            />
+            {editingErrors[char.id] && (
+              <span className="text-xs text-red-600 mt-1">{editingErrors[char.id]}</span>
+            )}
+          </>
         );
     }
   };

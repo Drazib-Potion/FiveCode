@@ -20,6 +20,8 @@ type FormDataState = {
 
 const SANS_VARIANT_LABEL = 'Sans Variante (code 0)';
 
+const MAX_ENUM_OPTION_LENGTH = 30;
+
 const createInitialFormData = (): FormDataState => ({
   name: '',
   type: 'string',
@@ -43,6 +45,7 @@ export default function TechnicalCharacteristicsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormDataState>(() => createInitialFormData());
   const [newEnumOption, setNewEnumOption] = useState('');
+  const [enumOptionError, setEnumOptionError] = useState('');
   const [familySearch, setFamilySearch] = useState('');
   const [variant1Search, setVariant1Search] = useState('');
   const [variant2Search, setVariant2Search] = useState('');
@@ -326,6 +329,21 @@ const getVariantNamesByLevel = (
     }
   };
 
+  const handleAddEnumOption = () => {
+    const option = newEnumOption.trim();
+    if (!option) return;
+    if (option.length > MAX_ENUM_OPTION_LENGTH) {
+      setEnumOptionError(`Les options enum sont limitées à ${MAX_ENUM_OPTION_LENGTH} caractères.`);
+      return;
+    }
+    setFormData({
+      ...formData,
+      enumOptions: [...formData.enumOptions, option],
+    });
+    setNewEnumOption('');
+    setEnumOptionError('');
+  };
+
   const handleSansVariantToggle = (level: 'FIRST' | 'SECOND') => {
     const isFirst = level === 'FIRST';
     const isActive = isFirst ? formData.sansVariantFirst : formData.sansVariantSecond;
@@ -342,6 +360,11 @@ const getVariantNamesByLevel = (
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    if (enumOptionError) {
+      await showAlert(enumOptionError, 'warning');
+      setSubmitting(false);
+      return;
+    }
     try {
       const variant1SelectionValid = formData.sansVariantFirst || formData.variantIdsFirst.length > 0;
       const variant2SelectionValid = formData.sansVariantSecond || formData.variantIdsSecond.length > 0;
@@ -372,6 +395,7 @@ const getVariantNamesByLevel = (
       }
       setFormData(createInitialFormData());
       setNewEnumOption('');
+      setEnumOptionError('');
       setFamilySearch('');
       setVariant1Search('');
       setVariant2Search('');
@@ -452,6 +476,7 @@ const getVariantNamesByLevel = (
           setEditingId(null); 
           setFormData(createInitialFormData()); 
           setNewEnumOption(''); 
+          setEnumOptionError('');
           setFamilySearch(''); 
           setVariant1Search(''); 
           setVariant2Search(''); 
@@ -490,6 +515,10 @@ const getVariantNamesByLevel = (
                     enumOptions: newType === 'enum' ? formData.enumOptions : [],
                     enumMultiple: newType === 'enum' ? formData.enumMultiple : false
                   });
+                    if (newType !== 'enum') {
+                      setEnumOptionError('');
+                      setNewEnumOption('');
+                    }
                 }}
                 required
                 className="w-full px-4 py-3.5 border-2 border-gray-light rounded-xl text-base bg-white focus:outline-none focus:border-purple focus:ring-4 focus:ring-purple/20 transition-all duration-300 shadow-sm hover:border-purple/50"
@@ -506,36 +535,28 @@ const getVariantNamesByLevel = (
                 <div className="mb-5">
                   <label className="block mb-2.5 text-gray-dark font-semibold text-sm uppercase tracking-wide">Options enum (une par ligne ou séparées par des virgules)</label>
                   <div className="flex gap-2 mb-2">
-                  <input
-                    type="text"
-                    placeholder="Ajouter une option..."
-                    value={newEnumOption}
-                    onChange={(e) => setNewEnumOption(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        if (newEnumOption.trim()) {
-                          setFormData({
-                            ...formData,
-                            enumOptions: [...formData.enumOptions, newEnumOption.trim()],
-                          });
-                          setNewEnumOption('');
+                    <input
+                      type="text"
+                      placeholder="Ajouter une option..."
+                      value={newEnumOption}
+                      onChange={(e) => {
+                        setNewEnumOption(e.target.value);
+                        if (e.target.value.length <= MAX_ENUM_OPTION_LENGTH) {
+                          setEnumOptionError('');
                         }
-                      }
-                    }}
-                    className="flex-1 px-2 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
-                  />
+                      }}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddEnumOption();
+                        }
+                      }}
+                      className="flex-1 px-2 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
+                      maxLength={MAX_ENUM_OPTION_LENGTH}
+                    />
                   <button
                     type="button"
-                    onClick={() => {
-                      if (newEnumOption.trim()) {
-                        setFormData({
-                          ...formData,
-                          enumOptions: [...formData.enumOptions, newEnumOption.trim()],
-                        });
-                        setNewEnumOption('');
-                      }
-                    }}
+                      onClick={handleAddEnumOption}
                     className="px-4 py-2 bg-purple text-white border-none rounded cursor-pointer hover:bg-purple/90 transition-colors"
                   >
                     Ajouter
@@ -564,6 +585,11 @@ const getVariantNamesByLevel = (
                       </div>
                     ))}
                   </div>
+                )}
+                {enumOptionError && (
+                  <p className="text-xs text-red-600 mt-1">
+                    {enumOptionError}
+                  </p>
                 )}
                 <small className="block mt-1.5 text-gray-500">
                   {formData.enumOptions.length > 0 
@@ -811,7 +837,7 @@ const getVariantNamesByLevel = (
               </button>
               <button 
                 type="button" 
-                onClick={() => { setShowForm(false); setEditingId(null); setFamilySearch(''); setVariant1Search(''); setVariant2Search(''); }}
+                onClick={() => { setShowForm(false); setEditingId(null); setFamilySearch(''); setVariant1Search(''); setVariant2Search(''); setEnumOptionError(''); setNewEnumOption(''); }}
                 className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg hover:scale-105 active:scale-100"
               >
                 ✕ Annuler
