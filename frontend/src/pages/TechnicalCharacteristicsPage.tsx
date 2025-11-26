@@ -6,6 +6,32 @@ import Loader from '../components/Loader';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { TechnicalCharacteristic, Family, Variant } from '../utils/types';
 
+type FormDataState = {
+  name: string;
+  type: string;
+  enumOptions: string[];
+  enumMultiple: boolean;
+  familyIds: string[];
+  variantIdsFirst: string[];
+  variantIdsSecond: string[];
+  sansVariantFirst: boolean;
+  sansVariantSecond: boolean;
+};
+
+const SANS_VARIANT_LABEL = 'Sans Variante (code 0)';
+
+const createInitialFormData = (): FormDataState => ({
+  name: '',
+  type: 'string',
+  enumOptions: [],
+  enumMultiple: false,
+  familyIds: [],
+  variantIdsFirst: [],
+  variantIdsSecond: [],
+  sansVariantFirst: false,
+  sansVariantSecond: false,
+});
+
 export default function TechnicalCharacteristicsPage() {
   const { showAlert, showConfirm } = useModal();
   const [technicalCharacteristics, setTechnicalCharacteristics] = useState<TechnicalCharacteristic[]>([]);
@@ -15,15 +41,7 @@ export default function TechnicalCharacteristicsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    type: 'string',
-    enumOptions: [] as string[],
-    enumMultiple: false,
-    familyIds: [] as string[],
-    variantIdsFirst: [] as string[],
-    variantIdsSecond: [] as string[],
-  });
+  const [formData, setFormData] = useState<FormDataState>(() => createInitialFormData());
   const [newEnumOption, setNewEnumOption] = useState('');
   const [familySearch, setFamilySearch] = useState('');
   const [variant1Search, setVariant1Search] = useState('');
@@ -221,7 +239,7 @@ const getVariantNamesByLevel = (
   level: 'FIRST' | 'SECOND',
 ) => {
   if (!technicalCharacteristic.variants) return [];
-  return technicalCharacteristic.variants
+  const variantNames = technicalCharacteristic.variants
     .map(({ variant }) => {
       if (!variant) return null;
       const variantLevel =
@@ -231,6 +249,8 @@ const getVariantNamesByLevel = (
       return variantLevel === level ? variant.name : null;
     })
     .filter((name): name is string => Boolean(name));
+
+  return variantNames.length > 0 ? variantNames : [SANS_VARIANT_LABEL];
 };
 
 
@@ -268,6 +288,8 @@ const getVariantNamesByLevel = (
       ...formData,
       variantIdsFirst: level === 'FIRST' ? updatedList : formData.variantIdsFirst,
       variantIdsSecond: level === 'SECOND' ? updatedList : formData.variantIdsSecond,
+      sansVariantFirst: level === 'FIRST' ? false : formData.sansVariantFirst,
+      sansVariantSecond: level === 'SECOND' ? false : formData.sansVariantSecond,
     });
   };
 
@@ -287,6 +309,8 @@ const getVariantNamesByLevel = (
         ...formData,
         variantIdsFirst: level === 'FIRST' ? updatedList : formData.variantIdsFirst,
         variantIdsSecond: level === 'SECOND' ? updatedList : formData.variantIdsSecond,
+        sansVariantFirst: level === 'FIRST' ? false : formData.sansVariantFirst,
+        sansVariantSecond: level === 'SECOND' ? false : formData.sansVariantSecond,
       });
     } else {
       // Cocher toutes les variantes filtrées
@@ -296,14 +320,39 @@ const getVariantNamesByLevel = (
         ...formData,
         variantIdsFirst: level === 'FIRST' ? updatedList : formData.variantIdsFirst,
         variantIdsSecond: level === 'SECOND' ? updatedList : formData.variantIdsSecond,
+        sansVariantFirst: level === 'FIRST' ? false : formData.sansVariantFirst,
+        sansVariantSecond: level === 'SECOND' ? false : formData.sansVariantSecond,
       });
     }
+  };
+
+  const handleSansVariantToggle = (level: 'FIRST' | 'SECOND') => {
+    const isFirst = level === 'FIRST';
+    const isActive = isFirst ? formData.sansVariantFirst : formData.sansVariantSecond;
+
+    setFormData({
+      ...formData,
+      variantIdsFirst: isFirst && !isActive ? [] : formData.variantIdsFirst,
+      variantIdsSecond: !isFirst && !isActive ? [] : formData.variantIdsSecond,
+      sansVariantFirst: isFirst ? !isActive : formData.sansVariantFirst,
+      sansVariantSecond: isFirst ? formData.sansVariantSecond : !isActive,
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
+      const variant1SelectionValid = formData.sansVariantFirst || formData.variantIdsFirst.length > 0;
+      const variant2SelectionValid = formData.sansVariantSecond || formData.variantIdsSecond.length > 0;
+      if (!variant1SelectionValid || !variant2SelectionValid) {
+        await showAlert(
+          `Veuillez cocher au moins une option par niveau de variante (par exemple "${SANS_VARIANT_LABEL}").`,
+          'warning',
+        );
+        return;
+      }
+
       const submitData: any = {
         name: formData.name,
         type: formData.type,
@@ -321,15 +370,7 @@ const getVariantNamesByLevel = (
       } else {
         await technicalCharacteristicsService.create(submitData);
       }
-      setFormData({
-        name: '',
-        type: 'string',
-        enumOptions: [],
-        enumMultiple: false,
-        familyIds: [],
-        variantIdsFirst: [],
-        variantIdsSecond: [],
-      });
+      setFormData(createInitialFormData());
       setNewEnumOption('');
       setFamilySearch('');
       setVariant1Search('');
@@ -364,6 +405,9 @@ const getVariantNamesByLevel = (
       }
     });
 
+    const hasVariantFirst = variantIdsFirst.length > 0;
+    const hasVariantSecond = variantIdsSecond.length > 0;
+
     setFormData({
       name: technicalCharacteristic.name,
       type: technicalCharacteristic.type,
@@ -372,6 +416,8 @@ const getVariantNamesByLevel = (
       familyIds: technicalCharacteristic.families?.map(f => f.family.id) || [],
       variantIdsFirst,
       variantIdsSecond,
+      sansVariantFirst: !hasVariantFirst,
+      sansVariantSecond: !hasVariantSecond,
     });
     setNewEnumOption('');
     setVariant1Search('');
@@ -401,23 +447,15 @@ const getVariantNamesByLevel = (
       <div className="flex justify-between items-center mb-10 pb-4 border-b-2 border-purple/20">
         <h1 className="m-0 text-3xl font-bold text-purple">Gestion des Caractéristiques techniques</h1>
         <button 
-          onClick={() => { 
-            setShowForm(true); 
-            setEditingId(null); 
-            setFormData({ 
-              name: '', 
-              type: 'string', 
-              enumOptions: [], 
-              enumMultiple: false, 
-              familyIds: [], 
-              variantIdsFirst: [], 
-              variantIdsSecond: [], 
-            }); 
-            setNewEnumOption(''); 
-            setFamilySearch(''); 
-            setVariant1Search(''); 
-            setVariant2Search(''); 
-          }}
+        onClick={() => { 
+          setShowForm(true); 
+          setEditingId(null); 
+          setFormData(createInitialFormData()); 
+          setNewEnumOption(''); 
+          setFamilySearch(''); 
+          setVariant1Search(''); 
+          setVariant2Search(''); 
+        }}
           className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
         >
           + Nouvelle caractéristique technique
@@ -591,7 +629,9 @@ const getVariantNamesByLevel = (
                     <span className="text-xs text-gray-500">
                       {formData.variantIdsFirst.length > 0
                         ? `${formData.variantIdsFirst.length} sélectionnée(s)`
-                        : 'Aucune sélection'}
+                        : formData.sansVariantFirst
+                          ? SANS_VARIANT_LABEL
+                          : 'Aucune sélection'}
                     </span>
                   </div>
                   <input
@@ -621,39 +661,57 @@ const getVariantNamesByLevel = (
                       <p className="text-gray-500 italic m-0">
                         Sélectionnez d&apos;abord au moins une famille
                       </p>
-                    ) : loadingVariants ? (
-                      <div className="flex items-center gap-2 text-gray-600 text-sm">
-                        <Loader size="sm" />
-                        <span>Chargement des variantes...</span>
-                      </div>
-                    ) : filteredVariant1.length === 0 ? (
-                      <p className="text-gray-500 italic m-0">
-                        {variant1Search
-                          ? 'Aucune variante 1 ne correspond à votre recherche'
-                          : 'Aucune variante 1 disponible pour les familles sélectionnées'}
-                      </p>
                     ) : (
-                      filteredVariant1.map((variant) => (
-                        <label
-                          key={variant.id}
-                          className="flex items-center px-2 py-2 cursor-pointer rounded mb-1 transition-colors duration-200 hover:bg-gray-100"
-                        >
+                      <>
+                        <label className="flex items-start gap-2 mb-3 px-3 py-2 rounded border border-dashed border-purple/40 bg-purple/5 text-sm cursor-pointer transition-colors duration-200 hover:bg-purple/10">
                           <input
                             type="checkbox"
-                            checked={formData.variantIdsFirst.includes(variant.id)}
-                            onChange={() => handleVariantToggle(variant.id, 'FIRST')}
-                            className="mr-1.5 cursor-pointer"
+                            checked={formData.sansVariantFirst}
+                            onChange={() => handleSansVariantToggle('FIRST')}
+                            className="mt-1 cursor-pointer"
                           />
-                          <span>
-                            {variant.name}
-                            {variant.family && (
-                              <span className="text-gray-500 ml-1">
-                                ({variant.family.name})
-                              </span>
-                            )}
-                          </span>
+                          <div>
+                            <span className="font-semibold text-purple">{SANS_VARIANT_LABEL}</span>
+                            <p className="text-xs text-gray-600 m-0 mt-1">
+                              Cochez pour indiquer que cette caractéristique s'applique lorsque la variante 1 n'est pas choisie (code 0).
+                            </p>
+                          </div>
                         </label>
-                      ))
+                        {loadingVariants ? (
+                          <div className="flex items-center gap-2 text-gray-600 text-sm">
+                            <Loader size="sm" />
+                            <span>Chargement des variantes...</span>
+                          </div>
+                        ) : filteredVariant1.length === 0 ? (
+                          <p className="text-gray-500 italic m-0">
+                            {variant1Search
+                              ? 'Aucune variante 1 ne correspond à votre recherche'
+                              : 'Aucune variante 1 disponible pour les familles sélectionnées'}
+                          </p>
+                        ) : (
+                          filteredVariant1.map((variant) => (
+                            <label
+                              key={variant.id}
+                              className="flex items-center px-2 py-2 cursor-pointer rounded mb-1 transition-colors duration-200 hover:bg-gray-100"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={formData.variantIdsFirst.includes(variant.id)}
+                                onChange={() => handleVariantToggle(variant.id, 'FIRST')}
+                                className="mr-1.5 cursor-pointer"
+                              />
+                              <span>
+                                {variant.name}
+                                {variant.family && (
+                                  <span className="text-gray-500 ml-1">
+                                    ({variant.family.name})
+                                  </span>
+                                )}
+                              </span>
+                            </label>
+                          ))
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -665,7 +723,9 @@ const getVariantNamesByLevel = (
                     <span className="text-xs text-gray-500">
                       {formData.variantIdsSecond.length > 0
                         ? `${formData.variantIdsSecond.length} sélectionnée(s)`
-                        : 'Aucune sélection'}
+                        : formData.sansVariantSecond
+                          ? SANS_VARIANT_LABEL
+                          : 'Aucune sélection'}
                     </span>
                   </div>
                   <input
@@ -695,39 +755,57 @@ const getVariantNamesByLevel = (
                       <p className="text-gray-500 italic m-0">
                         Sélectionnez d&apos;abord au moins une famille
                       </p>
-                    ) : loadingVariants ? (
-                      <div className="flex items-center gap-2 text-gray-600 text-sm">
-                        <Loader size="sm" />
-                        <span>Chargement des variantes...</span>
-                      </div>
-                    ) : filteredVariant2.length === 0 ? (
-                      <p className="text-gray-500 italic m-0">
-                        {variant2Search
-                          ? 'Aucune variante 2 ne correspond à votre recherche'
-                          : 'Aucune variante 2 disponible pour les familles sélectionnées'}
-                      </p>
                     ) : (
-                      filteredVariant2.map((variant) => (
-                        <label
-                          key={variant.id}
-                          className="flex items-center px-2 py-2 cursor-pointer rounded mb-1 transition-colors duration-200 hover:bg-gray-100"
-                        >
+                      <>
+                        <label className="flex items-start gap-2 mb-3 px-3 py-2 rounded border border-dashed border-purple/40 bg-purple/5 text-sm cursor-pointer transition-colors duration-200 hover:bg-purple/10">
                           <input
                             type="checkbox"
-                            checked={formData.variantIdsSecond.includes(variant.id)}
-                            onChange={() => handleVariantToggle(variant.id, 'SECOND')}
-                            className="mr-1.5 cursor-pointer"
+                            checked={formData.sansVariantSecond}
+                            onChange={() => handleSansVariantToggle('SECOND')}
+                            className="mt-1 cursor-pointer"
                           />
-                          <span>
-                            {variant.name}
-                            {variant.family && (
-                              <span className="text-gray-500 ml-1">
-                                ({variant.family.name})
-                              </span>
-                            )}
-                          </span>
+                          <div>
+                            <span className="font-semibold text-purple">{SANS_VARIANT_LABEL}</span>
+                            <p className="text-xs text-gray-600 m-0 mt-1">
+                              Cochez pour indiquer que cette caractéristique s'applique lorsque la variante 2 n'est pas choisie (code 0).
+                            </p>
+                          </div>
                         </label>
-                      ))
+                        {loadingVariants ? (
+                          <div className="flex items-center gap-2 text-gray-600 text-sm">
+                            <Loader size="sm" />
+                            <span>Chargement des variantes...</span>
+                          </div>
+                        ) : filteredVariant2.length === 0 ? (
+                          <p className="text-gray-500 italic m-0">
+                            {variant2Search
+                              ? 'Aucune variante 2 ne correspond à votre recherche'
+                              : 'Aucune variante 2 disponible pour les familles sélectionnées'}
+                          </p>
+                        ) : (
+                          filteredVariant2.map((variant) => (
+                            <label
+                              key={variant.id}
+                              className="flex items-center px-2 py-2 cursor-pointer rounded mb-1 transition-colors duration-200 hover:bg-gray-100"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={formData.variantIdsSecond.includes(variant.id)}
+                                onChange={() => handleVariantToggle(variant.id, 'SECOND')}
+                                className="mr-1.5 cursor-pointer"
+                              />
+                              <span>
+                                {variant.name}
+                                {variant.family && (
+                                  <span className="text-gray-500 ml-1">
+                                    ({variant.family.name})
+                                  </span>
+                                )}
+                              </span>
+                            </label>
+                          ))
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

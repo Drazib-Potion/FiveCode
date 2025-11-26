@@ -10,21 +10,26 @@ import { formatFieldType } from '../utils/fieldTypeFormatter';
 import Loader from '../components/Loader';
 import { Product, Variant, TechnicalCharacteristic } from '../utils/types';
 
-const SANS_VARIANT_IDS: Record<'FIRST' | 'SECOND', string> = {
-  FIRST: 'sans-variante-first',
-  SECOND: 'sans-variante-second',
+type VariantSelectionState = {
+  variant1Id: string;
+  variant2Id: string;
+  sansVariantFirst: boolean;
+  sansVariantSecond: boolean;
 };
 
-const getSansVariantId = (level: 'FIRST' | 'SECOND') => SANS_VARIANT_IDS[level];
+const SANS_VARIANT_LABEL = 'Sans Variante (code 0)';
 
-const isSansVariantId = (variantId: string, level: 'FIRST' | 'SECOND') =>
-  variantId === getSansVariantId(level);
+const createInitialVariantSelection = (): VariantSelectionState => ({
+  variant1Id: '',
+  variant2Id: '',
+  sansVariantFirst: false,
+  sansVariantSecond: false,
+});
 
-const getEffectiveVariantId = (variantId: string, level: 'FIRST' | 'SECOND') => {
-  if (!variantId) {
-    return undefined;
-  }
-  if (isSansVariantId(variantId, level)) {
+const getEffectiveVariantId = (selection: VariantSelectionState, level: 'FIRST' | 'SECOND') => {
+  const variantId = level === 'FIRST' ? selection.variant1Id : selection.variant2Id;
+  const sansVariant = level === 'FIRST' ? selection.sansVariantFirst : selection.sansVariantSecond;
+  if (sansVariant || !variantId) {
     return undefined;
   }
   return variantId;
@@ -37,8 +42,9 @@ export default function GeneratorPage() {
   const [technicalCharacteristics, setTechnicalCharacteristics] = useState<TechnicalCharacteristic[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [selectedVariant1Id, setSelectedVariant1Id] = useState<string>('');
-  const [selectedVariant2Id, setSelectedVariant2Id] = useState<string>('');
+  const [variantSelection, setVariantSelection] = useState<VariantSelectionState>(() =>
+    createInitialVariantSelection(),
+  );
   const [values, setValues] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [productSearch, setProductSearch] = useState('');
@@ -47,6 +53,26 @@ export default function GeneratorPage() {
   const [enumSearch, setEnumSearch] = useState<Record<string, string>>({});
   const [productsLoading, setProductsLoading] = useState(true);
   const [variantsLoading, setVariantsLoading] = useState(false);
+
+  const isSansVariantSelected = (level: 'FIRST' | 'SECOND') =>
+    level === 'FIRST'
+      ? variantSelection.sansVariantFirst
+      : variantSelection.sansVariantSecond;
+
+  const handleSansVariantToggle = (level: 'FIRST' | 'SECOND') => {
+    setVariantSelection((prev) => {
+      const isFirst = level === 'FIRST';
+      const flagKey = isFirst ? 'sansVariantFirst' : 'sansVariantSecond';
+      const variantKey = isFirst ? 'variant1Id' : 'variant2Id';
+      const willBeChecked = !prev[flagKey];
+
+      return {
+        ...prev,
+        [flagKey]: willBeChecked,
+        [variantKey]: willBeChecked ? '' : prev[variantKey],
+      };
+    });
+  };
 
   // Charger les produits au montage
   useEffect(() => {
@@ -71,8 +97,7 @@ export default function GeneratorPage() {
       if (product) {
         loadVariants(product.family.id);
         // Réinitialiser les sélections
-        setSelectedVariant1Id('');
-        setSelectedVariant2Id('');
+        setVariantSelection(createInitialVariantSelection());
         setValues({});
         setVariant1Search('');
         setVariant2Search('');
@@ -80,8 +105,7 @@ export default function GeneratorPage() {
     } else {
       setSelectedProduct(null);
       setVariants([]);
-      setSelectedVariant1Id('');
-      setSelectedVariant2Id('');
+      setVariantSelection(createInitialVariantSelection());
       setTechnicalCharacteristics([]);
       setValues({});
       setVariant1Search('');
@@ -96,15 +120,15 @@ export default function GeneratorPage() {
       // Si une variante est sélectionnée, on charge les caractéristiques pour cette variante
       // Sinon, on charge les caractéristiques qui ne sont pas liées à une variante (tableau vide)
       const variantIds = [
-        getEffectiveVariantId(selectedVariant1Id, 'FIRST'),
-        getEffectiveVariantId(selectedVariant2Id, 'SECOND'),
+        getEffectiveVariantId(variantSelection, 'FIRST'),
+        getEffectiveVariantId(variantSelection, 'SECOND'),
       ].filter((id) => !!id) as string[];
       loadTechnicalCharacteristics(selectedProduct.family.id, variantIds);
     } else {
       setTechnicalCharacteristics([]);
       setValues({});
     }
-  }, [selectedProduct, selectedVariant1Id, selectedVariant2Id]);
+  }, [selectedProduct, variantSelection]);
 
   const loadProducts = async (search?: string) => {
     try {
@@ -197,29 +221,28 @@ export default function GeneratorPage() {
   const variant1Matches = getMatchingVariants('FIRST', variant1Search);
   const variant2Matches = getMatchingVariants('SECOND', variant2Search);
 
-  const getDefaultVariantOption = (level: 'FIRST' | 'SECOND'): Variant => ({
-    id: getSansVariantId(level),
-    name: 'Sans Variante',
-    code: '0',
-    familyId: selectedProduct?.family.id ?? '',
-    variantLevel: level,
-    family: selectedProduct?.family,
-  });
-
-  const variant1Options = selectedProduct ? [getDefaultVariantOption('FIRST'), ...variant1Matches] : [];
-  const variant2Options = selectedProduct ? [getDefaultVariantOption('SECOND'), ...variant2Matches] : [];
+  const variant1Options = selectedProduct ? variant1Matches : [];
+  const variant2Options = selectedProduct ? variant2Matches : [];
 
   const hasSelectedRealVariant = Boolean(
-    getEffectiveVariantId(selectedVariant1Id, 'FIRST') ||
-    getEffectiveVariantId(selectedVariant2Id, 'SECOND'),
+    getEffectiveVariantId(variantSelection, 'FIRST') ||
+    getEffectiveVariantId(variantSelection, 'SECOND'),
   );
 
   const handleVariant1Toggle = (variantId: string) => {
-    setSelectedVariant1Id((prev) => (prev === variantId ? '' : variantId));
+    setVariantSelection((prev) => ({
+      ...prev,
+      variant1Id: prev.variant1Id === variantId ? '' : variantId,
+      sansVariantFirst: false,
+    }));
   };
 
   const handleVariant2Toggle = (variantId: string) => {
-    setSelectedVariant2Id((prev) => (prev === variantId ? '' : variantId));
+    setVariantSelection((prev) => ({
+      ...prev,
+      variant2Id: prev.variant2Id === variantId ? '' : variantId,
+      sansVariantSecond: false,
+    }));
   };
 
   const handleGenerate = async () => {
@@ -228,18 +251,27 @@ export default function GeneratorPage() {
       return;
     }
 
-    if (!selectedVariant1Id) {
-      await showAlert('Veuillez sélectionner une variante 1 (ou "Sans Variante")', 'warning');
+    const variant1HasSelection = variantSelection.variant1Id || variantSelection.sansVariantFirst;
+    const variant2HasSelection = variantSelection.variant2Id || variantSelection.sansVariantSecond;
+
+    if (!variant1HasSelection) {
+      await showAlert(
+        `Veuillez sélectionner une variante 1 ou cocher "${SANS_VARIANT_LABEL}"`,
+        'warning',
+      );
       return;
     }
 
-    if (!selectedVariant2Id) {
-      await showAlert('Veuillez sélectionner une variante 2 (ou "Sans Variante")', 'warning');
+    if (!variant2HasSelection) {
+      await showAlert(
+        `Veuillez sélectionner une variante 2 ou cocher "${SANS_VARIANT_LABEL}"`,
+        'warning',
+      );
       return;
     }
 
-    const variant1RequestId = getEffectiveVariantId(selectedVariant1Id, 'FIRST');
-    const variant2RequestId = getEffectiveVariantId(selectedVariant2Id, 'SECOND');
+    const variant1RequestId = getEffectiveVariantId(variantSelection, 'FIRST');
+    const variant2RequestId = getEffectiveVariantId(variantSelection, 'SECOND');
 
     // Convertir les valeurs enum (tableaux pour multiple, string pour unique) en JSON strings
     const processedValues: Record<string, any> = {};
@@ -284,8 +316,7 @@ export default function GeneratorPage() {
       );
       
       // Réinitialiser les sélections après génération
-      setSelectedVariant1Id('');
-      setSelectedVariant2Id('');
+      setVariantSelection(createInitialVariantSelection());
       setValues({});
       setVariant1Search('');
       setVariant2Search('');
@@ -484,6 +515,20 @@ export default function GeneratorPage() {
                     </div>
                   ) : (
                     <>
+                      <label className="flex items-start gap-2 mb-3 px-3 py-2 rounded border border-dashed border-purple/40 bg-purple/5 text-sm cursor-pointer transition-colors duration-200 hover:bg-purple/10">
+                        <input
+                          type="checkbox"
+                          checked={isSansVariantSelected('FIRST')}
+                          onChange={() => handleSansVariantToggle('FIRST')}
+                          className="mt-1 cursor-pointer"
+                        />
+                        <div>
+                          <span className="font-semibold text-purple">{SANS_VARIANT_LABEL}</span>
+                          <p className="text-xs text-gray-600 m-0 mt-1">
+                            Cochez cette case pour forcer le code 0 quand aucune variante 1 réelle n’est sélectionnée.
+                          </p>
+                        </div>
+                      </label>
                       {variant1Options.map((variant) => (
                         <label
                           key={variant.id}
@@ -491,7 +536,7 @@ export default function GeneratorPage() {
                         >
                           <input
                             type="checkbox"
-                            checked={selectedVariant1Id === variant.id}
+                            checked={variantSelection.variant1Id === variant.id}
                             onChange={() => handleVariant1Toggle(variant.id)}
                             className="mr-3 cursor-pointer"
                           />
@@ -501,8 +546,8 @@ export default function GeneratorPage() {
                       {variant1Matches.length === 0 && (
                         <p className="text-gray-500 italic text-sm mt-2">
                           {variant1Search
-                            ? 'Aucune variante 1 ne correspond à votre recherche — la variante "Sans Variante (code 0)" reste disponible.'
-                            : 'Aucune variante 1 disponible pour cette famille — cochez "Sans Variante (code 0)" si besoin.'}
+                            ? 'Aucune variante 1 ne correspond à votre recherche — cochez la case "Sans Variante (code 0)" ci-dessus.'
+                            : 'Aucune variante 1 disponible pour cette famille — cochez la case "Sans Variante (code 0)" ci-dessus.'}
                         </p>
                       )}
                     </>
@@ -531,6 +576,20 @@ export default function GeneratorPage() {
                     </div>
                   ) : (
                     <>
+                      <label className="flex items-start gap-2 mb-3 px-3 py-2 rounded border border-dashed border-purple/40 bg-purple/5 text-sm cursor-pointer transition-colors duration-200 hover:bg-purple/10">
+                        <input
+                          type="checkbox"
+                          checked={isSansVariantSelected('SECOND')}
+                          onChange={() => handleSansVariantToggle('SECOND')}
+                          className="mt-1 cursor-pointer"
+                        />
+                        <div>
+                          <span className="font-semibold text-purple">{SANS_VARIANT_LABEL}</span>
+                          <p className="text-xs text-gray-600 m-0 mt-1">
+                            Cochez cette case pour valider le code 0 lorsque la variante 2 reste non spécifiée.
+                          </p>
+                        </div>
+                      </label>
                       {variant2Options.map((variant) => (
                         <label
                           key={variant.id}
@@ -538,7 +597,7 @@ export default function GeneratorPage() {
                         >
                           <input
                             type="checkbox"
-                            checked={selectedVariant2Id === variant.id}
+                            checked={variantSelection.variant2Id === variant.id}
                             onChange={() => handleVariant2Toggle(variant.id)}
                             className="mr-3 cursor-pointer"
                           />
@@ -548,8 +607,8 @@ export default function GeneratorPage() {
                       {variant2Matches.length === 0 && (
                         <p className="text-gray-500 italic text-sm mt-2">
                           {variant2Search
-                            ? 'Aucune variante 2 ne correspond à votre recherche — la variante "Sans Variante (code 0)" reste disponible.'
-                            : 'Aucune variante 2 disponible pour cette famille — cochez "Sans Variante (code 0)" si besoin.'}
+                            ? 'Aucune variante 2 ne correspond à votre recherche — cochez la case "Sans Variante (code 0)" ci-dessus.'
+                            : 'Aucune variante 2 disponible pour cette famille — cochez la case "Sans Variante (code 0)" ci-dessus.'}
                         </p>
                       )}
                     </>
