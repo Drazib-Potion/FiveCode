@@ -23,21 +23,46 @@ export default function ProductTypesPage() {
   const offsetRef = useRef(0);
   const LIMIT = 20;
 
+  useEffect(() => {
+    offsetRef.current = 0;
+    loadData(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {    
+    const timeoutId = setTimeout(() => {
+      loadData(true, searchTerm);
+    }, searchTerm ? 300 : 0);
+
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]);
+
   const loadData = useCallback(async (reset: boolean = false, search?: string) => {
     try {
       if (reset) {
+        offsetRef.current = 0;
         setLoading(true);
         setHasMore(true);
       } else {
         setLoadingMore(true);
       }
       
-      const currentOffset = reset ? 0 : offsetRef.current;
+      const currentOffset = offsetRef.current;
       const searchValue = search !== undefined ? search : searchTerm.trim() || undefined;
       const response = await productTypesService.getAll(currentOffset, LIMIT, searchValue);
-      const data = Array.isArray(response) ? response : (response.data || []);
-      const hasMoreData = Array.isArray(response) ? data.length === LIMIT : (response.hasMore !== false && data.length === LIMIT);
+      const data = response.data;
       
+      // if (reset) {
+      //   setProductTypes(data);
+      //   setLoading(false);
+      // } else {
+      //   setProductTypes(prev => [...prev, ...data]);
+      // }
+      // offsetRef.current = currentOffset + data.length;
+      // setHasMore(response.hasMore);
+
+      // Si doublon :
       if (reset) {
         // Dédupliquer les données au cas où l'API renverrait des doublons
         const productTypesMap = new Map<string, ProductType>();
@@ -51,7 +76,7 @@ export default function ProductTypesPage() {
         setProductTypes(newProductTypes);
         // Mettre à jour l'offset avec le nombre d'éléments reçus
         offsetRef.current = currentOffset + data.length;
-        setHasMore(hasMoreData);
+        setHasMore(response.hasMore);
       } else {
         setProductTypes(prev => {
           const productTypesMap = new Map<string, ProductType>(prev.map(pt => [pt.id, pt]));
@@ -64,7 +89,7 @@ export default function ProductTypesPage() {
         });
         // Mettre à jour l'offset avec le nombre d'éléments reçus
         offsetRef.current = currentOffset + data.length;
-        setHasMore(hasMoreData);
+        setHasMore(response.hasMore);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -75,25 +100,6 @@ export default function ProductTypesPage() {
         setLoadingMore(false);
       }
     }
-  }, [searchTerm]);
-
-  // Charger les données au montage (une seule fois)
-  useEffect(() => {
-    offsetRef.current = 0;
-    loadData(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Recharger quand la recherche change
-  useEffect(() => {
-    offsetRef.current = 0;
-    
-    const timeoutId = setTimeout(() => {
-      loadData(true, searchTerm);
-    }, searchTerm ? 300 : 0);
-
-    return () => clearTimeout(timeoutId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
 
   const loadMore = useCallback(() => {
