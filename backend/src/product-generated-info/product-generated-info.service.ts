@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductGeneratedInfoDto } from './dto/create-product-generated-info.dto';
+import { UpdateProductGeneratedInfoDto } from './dto/update-product-generated-info.dto';
 import { TechnicalCharacteristicsService } from '../technical-characteristics/technical-characteristics.service';
 import { normalizeString } from '../utils/string-normalizer';
 
@@ -341,6 +342,49 @@ export class ProductGeneratedInfoService {
 
     // Retourner la ProductGeneratedInfo complète
     return this.findOne(generatedInfo.id);
+  }
+
+  async update(id: string, updateDto: UpdateProductGeneratedInfoDto, userEmail: string) {
+    const generatedInfo = await this.findOne(id);
+
+    if (updateDto.values) {
+      await this.prisma.productTechnicalCharacteristic.deleteMany({
+        where: { generatedInfoId: id },
+      });
+
+      for (const [technicalCharacteristicId, value] of Object.entries(updateDto.values)) {
+        if (value !== undefined && value !== null && value !== '') {
+          await this.prisma.productTechnicalCharacteristic.create({
+            data: {
+              generatedInfoId: id,
+              technicalCharacteristicId,
+              value: String(value),
+            },
+          });
+        }
+      }
+    }
+
+    return this.prisma.productGeneratedInfo.update({
+      where: { id },
+      data: {
+        updatedBy: userEmail,
+      },
+      include: {
+        product: {
+          include: {
+            family: true,
+          },
+        },
+        variant1: true,
+        variant2: true,
+        technicalCharacteristics: {
+          include: {
+            technicalCharacteristic: true,
+          },
+        },
+      },
+    });
   }
 
   async findAll() {

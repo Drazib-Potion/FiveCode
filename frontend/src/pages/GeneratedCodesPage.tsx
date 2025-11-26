@@ -9,6 +9,9 @@ export default function GeneratedCodesPage() {
   const { showAlert, showConfirm } = useModal();
   const [generatedInfos, setGeneratedInfos] = useState<ProductGeneratedInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingInfo, setEditingInfo] = useState<ProductGeneratedInfo | null>(null);
+  const [editingValues, setEditingValues] = useState<Record<string, any>>({});
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     loadGeneratedInfos();
@@ -43,6 +46,176 @@ export default function GeneratedCodesPage() {
         error.response?.data?.message || 'Erreur lors de la suppression',
         'error',
       );
+    }
+  };
+
+  const handleStartEditing = (info: ProductGeneratedInfo) => {
+    setEditingInfo(info);
+    const initialValues: Record<string, any> = {};
+    info.technicalCharacteristics.forEach((tech) => {
+      const char = tech.technicalCharacteristic;
+      let parsedValue: any = tech.value ?? '';
+      if (char.type === 'boolean') {
+        parsedValue = tech.value === 'true';
+      } else if (char.type === 'number') {
+        parsedValue = tech.value ? parseFloat(tech.value) : '';
+      } else if (char.type === 'enum') {
+        if (char.enumMultiple) {
+          try {
+            parsedValue = tech.value ? JSON.parse(tech.value) : [];
+          } catch {
+            parsedValue = [];
+          }
+        } else {
+          parsedValue = tech.value ?? '';
+        }
+      }
+      initialValues[tech.technicalCharacteristic.id] = parsedValue;
+    });
+    setEditingValues(initialValues);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleEditValueChange = (technicalCharacteristicId: string, value: any) => {
+    setEditingValues((prev) => ({
+      ...prev,
+      [technicalCharacteristicId]: value,
+    }));
+  };
+
+  const toggleEnumValue = (
+    technicalCharacteristicId: string,
+    option: string,
+    isMultiple: boolean,
+  ) => {
+    setEditingValues((prev) => {
+      const current = prev[technicalCharacteristicId];
+      if (isMultiple) {
+        const currentArray = Array.isArray(current) ? [...current] : [];
+        if (currentArray.includes(option)) {
+          return {
+            ...prev,
+            [technicalCharacteristicId]: currentArray.filter((value) => value !== option),
+          };
+        }
+        return {
+          ...prev,
+          [technicalCharacteristicId]: [...currentArray, option],
+        };
+      }
+      return {
+        ...prev,
+        [technicalCharacteristicId]: current === option ? '' : option,
+      };
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingInfo(null);
+    setEditingValues({});
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingInfo) return;
+    setSavingEdit(true);
+    try {
+      await productGeneratedInfoService.update(editingInfo.id, { values: editingValues });
+      await showAlert('Les caractéristiques techniques ont été mises à jour', 'success');
+      setEditingInfo(null);
+      setEditingValues({});
+      loadGeneratedInfos();
+    } catch (error: any) {
+      console.error('Error updating generated info:', error);
+      await showAlert(
+        error.response?.data?.message || 'Erreur lors de la mise à jour',
+        'error',
+      );
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const renderEditingCharacteristicInput = (tech: ProductGeneratedInfo['technicalCharacteristics'][number]) => {
+    const char = tech.technicalCharacteristic as any;
+    const value = editingValues[char.id];
+
+    switch (char.type) {
+      case 'boolean':
+        return (
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={Boolean(value)}
+              onChange={(e) => handleEditValueChange(char.id, e.target.checked)}
+              className="w-auto h-4 cursor-pointer"
+            />
+            <span className="text-sm text-gray-dark">Coché = vrai</span>
+          </label>
+        );
+
+      case 'number':
+        return (
+          <input
+            type="number"
+            value={value === '' || value === undefined ? '' : value}
+            onChange={(e) => handleEditValueChange(
+              char.id,
+              e.target.value === '' ? '' : parseFloat(e.target.value),
+            )}
+            className="w-full px-3 py-2 border border-purple/40 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
+          />
+        );
+
+      case 'enum': {
+        const options: string[] = Array.isArray(char.enumOptions) ? char.enumOptions : [];
+        const isMultiple = Boolean(char.enumMultiple);
+        if (options.length === 0) {
+          return (
+            <p className="text-xs italic text-gray-500">
+              Aucune option définie pour cette enum.
+            </p>
+          );
+        }
+        const selectedValues = isMultiple
+          ? Array.isArray(value) ? value : []
+          : value ? [value] : [];
+
+        return (
+          <div className="border border-purple/30 rounded p-3 bg-purple/5">
+            <div className="grid gap-2">
+              {options.map((option) => (
+                <label
+                  key={option}
+                  className="flex items-center gap-2 text-sm cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedValues.includes(option)}
+                    onChange={() => toggleEnumValue(char.id, option, isMultiple)}
+                    className="cursor-pointer"
+                  />
+                  <span>{option}</span>
+                </label>
+              ))}
+            </div>
+            {!isMultiple && (
+              <p className="text-xs text-gray-500 mt-1">
+                Cliquez sur une option pour la sélectionner ou la décocher.
+              </p>
+            )}
+          </div>
+        );
+      }
+
+      default:
+        return (
+          <input
+            type="text"
+            value={value ?? ''}
+            onChange={(e) => handleEditValueChange(char.id, e.target.value)}
+            className="w-full px-3 py-2 border border-purple/40 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
+          />
+        );
     }
   };
 
@@ -153,6 +326,55 @@ export default function GeneratedCodesPage() {
         </div>
       </div>
 
+      {editingInfo && (
+        <div className="bg-purple-light/10 rounded-xl shadow-lg border-2 border-purple/40 mb-6 p-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-purple">Modifier {editingInfo.generatedCode}</h2>
+              <p className="text-sm text-gray-600">
+                Produit : <strong>{editingInfo.product.name}</strong> ({editingInfo.product.code}) &mdash; Variante 1 : <strong>{editingInfo.variant1 ? editingInfo.variant1.name : 'Sans variante'}</strong>, Variante 2 : <strong>{editingInfo.variant2 ? editingInfo.variant2.name : 'Sans variante'}</strong>
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleCancelEdit}
+              className="text-sm text-purple/80 hover:text-purple transition-colors duration-200"
+            >
+              Annuler
+            </button>
+          </div>
+          <div className="grid gap-4 mt-6">
+            {editingInfo.technicalCharacteristics.length === 0 ? (
+              <p className="text-sm text-gray-500 italic">Aucune caractéristique technique à modifier pour cette combinaison</p>
+            ) : (
+              editingInfo.technicalCharacteristics.map((tech) => (
+                <div key={tech.technicalCharacteristic.id} className="flex flex-col text-sm text-gray-700">
+                  <span className="font-semibold mb-1">{tech.technicalCharacteristic.name}</span>
+                  {renderEditingCharacteristicInput(tech)}
+                </div>
+              ))
+            )}
+          </div>
+          <div className="flex justify-end gap-3 mt-6">
+            <button
+              type="button"
+              onClick={handleCancelEdit}
+              className="px-4 py-2 rounded border border-purple/50 text-purple transition-colors duration-200 hover:bg-purple/10"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveEdit}
+              disabled={savingEdit}
+              className="px-5 py-2 rounded bg-purple-dark text-white font-semibold transition-all duration-200 hover:bg-purple-dark/90 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {savingEdit ? 'Enregistrement...' : 'Enregistrer les modifications'}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-purple/20 animate-fade-in">
         {generatedInfos.length === 0 ? (
           <div className="py-16 px-8 text-center bg-gray-light">
@@ -247,12 +469,20 @@ export default function GeneratedCodesPage() {
                   <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark">{formatDate(info.createdAt)}</td>
                   <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark">{info.createdBy}</td>
                   <td className="px-6 py-4 text-left border-b border-purple/20">
-                    <button
-                      onClick={() => handleDelete(info.id)}
-                      className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg"
-                    >
-                      Supprimer
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleStartEditing(info)}
+                        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
+                      >
+                        Modifier
+                      </button>
+                      <button
+                        onClick={() => handleDelete(info.id)}
+                        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg"
+                      >
+                        Supprimer
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

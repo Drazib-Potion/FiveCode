@@ -192,6 +192,10 @@ export const productGeneratedInfoService = {
     const response = await apiClient.delete(`/product-generated-infos/${id}`);
     return response.data;
   },
+  update: async (id: string, data: { values?: Record<string, any> }) => {
+    const response = await apiClient.patch(`/product-generated-infos/${id}`, data);
+    return response.data;
+  },
 };
 
 export const productTypesService = {

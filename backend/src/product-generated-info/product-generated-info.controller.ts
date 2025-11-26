@@ -9,9 +9,11 @@ import {
   UseGuards,
   Request,
   UnauthorizedException,
+  Patch,
 } from '@nestjs/common';
 import { ProductGeneratedInfoService } from './product-generated-info.service';
 import { CreateProductGeneratedInfoDto } from './dto/create-product-generated-info.dto';
+import { UpdateProductGeneratedInfoDto } from './dto/update-product-generated-info.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('product-generated-infos')
@@ -49,5 +51,18 @@ export class ProductGeneratedInfoController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.productGeneratedInfoService.remove(id);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateProductGeneratedInfoDto,
+    @Request() req: any,
+  ) {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      throw new UnauthorizedException('User email not found in request');
+    }
+    return this.productGeneratedInfoService.update(id, updateDto, userEmail);
   }
 }

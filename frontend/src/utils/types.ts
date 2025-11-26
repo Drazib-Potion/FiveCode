@@ -75,6 +75,8 @@ export interface ProductGeneratedInfo {
       id: string;
       name: string;
       type: string;
+      enumOptions?: string[] | null;
+      enumMultiple?: boolean | null;
     };
     value: string | null;
   }>;
