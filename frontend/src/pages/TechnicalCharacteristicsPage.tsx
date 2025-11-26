@@ -504,17 +504,6 @@ const getVariantNamesByLevel = (
             {formData.type === 'enum' && (
               <>
                 <div className="mb-5">
-                  <label className="block mb-2.5 text-gray-dark font-semibold text-sm uppercase tracking-wide">Type de sélection</label>
-                  <select
-                    value={formData.enumMultiple ? 'multiple' : 'unique'}
-                    onChange={(e) => setFormData({ ...formData, enumMultiple: e.target.value === 'multiple' })}
-                    className="w-full px-2 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
-                  >
-                    <option value="unique">Sélection unique</option>
-                    <option value="multiple">Sélection multiple</option>
-                  </select>
-                </div>
-                <div className="mb-5">
                   <label className="block mb-2.5 text-gray-dark font-semibold text-sm uppercase tracking-wide">Options enum (une par ligne ou séparées par des virgules)</label>
                   <div className="flex gap-2 mb-2">
                   <input

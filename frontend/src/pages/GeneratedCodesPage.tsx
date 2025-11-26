@@ -60,15 +60,7 @@ export default function GeneratedCodesPage() {
       } else if (char.type === 'number') {
         parsedValue = tech.value ? parseFloat(tech.value) : '';
       } else if (char.type === 'enum') {
-        if (char.enumMultiple) {
-          try {
-            parsedValue = tech.value ? JSON.parse(tech.value) : [];
-          } catch {
-            parsedValue = [];
-          }
-        } else {
-          parsedValue = tech.value ?? '';
-        }
+        parsedValue = tech.value ?? '';
       }
       initialValues[tech.technicalCharacteristic.id] = parsedValue;
     });
@@ -81,33 +73,6 @@ export default function GeneratedCodesPage() {
       ...prev,
       [technicalCharacteristicId]: value,
     }));
-  };
-
-  const toggleEnumValue = (
-    technicalCharacteristicId: string,
-    option: string,
-    isMultiple: boolean,
-  ) => {
-    setEditingValues((prev) => {
-      const current = prev[technicalCharacteristicId];
-      if (isMultiple) {
-        const currentArray = Array.isArray(current) ? [...current] : [];
-        if (currentArray.includes(option)) {
-          return {
-            ...prev,
-            [technicalCharacteristicId]: currentArray.filter((value) => value !== option),
-          };
-        }
-        return {
-          ...prev,
-          [technicalCharacteristicId]: [...currentArray, option],
-        };
-      }
-      return {
-        ...prev,
-        [technicalCharacteristicId]: current === option ? '' : option,
-      };
-    });
   };
 
   const handleCancelEdit = () => {
@@ -168,7 +133,6 @@ export default function GeneratedCodesPage() {
 
       case 'enum': {
         const options: string[] = Array.isArray(char.enumOptions) ? char.enumOptions : [];
-        const isMultiple = Boolean(char.enumMultiple);
         if (options.length === 0) {
           return (
             <p className="text-xs italic text-gray-500">
@@ -176,10 +140,6 @@ export default function GeneratedCodesPage() {
             </p>
           );
         }
-        const selectedValues = isMultiple
-          ? Array.isArray(value) ? value : []
-          : value ? [value] : [];
-
         return (
           <div className="border border-purple/30 rounded p-3 bg-purple/5">
             <div className="grid gap-2">
@@ -189,20 +149,19 @@ export default function GeneratedCodesPage() {
                   className="flex items-center gap-2 text-sm cursor-pointer"
                 >
                   <input
-                    type="checkbox"
-                    checked={selectedValues.includes(option)}
-                    onChange={() => toggleEnumValue(char.id, option, isMultiple)}
+                    type="radio"
+                    name={`enum-${char.id}`}
+                    checked={value === option}
+                    onChange={() => handleEditValueChange(char.id, option)}
                     className="cursor-pointer"
                   />
                   <span>{option}</span>
                 </label>
               ))}
             </div>
-            {!isMultiple && (
-              <p className="text-xs text-gray-500 mt-1">
-                Cliquez sur une option pour la sélectionner ou la décocher.
-              </p>
-            )}
+            <p className="text-xs text-gray-500 mt-1">
+              Sélectionnez une option parmi celles proposées.
+            </p>
           </div>
         );
       }
