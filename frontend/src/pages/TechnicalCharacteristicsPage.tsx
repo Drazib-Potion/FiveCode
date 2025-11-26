@@ -672,9 +672,9 @@ const getVariantNamesByLevel = (
                           />
                           <div>
                             <span className="font-semibold text-purple">{SANS_VARIANT_LABEL}</span>
-                            <p className="text-xs text-gray-600 m-0 mt-1">
+                            {/* <p className="text-xs text-gray-600 m-0 mt-1">
                               Cochez pour indiquer que cette caractéristique s'applique lorsque la variante 1 n'est pas choisie (code 0).
-                            </p>
+                            </p> */}
                           </div>
                         </label>
                         {loadingVariants ? (
@@ -766,9 +766,9 @@ const getVariantNamesByLevel = (
                           />
                           <div>
                             <span className="font-semibold text-purple">{SANS_VARIANT_LABEL}</span>
-                            <p className="text-xs text-gray-600 m-0 mt-1">
+                            {/* <p className="text-xs text-gray-600 m-0 mt-1">
                               Cochez pour indiquer que cette caractéristique s'applique lorsque la variante 2 n'est pas choisie (code 0).
-                            </p>
+                            </p> */}
                           </div>
                         </label>
                         {loadingVariants ? (

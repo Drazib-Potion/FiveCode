@@ -161,7 +161,8 @@ export default function GeneratedCodesPage() {
             <p className="text-base text-gray-dark/70 m-0">Utilisez le générateur pour créer vos premiers codes produits</p>
           </div>
         ) : (
-          <table className="w-full border-collapse">
+          <div className="table-responsive">
+            <table className="w-full border-collapse">
             <thead className="bg-gradient-to-r from-purple to-purple-dark text-white">
               <tr>
                 <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Code généré</th>
@@ -256,7 +257,8 @@ export default function GeneratedCodesPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         )}
       </div>
     </div>

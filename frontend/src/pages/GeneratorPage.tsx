@@ -524,9 +524,9 @@ export default function GeneratorPage() {
                         />
                         <div>
                           <span className="font-semibold text-purple">{SANS_VARIANT_LABEL}</span>
-                          <p className="text-xs text-gray-600 m-0 mt-1">
+                          {/* <p className="text-xs text-gray-600 m-0 mt-1">
                             Cochez cette case pour forcer le code 0 quand aucune variante 1 réelle n’est sélectionnée.
-                          </p>
+                          </p> */}
                         </div>
                       </label>
                       {variant1Options.map((variant) => (
@@ -585,9 +585,9 @@ export default function GeneratorPage() {
                         />
                         <div>
                           <span className="font-semibold text-purple">{SANS_VARIANT_LABEL}</span>
-                          <p className="text-xs text-gray-600 m-0 mt-1">
+                          {/* <p className="text-xs text-gray-600 m-0 mt-1">
                             Cochez cette case pour valider le code 0 lorsque la variante 2 reste non spécifiée.
-                          </p>
+                          </p> */}
                         </div>
                       </label>
                       {variant2Options.map((variant) => (
