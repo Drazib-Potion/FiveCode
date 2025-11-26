@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateVariantDto } from './dto/create-variant.dto';
 import { UpdateVariantDto } from './dto/update-variant.dto';
-import { normalizeString } from '../utils/string-normalizer';
+import { normalizeString, normalizeStringForStorage } from '../utils/string-normalizer';
 
 @Injectable()
 export class VariantsService {
@@ -51,7 +51,7 @@ export class VariantsService {
     const variant = await this.prisma.variant.create({
       data: {
         familyId: createVariantDto.familyId,
-        name: createVariantDto.name,
+        name: normalizeStringForStorage(createVariantDto.name),
         code: createVariantDto.code,
         variantLevel: createVariantDto.variantLevel,
       },
@@ -219,7 +219,9 @@ export class VariantsService {
       where: { id },
       data: {
         familyId: updateVariantDto.familyId,
-        name: updateVariantDto.name,
+        name: updateVariantDto.name
+          ? normalizeStringForStorage(updateVariantDto.name)
+          : undefined,
         code: updateVariantDto.code,
         variantLevel: updateVariantDto.variantLevel,
       },

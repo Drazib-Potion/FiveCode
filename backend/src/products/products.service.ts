@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
-import { normalizeString } from '../utils/string-normalizer';
+import { normalizeString, normalizeStringForStorage } from '../utils/string-normalizer';
 
 @Injectable()
 export class ProductsService {
@@ -59,7 +59,7 @@ export class ProductsService {
 
     return this.prisma.product.create({
       data: {
-        name: createProductDto.name,
+        name: normalizeStringForStorage(createProductDto.name),
         code: createProductDto.code,
         familyId: createProductDto.familyId,
         productTypeId: createProductDto.productTypeId,

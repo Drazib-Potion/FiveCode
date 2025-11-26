@@ -37,6 +37,18 @@ describe('ProductsService', () => {
       });
 
       expect(result).toEqual(createdProduct);
+      expect(prisma.product.create).toHaveBeenCalledWith({
+        data: {
+          name: 'VENTILO 1000',
+          code: 'V1000',
+          familyId: 'family-1',
+          productTypeId: 'type-1',
+        },
+        include: {
+          family: true,
+          productType: true,
+        },
+      });
     });
 
     it('rejette si la famille est inconnue', async () => {

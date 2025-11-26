@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductTypeDto } from './dto/create-product-type.dto';
 import { UpdateProductTypeDto } from './dto/update-product-type.dto';
-import { normalizeString } from '../utils/string-normalizer';
+import { normalizeString, normalizeStringForStorage } from '../utils/string-normalizer';
 
 @Injectable()
 export class ProductTypesService {
@@ -35,7 +35,10 @@ export class ProductTypesService {
     }
 
     return this.prisma.productType.create({
-      data: createProductTypeDto,
+      data: {
+        ...createProductTypeDto,
+        name: normalizeStringForStorage(createProductTypeDto.name),
+      },
     });
   }
 
@@ -119,7 +122,12 @@ export class ProductTypesService {
 
     return this.prisma.productType.update({
       where: { id },
-      data: updateProductTypeDto,
+      data: {
+        ...updateProductTypeDto,
+        name: updateProductTypeDto.name
+          ? normalizeStringForStorage(updateProductTypeDto.name)
+          : undefined,
+      },
     });
   }
 

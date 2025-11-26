@@ -42,6 +42,15 @@ describe('VariantsService', () => {
 
       expect(result).toEqual(createdVariant);
       expect(prisma.variant.create).toHaveBeenCalledTimes(1);
+      expect(prisma.variant.create).toHaveBeenCalledWith({
+        data: {
+          familyId: 'family-1',
+          name: '1 TETE',
+          code: '1',
+          variantLevel: VariantLevel.FIRST,
+        },
+        include: { family: true },
+      });
     });
 
     it('refuse les doublons de code pour un même niveau de variante', async () => {
@@ -129,7 +138,7 @@ describe('VariantsService', () => {
         where: { id: 'variant-1' },
         data: {
           familyId: undefined,
-          name: 'Variante modifiée',
+          name: 'VARIANTE MODIFIEE',
           code: undefined,
           variantLevel: undefined,
         },

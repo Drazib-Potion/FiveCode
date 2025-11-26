@@ -24,6 +24,9 @@ describe('ProductTypesService', () => {
       const result = await service.create({ name: 'Standard', code: 'STD' });
 
       expect(result.code).toBe('STD');
+      expect(prisma.productType.create).toHaveBeenCalledWith({
+        data: { name: 'STANDARD', code: 'STD' },
+      });
     });
 
     it('rejette si le code existe déjà', async () => {
@@ -51,6 +54,10 @@ describe('ProductTypesService', () => {
       const result = await service.update('type-1', { name: 'Premium', code: 'PRM' });
 
       expect(result.name).toBe('Premium');
+      expect(prisma.productType.update).toHaveBeenCalledWith({
+        where: { id: 'type-1' },
+        data: { name: 'PREMIUM', code: 'PRM' },
+      });
     });
 
     it('rejette si le nouveau code existe', async () => {

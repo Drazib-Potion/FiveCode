@@ -28,6 +28,36 @@ describe('TechnicalCharacteristicsService', () => {
 
       expect(result).toEqual(created);
       expect(prisma.technicalCharacteristic.create).toHaveBeenCalledTimes(1);
+      expect(prisma.technicalCharacteristic.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          name: 'PUISSANCE',
+        }),
+        include: expect.any(Object),
+      });
+    });
+
+    it('normalise les options enum en majuscules', async () => {
+      prisma.family.findMany?.mockResolvedValue([{ id: 'family-1' }]);
+      prisma.technicalCharacteristic.create?.mockResolvedValue({
+        id: 'tc-enum',
+        name: 'Couleur',
+        type: 'enum',
+      });
+      const result = await service.create({
+        name: 'Couleur',
+        type: 'enum',
+        familyIds: ['family-1'],
+        enumOptions: ['Rouge', 'Bleu'],
+      });
+
+      expect(result).toEqual({ id: 'tc-enum', name: 'Couleur', type: 'enum' });
+      expect(prisma.technicalCharacteristic.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          name: 'COULEUR',
+          enumOptions: ['ROUGE', 'BLEU'],
+        }),
+        include: expect.any(Object),
+      });
     });
 
     it('rejette les types invalides', async () => {

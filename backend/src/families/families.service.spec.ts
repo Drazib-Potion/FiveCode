@@ -21,6 +21,9 @@ describe('FamiliesService', () => {
 
       expect(result).toEqual({ id: 'family-1', name: 'Ventilo' });
       expect(prisma.family.create).toHaveBeenCalledTimes(1);
+      expect(prisma.family.create).toHaveBeenCalledWith({
+        data: { name: 'VENTILO' },
+      });
     });
 
     it('rejette si le nom existe déjà (insensible à la casse)', async () => {
@@ -42,6 +45,10 @@ describe('FamiliesService', () => {
       const result = await service.update('family-1', { name: 'Ventilo Plus' });
 
       expect(result.name).toBe('Ventilo Plus');
+      expect(prisma.family.update).toHaveBeenCalledWith({
+        where: { id: 'family-1' },
+        data: { name: 'VENTILO PLUS' },
+      });
     });
 
     it('rejette si le nom est déjà pris par une autre famille', async () => {

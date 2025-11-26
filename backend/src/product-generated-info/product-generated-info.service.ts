@@ -7,7 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductGeneratedInfoDto } from './dto/create-product-generated-info.dto';
 import { UpdateProductGeneratedInfoDto } from './dto/update-product-generated-info.dto';
 import { TechnicalCharacteristicsService } from '../technical-characteristics/technical-characteristics.service';
-import { normalizeString } from '../utils/string-normalizer';
+import { normalizeString, normalizeStringForStorage } from '../utils/string-normalizer';
 
 @Injectable()
 export class ProductGeneratedInfoService {
@@ -329,13 +329,13 @@ export class ProductGeneratedInfoService {
       for (const technicalCharacteristic of uniqueTechnicalCharacteristics) {
         const value = createDto.values[(technicalCharacteristic as any).id];
         if (value !== undefined && value !== null && value !== '') {
-          const stringValue = String(value);
-          this.ensureValueLength(stringValue);
+          const normalizedValue = this.normalizeTechValue(value);
+          this.ensureValueLength(normalizedValue);
           await this.prisma.productTechnicalCharacteristic.create({
             data: {
               generatedInfoId: generatedInfo.id,
               technicalCharacteristicId: (technicalCharacteristic as any).id,
-              value: stringValue,
+              value: normalizedValue,
             },
           });
         }
@@ -353,6 +353,10 @@ export class ProductGeneratedInfoService {
     }
   }
 
+  private normalizeTechValue(value: any) {
+    return normalizeStringForStorage(String(value));
+  }
+
   async update(id: string, updateDto: UpdateProductGeneratedInfoDto, userEmail: string) {
     const generatedInfo = await this.findOne(id);
 
@@ -363,13 +367,13 @@ export class ProductGeneratedInfoService {
 
       for (const [technicalCharacteristicId, value] of Object.entries(updateDto.values)) {
         if (value !== undefined && value !== null && value !== '') {
-          const stringValue = String(value);
-          this.ensureValueLength(stringValue);
+          const normalizedValue = this.normalizeTechValue(value);
+          this.ensureValueLength(normalizedValue);
           await this.prisma.productTechnicalCharacteristic.create({
             data: {
               generatedInfoId: id,
               technicalCharacteristicId,
-              value: stringValue,
+              value: normalizedValue,
             },
           });
         }

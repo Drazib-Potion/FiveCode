@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateFamilyDto } from './dto/create-family.dto';
 import { UpdateFamilyDto } from './dto/update-family.dto';
-import { normalizeString } from '../utils/string-normalizer';
+import { normalizeString, normalizeStringForStorage } from '../utils/string-normalizer';
 
 @Injectable()
 export class FamiliesService {
@@ -24,7 +24,10 @@ export class FamiliesService {
     }
 
     return this.prisma.family.create({
-      data: createFamilyDto,
+      data: {
+        ...createFamilyDto,
+        name: normalizeStringForStorage(createFamilyDto.name),
+      },
     });
   }
 
@@ -107,7 +110,12 @@ export class FamiliesService {
 
     return this.prisma.family.update({
       where: { id },
-      data: updateFamilyDto,
+      data: {
+        ...updateFamilyDto,
+        name: updateFamilyDto.name
+          ? normalizeStringForStorage(updateFamilyDto.name)
+          : undefined,
+      },
     });
   }
 

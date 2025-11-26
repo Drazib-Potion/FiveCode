@@ -2,7 +2,10 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTechnicalCharacteristicDto } from './dto/create-technical-characteristic.dto';
 import { UpdateTechnicalCharacteristicDto } from './dto/update-technical-characteristic.dto';
-import { normalizeString } from '../utils/string-normalizer';
+import {
+  normalizeString,
+  normalizeStringForStorage,
+} from '../utils/string-normalizer';
 
 const MAX_ENUM_OPTION_LENGTH = 30;
 
@@ -18,6 +21,7 @@ export class TechnicalCharacteristicsService {
     }
 
     let filteredEnumOptions: string[] | null = null;
+    const normalizedName = normalizeStringForStorage(createTechnicalCharacteristicDto.name);
     // Si le type est "enum", vérifier que enumOptions est fourni et non vide
     if (createTechnicalCharacteristicDto.type === 'enum') {
       if (!createTechnicalCharacteristicDto.enumOptions || createTechnicalCharacteristicDto.enumOptions.length === 0) {
@@ -29,7 +33,9 @@ export class TechnicalCharacteristicsService {
         throw new BadRequestException('Au moins une option enum valide est requise');
       }
       this.ensureEnumOptionsLength(filteredOptions);
-      filteredEnumOptions = filteredOptions;
+      filteredEnumOptions = filteredOptions.map((option) =>
+        normalizeStringForStorage(option),
+      );
     }
 
     // Récupérer toutes les caractéristiques techniques pour comparaison case-insensitive
@@ -76,7 +82,7 @@ export class TechnicalCharacteristicsService {
 
     return this.prisma.technicalCharacteristic.create({
       data: {
-        name: createTechnicalCharacteristicDto.name,
+        name: normalizedName,
         type: createTechnicalCharacteristicDto.type,
         enumOptions: filteredEnumOptions,
         enumMultiple: createTechnicalCharacteristicDto.type === 'enum' 
@@ -430,16 +436,21 @@ export class TechnicalCharacteristicsService {
 
     // Préparer les données de mise à jour
     const updateData: any = {
-      name: updateTechnicalCharacteristicDto.name,
+      name: updateTechnicalCharacteristicDto.name
+        ? normalizeStringForStorage(updateTechnicalCharacteristicDto.name)
+        : undefined,
       type: updateTechnicalCharacteristicDto.type,
     };
 
     // Gérer enumOptions
     if (updateTechnicalCharacteristicDto.type === 'enum' || (finalType === 'enum' && updateTechnicalCharacteristicDto.enumOptions !== undefined)) {
-      const enumOptions = updateTechnicalCharacteristicDto.enumOptions || (technicalCharacteristic.enumOptions as string[] | null) || [];
+      const enumOptions =
+        updateTechnicalCharacteristicDto.enumOptions || (technicalCharacteristic.enumOptions as string[] | null) || [];
       const filteredOptions = enumOptions.filter(opt => opt.trim().length > 0);
       this.ensureEnumOptionsLength(filteredOptions);
-      updateData.enumOptions = filteredOptions;
+      updateData.enumOptions = filteredOptions.map((option) =>
+        normalizeStringForStorage(option),
+      );
     } else if (updateTechnicalCharacteristicDto.type && updateTechnicalCharacteristicDto.type !== 'enum') {
       // Si on change le type vers autre chose que enum, supprimer enumOptions et enumMultiple
       updateData.enumOptions = null;
