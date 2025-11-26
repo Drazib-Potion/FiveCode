@@ -1,15 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { productGeneratedInfoService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import * as XLSX from 'xlsx';
 import excelIcon from '../media/excel-icon.png';
 import { ProductGeneratedInfo } from '../utils/types';
+import DataTable from '../components/DataTable';
 
 export default function GeneratedCodesPage() {
   const MAX_VALUE_LENGTH = 30;
   const { showAlert, showConfirm } = useModal();
   const [generatedInfos, setGeneratedInfos] = useState<ProductGeneratedInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
   const [editingInfo, setEditingInfo] = useState<ProductGeneratedInfo | null>(null);
   const [editingValues, setEditingValues] = useState<Record<string, any>>({});
   const [editingErrors, setEditingErrors] = useState<Record<string, string>>({});
@@ -32,6 +34,151 @@ export default function GeneratedCodesPage() {
       setLoading(false);
     }
   };
+
+  const formatTechnicalValue = (value?: string) => {
+    let displayValue = value || '';
+    if (!value) return displayValue;
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        displayValue = parsed.join(', ');
+      }
+    } catch {
+      // Keep original string if not JSON
+    }
+    return displayValue;
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('fr-FR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const filteredGeneratedInfos = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    if (!normalizedSearch) return generatedInfos;
+
+    return generatedInfos.filter((info) => {
+      const candidates = [
+        info.generatedCode,
+        info.product.name,
+        info.product.code,
+        info.product.family.name,
+        info.variant1?.name,
+        info.variant1?.code,
+        info.variant2?.name,
+        info.variant2?.code,
+      ];
+      return candidates.some(
+        (value) => value && value.toLowerCase().includes(normalizedSearch),
+      );
+    });
+  }, [generatedInfos, searchTerm]);
+
+  const generatedColumns = useMemo(
+    () => [
+      {
+        header: 'Code généré',
+        render: (info: ProductGeneratedInfo) => (
+          <strong className="font-mono text-lg text-green-600">
+            {info.generatedCode}
+          </strong>
+        ),
+      },
+      {
+        header: 'Produit',
+        render: (info: ProductGeneratedInfo) => (
+          <div>
+            <strong className="text-gray-dark">{info.product.name}</strong>
+            <br />
+            <span className="text-sm text-gray-500">Code: {info.product.code}</span>
+          </div>
+        ),
+      },
+      {
+        header: 'Famille',
+        render: (info: ProductGeneratedInfo) => (
+          <strong className="text-gray-dark">{info.product.family.name}</strong>
+        ),
+      },
+      {
+        header: 'Variante 1',
+        render: (info: ProductGeneratedInfo) =>
+          info.variant1 ? (
+            <span className="text-sm text-gray-dark">
+              {info.variant1.name} ({info.variant1.code})
+            </span>
+          ) : (
+            <span className="text-gray-500 italic">Aucune</span>
+          ),
+      },
+      {
+        header: 'Variante 2',
+        render: (info: ProductGeneratedInfo) =>
+          info.variant2 ? (
+            <span className="text-sm text-gray-dark">
+              {info.variant2.name} ({info.variant2.code})
+            </span>
+          ) : (
+            <span className="text-gray-500 italic">Aucune</span>
+          ),
+      },
+      {
+        header: 'Caractéristiques techniques',
+        render: (info: ProductGeneratedInfo) => {
+          if (!info.technicalCharacteristics || info.technicalCharacteristics.length === 0) {
+            return <span className="text-gray-500 italic">Aucun</span>;
+          }
+          return (
+            <div className="flex flex-col gap-1">
+              {info.technicalCharacteristics.map((pf) => (
+                <span key={pf.technicalCharacteristic.id} className="text-sm text-gray-dark">
+                  <strong>{pf.technicalCharacteristic.name}:</strong> {formatTechnicalValue(pf.value)}
+                </span>
+              ))}
+            </div>
+          );
+        },
+      },
+      {
+        header: 'Date de création',
+        render: (info: ProductGeneratedInfo) => (
+          <span className="text-gray-dark">
+            {formatDate(info.createdAt)}
+          </span>
+        ),
+      },
+      {
+        header: 'Créé par',
+        render: (info: ProductGeneratedInfo) => (
+          <span className="text-gray-dark">{info.createdBy}</span>
+        ),
+      },
+    ],
+    [],
+  );
+
+  const renderGeneratedActions = (info: ProductGeneratedInfo) => (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => handleStartEditing(info)}
+        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
+      >
+        Modifier
+      </button>
+      <button
+        onClick={() => handleDelete(info.id)}
+        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg"
+      >
+        Supprimer
+      </button>
+    </div>
+  );
 
   const handleDelete = async (id: string) => {
     const confirmed = await showConfirm(
@@ -202,16 +349,6 @@ export default function GeneratedCodesPage() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('fr-FR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
   const handleExportToExcel = async () => {
     if (generatedInfos.length === 0) {
       await showAlert('Aucun code généré à exporter', 'warning');
@@ -309,168 +446,77 @@ export default function GeneratedCodesPage() {
         </div>
       </div>
 
-      {editingInfo && (
-        <div className="bg-purple-light/10 rounded-xl shadow-lg border-2 border-purple/40 mb-6 p-6">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-bold text-purple">Modifier {editingInfo.generatedCode}</h2>
-              <p className="text-sm text-gray-600">
-                Produit : <strong>{editingInfo.product.name}</strong> ({editingInfo.product.code}) &mdash; Variante 1 : <strong>{editingInfo.variant1 ? editingInfo.variant1.name : 'Sans variante'}</strong>, Variante 2 : <strong>{editingInfo.variant2 ? editingInfo.variant2.name : 'Sans variante'}</strong>
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleCancelEdit}
-              className="text-sm text-purple/80 hover:text-purple transition-colors duration-200"
-            >
-              Annuler
-            </button>
-          </div>
-          <div className="grid gap-4 mt-6">
-            {editingInfo.technicalCharacteristics.length === 0 ? (
-              <p className="text-sm text-gray-500 italic">Aucune caractéristique technique à modifier pour cette combinaison</p>
-            ) : (
-              editingInfo.technicalCharacteristics.map((tech) => (
-                <div key={tech.technicalCharacteristic.id} className="flex flex-col text-sm text-gray-700">
-                  <span className="font-semibold mb-1">{tech.technicalCharacteristic.name}</span>
-                  {renderEditingCharacteristicInput(tech)}
-                </div>
-              ))
-            )}
-          </div>
-          <div className="flex justify-end gap-3 mt-6">
-            <button
-              type="button"
-              onClick={handleCancelEdit}
-              className="px-4 py-2 rounded border border-purple/50 text-purple transition-colors duration-200 hover:bg-purple/10"
-            >
-              Annuler
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveEdit}
-              disabled={savingEdit}
-              className="px-5 py-2 rounded bg-purple-dark text-white font-semibold transition-all duration-200 hover:bg-purple-dark/90 disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {savingEdit ? 'Enregistrement...' : 'Enregistrer les modifications'}
-            </button>
-          </div>
-        </div>
-      )}
-
       <div className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-purple/20 animate-fade-in">
-        {generatedInfos.length === 0 ? (
-          <div className="py-16 px-8 text-center bg-gray-light">
-            <div className="text-6xl block mb-4 opacity-20">📋</div>
-            <h3 className="text-2xl text-gray-dark mb-2 font-semibold">Aucun code généré</h3>
-            <p className="text-base text-gray-dark/70 m-0">Utilisez le générateur pour créer vos premiers codes produits</p>
-          </div>
-        ) : (
-          <div className="table-responsive">
-            <table className="w-full border-collapse">
-            <thead className="bg-gradient-to-r from-purple to-purple-dark text-white">
-              <tr>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Code généré</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Produit</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Famille</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Variante 1</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Variante 2</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Caractéristiques techniques</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Date de création</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Créé par</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {generatedInfos.map((info, index) => (
-                <tr 
-                  key={info.id}
-                  className={`transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-light'} hover:bg-gray-hover`}
-                >
-                  <td className="px-6 py-4 text-left border-b border-purple/20">
-                    <strong className="font-mono text-lg text-green-600">
-                      {info.generatedCode}
-                    </strong>
-                  </td>
-                  <td className="px-6 py-4 text-left border-b border-purple/20">
-                    <div>
-                      <strong className="text-gray-dark">{info.product.name}</strong>
-                      <br />
-                      <span className="text-sm text-gray-500">
-                        Code: {info.product.code}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-left border-b border-purple/20">
-                    <strong className="text-gray-dark">{info.product.family.name}</strong>
-                  </td>
-                  <td className="px-6 py-4 text-left border-b border-purple/20">
-                    {info.variant1 ? (
-                      <span className="text-sm text-gray-dark">
-                        {info.variant1.name} ({info.variant1.code})
-                      </span>
-                    ) : (
-                      <span className="text-gray-500 italic">Aucune</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-left border-b border-purple/20">
-                    {info.variant2 ? (
-                      <span className="text-sm text-gray-dark">
-                        {info.variant2.name} ({info.variant2.code})
-                      </span>
-                    ) : (
-                      <span className="text-gray-500 italic">Aucune</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-left border-b border-purple/20">
-                    {info.technicalCharacteristics && info.technicalCharacteristics.length > 0 ? (
-                      <div className="flex flex-col gap-1">
-                        {info.technicalCharacteristics.map((pf) => {
-                          // Essayer de parser la valeur comme JSON (pour les enums)
-                          let displayValue = pf.value;
-                          try {
-                            if (pf.value) {
-                              const parsed = JSON.parse(pf.value);
-                              if (Array.isArray(parsed)) {
-                                displayValue = parsed.join(', ');
-                              }
-                            }
-                          } catch {
-                            // Ce n'est pas du JSON, utiliser la valeur telle quelle
-                          }
-                          return (
-                            <span key={pf.technicalCharacteristic.id} className="text-sm text-gray-dark">
-                              <strong>{pf.technicalCharacteristic.name}:</strong> {displayValue || 'N/A'}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <span className="text-gray-500 italic">Aucun</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark">{formatDate(info.createdAt)}</td>
-                  <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark">{info.createdBy}</td>
-                  <td className="px-6 py-4 text-left border-b border-purple/20">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleStartEditing(info)}
-                        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
-                      >
-                        Modifier
-                      </button>
-                      <button
-                        onClick={() => handleDelete(info.id)}
-                        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg"
-                      >
-                        Supprimer
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            </table>
+        <DataTable
+          headerContent={
+            <div className="p-4 bg-white">
+              <input
+                type="text"
+                placeholder="🔍 Rechercher un code généré..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-purple rounded-lg text-sm bg-white text-gray-dark focus:outline-none focus:border-purple-light focus:ring-2 focus:ring-purple/20 transition-all shadow-sm"
+              />
+            </div>
+          }
+          columns={generatedColumns}
+          data={filteredGeneratedInfos}
+          loading={loading}
+          emptyMessage={
+            filteredGeneratedInfos.length === 0
+              ? searchTerm
+                ? 'Aucun code généré ne correspond à votre recherche'
+                : 'Utilisez le générateur pour créer des codes produits'
+              : undefined
+          }
+          renderActions={renderGeneratedActions}
+        />
+        {editingInfo && (
+          <div className="bg-purple-light/10 rounded-xl shadow-lg border-2 border-purple/40 mb-6 p-6">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-purple">Modifier {editingInfo.generatedCode}</h2>
+                <p className="text-sm text-gray-600">
+                  Produit : <strong>{editingInfo.product.name}</strong> ({editingInfo.product.code}) &mdash; Variante 1 : <strong>{editingInfo.variant1 ? editingInfo.variant1.name : 'Sans variante'}</strong>, Variante 2 : <strong>{editingInfo.variant2 ? editingInfo.variant2.name : 'Sans variante'}</strong>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="text-sm text-purple/80 hover:text-purple transition-colors duration-200"
+              >
+                Annuler
+              </button>
+            </div>
+            <div className="grid gap-4 mt-6">
+              {editingInfo.technicalCharacteristics.length === 0 ? (
+                <p className="text-sm text-gray-500 italic">Aucune caractéristique technique à modifier pour cette combinaison</p>
+              ) : (
+                editingInfo.technicalCharacteristics.map((tech) => (
+                  <div key={tech.technicalCharacteristic.id} className="flex flex-col text-sm text-gray-700">
+                    <span className="font-semibold mb-1">{tech.technicalCharacteristic.name}</span>
+                    {renderEditingCharacteristicInput(tech)}
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="px-4 py-2 rounded border border-purple/50 text-purple transition-colors duration-200 hover:bg-purple/10"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={savingEdit}
+                className="px-5 py-2 rounded bg-purple-dark text-white font-semibold transition-all duration-200 hover:bg-purple-dark/90 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {savingEdit ? 'Enregistrement...' : 'Enregistrer les modifications'}
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { technicalCharacteristicsService, familiesService, variantsService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import { formatFieldType, getFieldTypeOptions } from '../utils/fieldTypeFormatter';
 import Loader from '../components/Loader';
+import DataTable from '../components/DataTable';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { TechnicalCharacteristic, Family, Variant } from '../utils/types';
 
@@ -255,6 +256,66 @@ const getVariantNamesByLevel = (
 
   return variantNames.length > 0 ? variantNames : [SANS_VARIANT_LABEL];
 };
+
+  const technicalColumns = useMemo(
+    () => [
+      {
+        header: 'Nom',
+        render: (technicalCharacteristic: TechnicalCharacteristic) => (
+          <span className="text-gray-dark font-medium">{technicalCharacteristic.name}</span>
+        ),
+      },
+      {
+        header: 'Type',
+        render: (technicalCharacteristic: TechnicalCharacteristic) => (
+          <span className="text-gray-dark font-medium">
+            {formatFieldType(technicalCharacteristic.type)}
+          </span>
+        ),
+      },
+      {
+        header: 'Familles',
+        render: (technicalCharacteristic: TechnicalCharacteristic) => {
+          const familiesList = technicalCharacteristic.families?.map((f) => f.family.name) || [];
+          return <span>{familiesList.length > 0 ? familiesList.join(', ') : 'N/A'}</span>;
+        },
+      },
+      {
+        header: 'Variantes 1',
+        render: (technicalCharacteristic: TechnicalCharacteristic) => {
+          const names = getVariantNamesByLevel(technicalCharacteristic, 'FIRST');
+          return <span>{names.join(', ')}</span>;
+        },
+      },
+      {
+        header: 'Variantes 2',
+        render: (technicalCharacteristic: TechnicalCharacteristic) => {
+          const names = getVariantNamesByLevel(technicalCharacteristic, 'SECOND');
+          return <span>{names.join(', ')}</span>;
+        },
+      },
+    ],
+    [getVariantNamesByLevel],
+  );
+
+  const renderTechnicalActions = (technicalCharacteristic: TechnicalCharacteristic) => (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => handleEdit(technicalCharacteristic)}
+        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
+      >
+        Modifier
+      </button>
+      <button
+        onClick={() => handleDelete(technicalCharacteristic.id)}
+        disabled={deletingId === technicalCharacteristic.id}
+        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:opacity-100 flex items-center gap-2"
+      >
+        {deletingId === technicalCharacteristic.id && <Loader size="sm" />}
+        {deletingId === technicalCharacteristic.id ? 'Suppression...' : 'Supprimer'}
+      </button>
+    </div>
+  );
 
 
   const handleFamilyToggle = (familyId: string) => {
@@ -859,94 +920,19 @@ const getVariantNamesByLevel = (
             />
           </div>
         </div>
-        <div className="table-responsive">
-          <table className="w-full border-collapse">
-            <thead className="bg-gradient-to-r from-purple to-purple-dark text-white">
-              <tr>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Nom</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Type</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Familles</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Variantes 1</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Variantes 2</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center">
-                    <div className="flex items-center justify-center gap-4 text-lg text-gray-600">
-                      <Loader size="md" />
-                      <span>Chargement...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : technicalCharacteristics.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center bg-gray-light">
-                    <div className="text-6xl block mb-4 opacity-20">📋</div>
-                    <h3 className="text-2xl text-gray-dark mb-2 font-semibold">
-                      {tableSearchTerm ? 'Aucun résultat' : 'Aucune caractéristique technique'}
-                    </h3>
-                    <p className="text-base text-gray-dark/70 m-0">
-                      {tableSearchTerm ? 'Aucune caractéristique technique ne correspond à votre recherche' : 'Créez votre première caractéristique technique pour commencer'}
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                technicalCharacteristics.map((technicalCharacteristic, index) => {
-                  const variantNamesFirst = getVariantNamesByLevel(
-                    technicalCharacteristic,
-                    'FIRST',
-                  );
-                  const variantNamesSecond = getVariantNamesByLevel(
-                    technicalCharacteristic,
-                    'SECOND',
-                  );
-
-                  return (
-                    <tr 
-                      key={technicalCharacteristic.id}
-                      className={`transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-light'} hover:bg-gray-hover`}
-                    >
-                      <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">{technicalCharacteristic.name}</td>
-                      <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">{formatFieldType(technicalCharacteristic.type)}</td>
-                      <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">
-                        {technicalCharacteristic.families && technicalCharacteristic.families.length > 0
-                          ? technicalCharacteristic.families.map(f => f.family.name).join(', ')
-                          : 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">
-                        {variantNamesFirst.length > 0 ? variantNamesFirst.join(', ') : 'Aucune'}
-                      </td>
-                      <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">
-                        {variantNamesSecond.length > 0 ? variantNamesSecond.join(', ') : 'Aucune'}
-                      </td>
-                      <td className="px-6 py-4 text-left border-b border-purple/20">
-                        <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => handleEdit(technicalCharacteristic)}
-                            className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all durée-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
-                          >
-                            Modifier
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(technicalCharacteristic.id)}
-                            disabled={deletingId === technicalCharacteristic.id}
-                            className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all durée-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:opacity-100 flex items-center gap-2"
-                          >
-                            {deletingId === technicalCharacteristic.id && <Loader size="sm" />}
-                            {deletingId === technicalCharacteristic.id ? 'Suppression...' : 'Supprimer'}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={technicalColumns}
+          data={technicalCharacteristics}
+          loading={loading}
+          emptyMessage={
+            technicalCharacteristics.length === 0
+              ? tableSearchTerm
+                ? 'Aucune caractéristique technique ne correspond à votre recherche'
+                : 'Créez votre première caractéristique technique pour commencer'
+              : undefined
+          }
+          renderActions={renderTechnicalActions}
+        />
         {hasMore && !tableSearchTerm.trim() && (
           <div ref={observerTarget} className="py-4 flex items-center justify-center">
             {loadingMore && (

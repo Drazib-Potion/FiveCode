@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { productTypesService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import Loader from '../components/Loader';
+import DataTable from '../components/DataTable';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { ProductType } from '../utils/types';
 
@@ -163,6 +164,43 @@ export default function ProductTypesPage() {
   };
 
 
+  const productTypeColumns = useMemo(
+    () => [
+      {
+        header: 'Nom',
+        render: (productType: ProductType) => (
+          <span className="text-gray-dark font-medium">{productType.name}</span>
+        ),
+      },
+      {
+        header: 'Code',
+        render: (productType: ProductType) => (
+          <span className="text-gray-dark font-mono font-semibold">{productType.code}</span>
+        ),
+      },
+    ],
+    [],
+  );
+
+  const renderProductTypeActions = (productType: ProductType) => (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => handleEdit(productType)}
+        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
+      >
+        Modifier
+      </button>
+      <button
+        onClick={() => handleDelete(productType.id)}
+        disabled={deletingId === productType.id}
+        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:opacity-100 flex items-center gap-2"
+      >
+        {deletingId === productType.id && <Loader size="sm" />}
+        {deletingId === productType.id ? 'Suppression...' : 'Supprimer'}
+      </button>
+    </div>
+  );
+
   return (
     <div className="w-full animate-fade-in">
       <div className="flex justify-between items-center mb-10 pb-4 border-b-2 border-purple/20">
@@ -236,69 +274,19 @@ export default function ProductTypesPage() {
             />
           </div>
         </div>
-        <div className="table-responsive">
-          <table className="w-full border-collapse">
-            <thead className="bg-gradient-to-r from-purple to-purple-dark text-white">
-              <tr>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Nom</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Code</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={3} className="px-6 py-16 text-center">
-                    <div className="flex items-center justify-center gap-4 text-lg text-gray-600">
-                      <Loader size="md" />
-                      <span>Chargement...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : productTypes.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="px-6 py-16 text-center bg-gray-light">
-                    <div className="text-6xl block mb-4 opacity-20">📋</div>
-                    <h3 className="text-2xl text-gray-dark mb-2 font-semibold">
-                      {searchTerm ? 'Aucun résultat' : 'Aucun type de produit'}
-                    </h3>
-                    <p className="text-base text-gray-dark/70 m-0">
-                      {searchTerm ? 'Aucun type de produit ne correspond à votre recherche' : 'Créez votre premier type de produit pour commencer'}
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                productTypes.map((productType, index) => (
-                <tr 
-                  key={productType.id}
-                  className={`transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-light'} hover:bg-gray-hover`}
-                >
-                  <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">{productType.name}</td>
-                  <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-mono font-semibold">{productType.code}</td>
-                  <td className="px-6 py-4 text-left border-b border-purple/20">
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => handleEdit(productType)}
-                        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
-                      >
-                        Modifier
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(productType.id)}
-                        disabled={deletingId === productType.id}
-                        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:opacity-100 flex items-center gap-2"
-                      >
-                        {deletingId === productType.id && <Loader size="sm" />}
-                        {deletingId === productType.id ? 'Suppression...' : 'Supprimer'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={productTypeColumns}
+          data={productTypes}
+          loading={loading}
+          emptyMessage={
+            productTypes.length === 0
+              ? searchTerm
+                ? 'Aucun type de produit ne correspond à votre recherche'
+                : 'Créez votre premier type de produit pour commencer'
+              : undefined
+          }
+          renderActions={renderProductTypeActions}
+        />
         {hasMore && !searchTerm.trim() && (
           <div ref={observerTarget} className="py-4 flex items-center justify-center">
             {loadingMore && (

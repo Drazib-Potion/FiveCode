@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { familiesService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
-import Loader from '../components/Loader';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import DataTable from '../components/DataTable';
+import Loader from '../components/Loader';
 import { Family } from '../utils/types';
 
 export default function FamiliesPage() {
@@ -157,6 +158,37 @@ export default function FamiliesPage() {
   };
 
 
+  const familyColumns = useMemo(
+    () => [
+      {
+        header: 'Nom',
+        render: (family: Family) => (
+          <span className="text-gray-dark font-medium">{family.name}</span>
+        ),
+      },
+    ],
+    [],
+  );
+
+  const renderFamilyActions = (family: Family) => (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => handleEdit(family)}
+        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
+      >
+        Modifier
+      </button>
+      <button
+        onClick={() => handleDelete(family.id)}
+        disabled={deletingId === family.id}
+        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:opacity-100 flex items-center gap-2"
+      >
+        {deletingId === family.id && <Loader size="sm" />}
+        {deletingId === family.id ? 'Suppression...' : 'Supprimer'}
+      </button>
+    </div>
+  );
+
   return (
     <div className="w-full animate-fade-in">
       <div className="flex justify-between items-center mb-10 pb-4 border-b-2 border-purple/20 page-header-responsive">
@@ -218,69 +250,21 @@ export default function FamiliesPage() {
             />
           </div>
         </div>
-        <div className="table-responsive">
-          <table className="w-full border-collapse">
-            <thead className="bg-gradient-to-r from-purple to-purple-dark text-white">
-              <tr>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Nom</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={2} className="px-6 py-16 text-center">
-                    <div className="flex items-center justify-center gap-4 text-lg text-gray-600">
-                      <Loader size="md" />
-                      <span>Chargement...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : families.length === 0 ? (
-                <tr>
-                  <td colSpan={2} className="px-6 py-16 text-center bg-gray-light">
-                    <div className="text-6xl block mb-4 opacity-20">📋</div>
-                    <h3 className="text-2xl text-gray-dark mb-2 font-semibold">
-                      {searchTerm ? 'Aucun résultat' : 'Aucune famille'}
-                    </h3>
-                    <p className="text-base text-gray-dark/70 m-0">
-                      {searchTerm ? 'Aucune famille ne correspond à votre recherche' : 'Créez votre première famille pour commencer'}
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                families.map((family, index) => (
-                  <tr 
-                    key={family.id}
-                    className={`transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-light'} hover:bg-gray-hover`}
-                  >
-                    <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">{family.name}</td>
-                    <td className="px-6 py-4 text-left border-b border-purple/20">
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => handleEdit(family)}
-                          className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
-                        >
-                          Modifier
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(family.id)}
-                          disabled={deletingId === family.id}
-                          className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:opacity-100 flex items-center gap-2"
-                        >
-                          {deletingId === family.id && <Loader size="sm" />}
-                          {deletingId === family.id ? 'Suppression...' : 'Supprimer'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={familyColumns}
+          data={families}
+          loading={loading}
+          emptyMessage={
+            families.length === 0
+              ? searchTerm
+                ? 'Aucune famille ne correspond à votre recherche'
+                : 'Créez votre première famille pour commencer'
+              : undefined
+          }
+          renderActions={renderFamilyActions}
+        />
         {hasMore && !searchTerm.trim() && (
-          <div ref={observerTarget} className="py-4 flex items-center justify-center">
+      <div ref={observerTarget} className="py-4 flex items-center justify-center">
             {loadingMore && (
               <div className="flex items-center gap-2 text-gray-600">
                 <Loader size="sm" />

@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { variantsService, familiesService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import Loader from '../components/Loader';
+import DataTable from '../components/DataTable';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { Variant, Family } from '../utils/types';
 
@@ -194,6 +195,59 @@ export default function VariantsPage() {
   const getVariantLevelLabel = (level: 'FIRST' | 'SECOND') =>
     level === 'FIRST' ? 'Variante 1' : 'Variante 2';
 
+  const variantColumns = useMemo(
+    () => [
+      {
+        header: 'Nom',
+        render: (variant: Variant) => (
+          <span className="text-gray-dark font-medium">{variant.name}</span>
+        ),
+      },
+      {
+        header: 'Code',
+        render: (variant: Variant) => (
+          <span className="text-gray-dark font-mono font-semibold">{variant.code}</span>
+        ),
+      },
+      {
+        header: 'Type',
+        render: (variant: Variant) => (
+          <span className="text-gray-dark font-medium">
+            {getVariantLevelLabel(variant.variantLevel)}
+          </span>
+        ),
+      },
+      {
+        header: 'Famille',
+        render: (variant: Variant) => (
+          <span className="text-gray-dark font-medium">
+            {variant.family?.name || 'N/A'}
+          </span>
+        ),
+      },
+    ],
+    [getVariantLevelLabel],
+  );
+
+  const renderVariantActions = (variant: Variant) => (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => handleEdit(variant)}
+        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
+      >
+        Modifier
+      </button>
+      <button
+        onClick={() => handleDelete(variant.id)}
+        disabled={deletingId === variant.id}
+        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:opacity-100 flex items-center gap-2"
+      >
+        {deletingId === variant.id && <Loader size="sm" />}
+        {deletingId === variant.id ? 'Suppression...' : 'Supprimer'}
+      </button>
+    </div>
+  );
+
   return (
     <div className="w-full animate-fade-in">
       <div className="flex justify-between items-center mb-10 pb-4 border-b-2 border-purple/20">
@@ -322,73 +376,19 @@ export default function VariantsPage() {
             />
           </div>
         </div>
-        <div className="table-responsive">
-          <table className="w-full border-collapse">
-            <thead className="bg-gradient-to-r from-purple to-purple-dark text-white">
-              <tr>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Nom</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Code</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Type</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Famille</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-16 text-center">
-                    <div className="flex items-center justify-center gap-4 text-lg text-gray-600">
-                      <Loader size="md" />
-                      <span>Chargement...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : variants.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-16 text-center bg-gray-light">
-                    <div className="text-6xl block mb-4 opacity-20">📋</div>
-                    <h3 className="text-2xl text-gray-dark mb-2 font-semibold">
-                      {tableSearchTerm ? 'Aucun résultat' : 'Aucune variante'}
-                    </h3>
-                    <p className="text-base text-gray-dark/70 m-0">
-                      {tableSearchTerm ? 'Aucune variante ne correspond à votre recherche' : 'Créez votre première variante pour commencer'}
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                variants.map((variant, index) => (
-                  <tr 
-                    key={variant.id}
-                    className={`transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-light'} hover:bg-gray-hover`}
-                  >
-                    <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">{variant.name}</td>
-                    <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-mono font-semibold">{variant.code}</td>
-                    <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark">{getVariantLevelLabel(variant.variantLevel)}</td>
-                    <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">{variant.family?.name || 'N/A'}</td>
-                    <td className="px-6 py-4 text-left border-b border-purple/20">
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => handleEdit(variant)}
-                          className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
-                        >
-                          Modifier
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(variant.id)}
-                          disabled={deletingId === variant.id}
-                          className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:opacity-100 flex items-center gap-2"
-                        >
-                          {deletingId === variant.id && <Loader size="sm" />}
-                          {deletingId === variant.id ? 'Suppression...' : 'Supprimer'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={variantColumns}
+          data={variants}
+          loading={loading}
+          emptyMessage={
+            variants.length === 0
+              ? tableSearchTerm
+                ? 'Aucune variante ne correspond à votre recherche'
+                : 'Créez votre première variante pour commencer'
+              : undefined
+          }
+          renderActions={renderVariantActions}
+        />
         {hasMore && !tableSearchTerm.trim() && (
           <div ref={observerTarget} className="py-4 flex items-center justify-center">
             {loadingMore && (

@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { productsService, familiesService, productTypesService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import Loader from '../components/Loader';
+import DataTable from '../components/DataTable';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { Product, Family, ProductType } from '../utils/types';
 
@@ -188,9 +189,66 @@ export default function ProductsPage() {
 
   // Gérer la sélection d'une famille (une seule sélection)
   const handleFamilyToggle = (familyId: string) => {
-    setFormData({ ...formData, familyId: formData.familyId === familyId ? '' : familyId }    );
+    setFormData({ ...formData, familyId: formData.familyId === familyId ? '' : familyId });
   };
 
+  const productColumns = useMemo(
+    () => [
+      {
+        header: 'Nom',
+        render: (product: Product) => (
+          <strong className="text-gray-dark">{product.name}</strong>
+        ),
+      },
+      {
+        header: 'Code',
+        render: (product: Product) => (
+          <strong className="text-gray-dark font-mono font-semibold text-lg">
+            {product.code}
+          </strong>
+        ),
+      },
+      {
+        header: 'Type de produit',
+        render: (product: Product) => (
+          <strong className="text-gray-dark">{product.productType?.name || 'N/A'}</strong>
+        ),
+      },
+      {
+        header: 'Famille',
+        render: (product: Product) => (
+          <strong className="text-gray-dark">{product.family.name}</strong>
+        ),
+      },
+      {
+        header: 'Date de création',
+        render: (product: Product) =>
+          product.createdAt ? (
+            new Date(product.createdAt).toLocaleString('fr-FR', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          ) : (
+            'N/A'
+          ),
+      },
+    ],
+    [],
+  );
+
+  const renderProductActions = (product: Product) => (
+    <button
+      onClick={() => handleDelete(product.id)}
+      disabled={deletingId === product.id}
+      className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:opacity-100 flex items-center gap-2"
+    >
+      {deletingId === product.id && <Loader size="sm" />}
+      {deletingId === product.id ? 'Suppression...' : 'Supprimer'}
+    </button>
+  );
 
   return (
     <div className="w-full animate-fade-in">
@@ -341,88 +399,19 @@ export default function ProductsPage() {
             />
           </div>
         </div>
-        <div className="table-responsive">
-          <table className="w-full border-collapse">
-            <thead className="bg-gradient-to-r from-purple to-purple-dark text-white">
-              <tr>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Nom</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Code</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Type de produit</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Famille</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Date de création</th>
-                <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center">
-                    <div className="flex items-center justify-center gap-4 text-lg text-gray-600">
-                      <Loader size="md" />
-                      <span>Chargement...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : products.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center bg-gray-light">
-                    <div className="text-6xl block mb-4 opacity-20">📋</div>
-                    <h3 className="text-2xl text-gray-dark mb-2 font-semibold">
-                      {tableSearchTerm ? 'Aucun résultat' : 'Aucun produit'}
-                    </h3>
-                    <p className="text-base text-gray-dark/70 m-0">
-                      {tableSearchTerm ? 'Aucun produit ne correspond à votre recherche' : 'Créez votre premier produit pour commencer'}
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                products.map((product, index) => (
-                <tr 
-                  key={product.id}
-                  className={`transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-light'} hover:bg-gray-hover`}
-                >
-                  <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">
-                    <strong>{product.name}</strong>
-                  </td>
-                  <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-mono font-semibold text-lg">
-                    <strong>{product.code}</strong>
-                  </td>
-                  <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">
-                    <strong>{product.productType?.name || 'N/A'}</strong>
-                    {product.productType && (
-                      <span className="text-gray-500 text-sm ml-2">
-                        ({product.productType.code})
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark font-medium">
-                    <strong>{product.family.name}</strong>
-                  </td>
-                  <td className="px-6 py-4 text-left border-b border-purple/20 text-gray-dark">
-                    {product.createdAt ? new Date(product.createdAt).toLocaleString('fr-FR', {
-                      year: 'numeric',
-                      month: '2-digit',
-                      day: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    }) : 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 text-left border-b border-purple/20">
-                    <button 
-                      onClick={() => handleDelete(product.id)}
-                      disabled={deletingId === product.id}
-                      className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:opacity-100 flex items-center gap-2"
-                    >
-                      {deletingId === product.id && <Loader size="sm" />}
-                      {deletingId === product.id ? 'Suppression...' : 'Supprimer'}
-                    </button>
-                  </td>
-                </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={productColumns}
+          data={products}
+          loading={loading}
+          emptyMessage={
+            products.length === 0
+              ? tableSearchTerm
+                ? 'Aucun produit ne correspond à votre recherche'
+                : 'Créez votre premier produit pour commencer'
+              : undefined
+          }
+          renderActions={renderProductActions}
+        />
         {hasMore && !tableSearchTerm.trim() && (
           <div ref={observerTarget} className="py-4 flex items-center justify-center">
             {loadingMore && (
