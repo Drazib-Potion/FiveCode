@@ -210,6 +210,11 @@ async function main() {
     const code = clean(def.code) || '0';
     const name = clean(def.name) || 'Sans variante';
 
+    const isSansVariant = name.toLowerCase() === 'sans variante';
+    if (isSansVariant) {
+      return;
+    }
+
     await prisma.variant.upsert({
       where: {
         familyId_code_variantLevel: {
