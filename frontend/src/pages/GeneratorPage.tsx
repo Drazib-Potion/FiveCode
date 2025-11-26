@@ -609,8 +609,8 @@ export default function GeneratorPage() {
                       {variant1Matches.length === 0 && (
                         <p className="text-gray-500 italic text-sm mt-2">
                           {variant1Search
-                            ? 'Aucune variante 1 ne correspond à votre recherche — cochez la case "Sans Variante (code 0)" ci-dessus.'
-                            : 'Aucune variante 1 disponible pour cette famille — cochez la case "Sans Variante (code 0)" ci-dessus.'}
+                            ? 'Aucune variante 1 ne correspond à votre recherche — cochez la case "Sans Variante (code 0)"'
+                            : 'Aucune variante 1 disponible pour cette famille — cochez la case "Sans Variante (code 0)"'}
                         </p>
                       )}
                     </>
@@ -670,8 +670,8 @@ export default function GeneratorPage() {
                       {variant2Matches.length === 0 && (
                         <p className="text-gray-500 italic text-sm mt-2">
                           {variant2Search
-                            ? 'Aucune variante 2 ne correspond à votre recherche — cochez la case "Sans Variante (code 0)" ci-dessus.'
-                            : 'Aucune variante 2 disponible pour cette famille — cochez la case "Sans Variante (code 0)" ci-dessus.'}
+                            ? 'Aucune variante 2 ne correspond à votre recherche — cochez la case "Sans Variante (code 0)"'
+                            : 'Aucune variante 2 disponible pour cette famille — cochez la case "Sans Variante (code 0)"'}
                         </p>
                       )}
                     </>
