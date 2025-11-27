@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { variantsService, familiesService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import Loader from '../components/Loader';
 import DataTable from '../components/DataTable';
 import SearchableSelectPanel from '../components/SearchableSelectPanel';
-import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { Variant, Family } from '../utils/types';
 import { useAuth } from '../contexts/AuthContext';
 
