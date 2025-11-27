@@ -1,17 +1,14 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { productTypesService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import Loader from '../components/Loader';
 import DataTable from '../components/DataTable';
-import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { ProductType } from '../utils/types';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function ProductTypesPage() {
   const { showAlert, showConfirm } = useModal();
   const { canEditContent } = useAuth();
-  const [productTypes, setProductTypes] = useState<ProductType[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -21,25 +18,7 @@ export default function ProductTypesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const offsetRef = useRef(0);
-  const LIMIT = 20;
-
-  useEffect(() => {
-    offsetRef.current = 0;
-    loadData(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {    
-    const timeoutId = setTimeout(() => {
-      loadData(true, searchTerm);
-    }, searchTerm ? 300 : 0);
-
-    return () => clearTimeout(timeoutId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm]);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!canEditContent) {
@@ -48,81 +27,34 @@ export default function ProductTypesPage() {
     }
   }, [canEditContent]);
 
-  const loadData = useCallback(async (reset: boolean = false, search?: string) => {
-    try {
-      if (reset) {
-        offsetRef.current = 0;
-        setLoading(true);
-        setHasMore(true);
-      } else {
-        setLoadingMore(true);
+  const fetchProductTypesTable = useCallback(
+    async ({
+      offset,
+      limit,
+      search,
+    }: {
+      offset: number;
+      limit: number;
+      search?: string;
+    }) => {
+      try {
+        const response = await productTypesService.getAll(offset, limit, search);
+        const data: ProductType[] = Array.isArray(response) ? response : response.data || [];
+        return {
+          data,
+          hasMore:
+            typeof response.hasMore === 'boolean'
+              ? response.hasMore
+              : data.length === limit,
+        };
+      } catch (error) {
+        console.error('Error loading data:', error);
+        await showAlert('Erreur lors du chargement des types de produit', 'error');
+        return [];
       }
-      
-      const currentOffset = offsetRef.current;
-      const searchValue = search !== undefined ? search : searchTerm.trim() || undefined;
-      const response = await productTypesService.getAll(currentOffset, LIMIT, searchValue);
-      const data = response.data;
-      
-      // if (reset) {
-      //   setProductTypes(data);
-      //   setLoading(false);
-      // } else {
-      //   setProductTypes(prev => [...prev, ...data]);
-      // }
-      // offsetRef.current = currentOffset + data.length;
-      // setHasMore(response.hasMore);
-
-      // Si doublon :
-      if (reset) {
-        // Dédupliquer les données au cas où l'API renverrait des doublons
-        const productTypesMap = new Map<string, ProductType>();
-        data.forEach((productType: ProductType) => {
-          if (!productTypesMap.has(productType.id)) {
-            productTypesMap.set(productType.id, productType);
-          }
-        });
-        const newProductTypes = Array.from(productTypesMap.values());
-        setLoading(false);
-        setProductTypes(newProductTypes);
-        // Mettre à jour l'offset avec le nombre d'éléments reçus
-        offsetRef.current = currentOffset + data.length;
-        setHasMore(response.hasMore);
-      } else {
-        setProductTypes(prev => {
-          const productTypesMap = new Map<string, ProductType>(prev.map(pt => [pt.id, pt]));
-          data.forEach((productType: ProductType) => {
-            if (!productTypesMap.has(productType.id)) {
-              productTypesMap.set(productType.id, productType);
-            }
-          });
-          return Array.from(productTypesMap.values());
-        });
-        // Mettre à jour l'offset avec le nombre d'éléments reçus
-        offsetRef.current = currentOffset + data.length;
-        setHasMore(response.hasMore);
-      }
-    } catch (error) {
-      console.error('Error loading data:', error);
-      setLoading(false);
-      setLoadingMore(false);
-    } finally {
-      if (!reset) {
-        setLoadingMore(false);
-      }
-    }
-  }, [searchTerm]);
-
-  const loadMore = useCallback(() => {
-    if (!loadingMore && hasMore && !searchTerm.trim()) {
-      loadData(false);
-    }
-  }, [loadingMore, hasMore, searchTerm, loadData]);
-
-  const observerTarget = useInfiniteScroll({
-    hasMore,
-    loading: loadingMore,
-    onLoadMore: loadMore,
-  });
+    },
+    [showAlert],
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,7 +68,7 @@ export default function ProductTypesPage() {
       setFormData({ name: '', code: '' });
       setShowForm(false);
       setEditingId(null);
-      loadData(true);
+      setReloadKey((prev) => prev + 1);
     } catch (error: any) {
       console.error('Error saving product type:', error);
       const message = error.response?.data?.message || 'Erreur lors de la sauvegarde';
@@ -164,7 +96,7 @@ export default function ProductTypesPage() {
     setDeletingId(id);
     try {
       await productTypesService.delete(id);
-      loadData(true);
+      setReloadKey((prev) => prev + 1);
     } catch (error: any) {
       console.error('Error deleting product type:', error);
       const message = error.response?.data?.message || 'Erreur lors de la suppression';
@@ -219,7 +151,7 @@ export default function ProductTypesPage() {
         {canEditContent && (
         <button 
           onClick={() => { setShowForm(true); setEditingId(null); setFormData({ name: '', code: '' }); }}
-          className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
+          className="bg-linear-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
         >
           + Nouveau type de produit
         </button>
@@ -227,8 +159,8 @@ export default function ProductTypesPage() {
       </div>
 
       {showForm && (
-        <div className="bg-gradient-to-br from-white to-gray-light/30 p-8 rounded-2xl shadow-xl mb-6 border-2 border-purple/20 animate-slide-in backdrop-blur-sm">
-          <h2 className="mt-0 mb-6 text-2xl font-bold bg-gradient-to-r from-purple to-purple-light bg-clip-text text-transparent">
+        <div className="bg-linear-to-br from-white to-gray-light/30 p-8 rounded-2xl shadow-xl mb-6 border-2 border-purple/20 animate-slide-in backdrop-blur-sm">
+          <h2 className="mt-0 mb-6 text-2xl font-bold bg-linear-to-r from-purple to-purple-light bg-clip-text text-transparent">
             {editingId ? 'Modifier' : 'Créer'} un type de produit
           </h2>
           <form onSubmit={handleSubmit}>
@@ -258,7 +190,7 @@ export default function ProductTypesPage() {
               <button 
                 type="submit"
                 disabled={submitting}
-                className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg bg-gradient-to-r from-purple-light to-purple text-white hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg flex items-center justify-center gap-2"
+                className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg bg-linear-to-r from-purple-light to-purple text-white hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg flex items-center justify-center gap-2"
               >
                 {submitting && <Loader size="sm" />}
                 {submitting ? 'Enregistrement...' : '✓ Enregistrer'}
@@ -278,30 +210,19 @@ export default function ProductTypesPage() {
       <div className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-purple/20 animate-fade-in">
         <DataTable
           columns={productTypeColumns}
-          data={productTypes}
-          loading={loading}
+          fetchData={fetchProductTypesTable}
+          limit={20}
+          reloadKey={reloadKey}
           emptyMessage={
-            productTypes.length === 0
-              ? searchTerm
-                ? 'Aucun type de produit ne correspond à votre recherche'
-                : 'Créez votre premier type de produit pour commencer'
-              : undefined
+            searchTerm
+              ? 'Aucun type de produit ne correspond à votre recherche'
+              : 'Créez votre premier type de produit pour commencer'
           }
           renderActions={canEditContent ? renderProductTypeActions : undefined}
           searchPlaceholder="🔍 Rechercher par nom ou code..."
           searchTerm={searchTerm}
           onSearch={(term) => setSearchTerm(term)}
         />
-        {hasMore && !searchTerm.trim() && (
-          <div ref={observerTarget} className="py-4 flex items-center justify-center">
-            {loadingMore && (
-              <div className="flex items-center gap-2 text-gray-600">
-                <Loader size="sm" />
-                <span>Chargement...</span>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

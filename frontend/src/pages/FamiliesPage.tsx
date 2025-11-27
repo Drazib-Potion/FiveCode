@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { familiesService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
-import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import DataTable from '../components/DataTable';
 import Loader from '../components/Loader';
 import { Family } from '../utils/types';
@@ -10,98 +9,43 @@ import { useAuth } from '../contexts/AuthContext';
 export default function FamiliesPage() {
   const { showAlert, showConfirm } = useModal();
   const { canEditContent } = useAuth();
-  const [families, setFamilies] = useState<Family[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const offsetRef = useRef(0);
-  const LIMIT = 20;
+  const [reloadKey, setReloadKey] = useState(0);
 
 
-  const loadFamilies = useCallback(async (reset: boolean = false, search?: string) => {
-    try {
-      if (reset) {
-        setLoading(true);
-        setHasMore(true);
-      } else {
-        setLoadingMore(true);
+  const fetchFamiliesTable = useCallback(
+    async ({
+      offset,
+      limit,
+      search,
+    }: {
+      offset: number;
+      limit: number;
+      search?: string;
+    }) => {
+      try {
+        const response = await familiesService.getAll(offset, limit, search);
+        const data: Family[] = Array.isArray(response) ? response : response.data || [];
+        return {
+          data,
+          hasMore:
+            typeof response.hasMore === 'boolean'
+              ? response.hasMore
+              : data.length === limit,
+        };
+      } catch (error) {
+        console.error('Error loading families:', error);
+        await showAlert('Erreur lors du chargement des familles', 'error');
+        return [];
       }
-      
-      // Pour un reset, toujours utiliser 0. Pour le scroll, utiliser l'offset actuel depuis le ref
-      const currentOffset = reset ? 0 : offsetRef.current;
-      const searchValue = search !== undefined ? search : searchTerm.trim() || undefined;
-      const response = await familiesService.getAll(currentOffset, LIMIT, searchValue);
-      const data = Array.isArray(response) ? response : (response.data || []);
-      const hasMoreData = Array.isArray(response) ? data.length === LIMIT : (response.hasMore !== false && data.length === LIMIT);
-      
-      if (reset) {
-        // Dédupliquer les données au cas où l'API renverrait des doublons
-        const familiesMap = new Map<string, Family>();
-        data.forEach((family: Family) => {
-          if (!familiesMap.has(family.id)) {
-            familiesMap.set(family.id, family);
-          }
-        });
-        const newFamilies = Array.from(familiesMap.values());
-        // Mettre à jour loading en premier pour éviter les problèmes de rendu
-        setLoading(false);
-        setFamilies(newFamilies);
-        // Mettre à jour l'offset avec le nombre d'éléments reçus
-        offsetRef.current = currentOffset + data.length;
-        setHasMore(hasMoreData);
-      } else {
-        setFamilies(prev => {
-          // Éviter les doublons en utilisant un Map avec l'id comme clé
-          const familiesMap = new Map<string, Family>(prev.map(f => [f.id, f]));
-          // Ajouter seulement les nouvelles familles qui n'existent pas déjà
-          data.forEach((family: Family) => {
-            if (!familiesMap.has(family.id)) {
-              familiesMap.set(family.id, family);
-            }
-          });
-          return Array.from(familiesMap.values());
-        });
-        // Mettre à jour l'offset avec le nombre d'éléments reçus
-        offsetRef.current = currentOffset + data.length;
-        setHasMore(hasMoreData);
-      }
-    } catch (error) {
-      console.error('Error loading families:', error);
-      setLoading(false);
-      setLoadingMore(false);
-    } finally {
-      // Ne pas mettre à jour loading ici si on l'a déjà fait dans le if (reset)
-      if (!reset) {
-        setLoadingMore(false);
-      }
-    }
-  }, [searchTerm]);
-
-  // Charger les données au montage (une seule fois)
-  useEffect(() => {
-    offsetRef.current = 0;
-    loadFamilies(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Recharger quand la recherche change
-  useEffect(() => {
-    // Réinitialiser l'offset quand la recherche change
-    offsetRef.current = 0;
-    
-    const timeoutId = setTimeout(() => {
-      loadFamilies(true, searchTerm);
-    }, searchTerm ? 300 : 0); // Debounce de 300ms seulement si on recherche
-
-    return () => clearTimeout(timeoutId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm]);
+    },
+    [showAlert],
+  );
 
   useEffect(() => {
     if (!canEditContent) {
@@ -109,18 +53,6 @@ export default function FamiliesPage() {
       setEditingId(null);
     }
   }, [canEditContent]);
-
-  const loadMore = useCallback(() => {
-    if (!loadingMore && hasMore && !searchTerm.trim()) {
-      loadFamilies(false);
-    }
-  }, [loadingMore, hasMore, searchTerm, loadFamilies]);
-
-  const observerTarget = useInfiniteScroll({
-    hasMore,
-    loading: loadingMore,
-    onLoadMore: loadMore,
-  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,7 +66,7 @@ export default function FamiliesPage() {
       setFormData({ name: '' });
       setShowForm(false);
       setEditingId(null);
-      loadFamilies(true);
+      setReloadKey((prev) => prev + 1);
     } catch (error: any) {
       console.error('Error saving family:', error);
       const message = error.response?.data?.message || 'Erreur lors de la sauvegarde';
@@ -159,7 +91,7 @@ export default function FamiliesPage() {
     setDeletingId(id);
     try {
       await familiesService.delete(id);
-      loadFamilies(true);
+      setReloadKey((prev) => prev + 1);
     } catch (error) {
       console.error('Error deleting family:', error);
       await showAlert('Erreur lors de la suppression', 'error');
@@ -212,7 +144,7 @@ export default function FamiliesPage() {
               setEditingId(null);
               setFormData({ name: '' });
             }}
-            className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
+            className="bg-linear-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
           >
             + Nouvelle famille
           </button>
@@ -220,8 +152,8 @@ export default function FamiliesPage() {
       </div>
 
       {showForm && (
-        <div className="bg-gradient-to-br from-white to-gray-light/30 p-8 rounded-2xl shadow-xl mb-6 border-2 border-purple/20 animate-slide-in backdrop-blur-sm">
-          <h2 className="mt-0 mb-6 text-2xl font-bold bg-gradient-to-r from-purple to-purple-light bg-clip-text text-transparent">
+        <div className="bg-linear-to-br from-white to-gray-light/30 p-8 rounded-2xl shadow-xl mb-6 border-2 border-purple/20 animate-slide-in backdrop-blur-sm">
+          <h2 className="mt-0 mb-6 text-2xl font-bold bg-linear-to-r from-purple to-purple-light bg-clip-text text-transparent">
             {editingId ? 'Modifier' : 'Créer'} une famille
           </h2>
           <form onSubmit={handleSubmit}>
@@ -239,7 +171,7 @@ export default function FamiliesPage() {
               <button 
                 type="submit"
                 disabled={submitting}
-                className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg bg-gradient-to-r from-purple-light to-purple text-white hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg flex items-center justify-center gap-2"
+                className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg bg-linear-to-r from-purple-light to-purple text-white hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg flex items-center justify-center gap-2"
               >
                 {submitting && <Loader size="sm" />}
                 {submitting ? 'Enregistrement...' : '✓ Enregistrer'}
@@ -259,30 +191,19 @@ export default function FamiliesPage() {
       <div className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-purple/20 animate-fade-in">
         <DataTable
           columns={familyColumns}
-          data={families}
-          loading={loading}
+          fetchData={fetchFamiliesTable}
+          limit={20}
+          reloadKey={reloadKey}
           emptyMessage={
-            families.length === 0
-              ? searchTerm
-                ? 'Aucune famille ne correspond à votre recherche'
-                : 'Créez votre première famille pour commencer'
-              : undefined
+            searchTerm
+              ? 'Aucune famille ne correspond à votre recherche'
+              : 'Créez votre première famille pour commencer'
           }
           renderActions={canEditContent ? renderFamilyActions : undefined}
           searchPlaceholder="🔍 Rechercher par nom..."
           searchTerm={searchTerm}
           onSearch={(term) => setSearchTerm(term)}
         />
-        {hasMore && !searchTerm.trim() && (
-          <div ref={observerTarget} className="py-4 flex items-center justify-center">
-            {loadingMore && (
-              <div className="flex items-center gap-2 text-gray-600">
-                <Loader size="sm" />
-                <span>Chargement...</span>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

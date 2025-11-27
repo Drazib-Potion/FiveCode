@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { productGeneratedInfoService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import * as XLSX from 'xlsx';
@@ -7,35 +7,68 @@ import { ProductGeneratedInfo } from '../utils/types';
 import DataTable from '../components/DataTable';
 import { useAuth } from '../contexts/AuthContext';
 
+const getProductGeneratedInfoSearchValues = (info: ProductGeneratedInfo) =>
+  [
+    info.generatedCode,
+    info.product.name,
+    info.product.code,
+    info.product.family.name,
+    info.variant1?.name,
+    info.variant1?.code,
+    info.variant2?.name,
+    info.variant2?.code,
+    ...(info.technicalCharacteristics?.map((pf) => pf.value) || []),
+  ]
+    .filter((value): value is string => Boolean(value))
+    .map((value) => value as string);
+
 export default function GeneratedCodesPage() {
   const MAX_VALUE_LENGTH = 30;
   const { showAlert, showConfirm } = useModal();
   const { canEditContent } = useAuth();
-  const [generatedInfos, setGeneratedInfos] = useState<ProductGeneratedInfo[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingInfo, setEditingInfo] = useState<ProductGeneratedInfo | null>(null);
   const [editingValues, setEditingValues] = useState<Record<string, any>>({});
   const [editingErrors, setEditingErrors] = useState<Record<string, string>>({});
   const [savingEdit, setSavingEdit] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  useEffect(() => {
-    loadGeneratedInfos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const loadGeneratedInfos = async () => {
-    try {
-      setLoading(true);
-      const data = await productGeneratedInfoService.getAll();
-      setGeneratedInfos(data);
-    } catch (error) {
-      console.error('Error loading generated infos:', error);
-      await showAlert('Erreur lors du chargement des codes générés', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchGeneratedCodes = useCallback(
+    async ({
+      offset,
+      limit,
+      search,
+    }: {
+      offset: number;
+      limit: number;
+      search?: string;
+    }) => {
+      try {
+        const response = await productGeneratedInfoService.getAll();
+        const data: ProductGeneratedInfo[] = Array.isArray(response)
+          ? response
+          : response.data || [];
+        const term = search?.trim().toLowerCase();
+        const filtered = term
+          ? data.filter((info) =>
+              getProductGeneratedInfoSearchValues(info).some((value) =>
+                value.toLowerCase().includes(term),
+              ),
+            )
+          : data;
+        const sliced = filtered.slice(offset, offset + limit);
+        return {
+          data: sliced,
+          hasMore: offset + limit < filtered.length,
+        };
+      } catch (error) {
+        console.error('Error loading generated infos:', error);
+        await showAlert('Erreur lors du chargement des codes générés', 'error');
+        return [];
+      }
+    },
+    [showAlert],
+  );
 
   const formatTechnicalValue = (value?: string | null) => {
     let displayValue = value || '';
@@ -180,21 +213,6 @@ export default function GeneratedCodesPage() {
   );
   };
 
-  const generatedSearchFields = (info: ProductGeneratedInfo) =>
-    [
-      info.generatedCode,
-      info.product.name,
-      info.product.code,
-      info.product.family.name,
-      info.variant1?.name,
-      info.variant1?.code,
-      info.variant2?.name,
-      info.variant2?.code,
-      ...(info.technicalCharacteristics?.map((pf) => pf.value) || []),
-    ]
-      .filter((value): value is string => Boolean(value))
-      .map((value) => value as string);
-
   const handleDelete = async (id: string) => {
     if (!canEditContent) return;
     const confirmed = await showConfirm(
@@ -204,7 +222,7 @@ export default function GeneratedCodesPage() {
     try {
       await productGeneratedInfoService.delete(id);
       await showAlert('Code généré supprimé avec succès', 'success');
-      loadGeneratedInfos();
+      setReloadKey((prev) => prev + 1);
     } catch (error: any) {
       console.error('Error deleting generated info:', error);
       await showAlert(
@@ -275,7 +293,7 @@ export default function GeneratedCodesPage() {
       await showAlert('Les caractéristiques techniques ont été mises à jour', 'success');
       setEditingInfo(null);
       setEditingValues({});
-      loadGeneratedInfos();
+      setReloadKey((prev) => prev + 1);
     } catch (error: any) {
       console.error('Error updating generated info:', error);
       await showAlert(
@@ -375,43 +393,53 @@ export default function GeneratedCodesPage() {
   };
 
   const handleExportToExcel = async () => {
-    if (generatedInfos.length === 0) {
-      await showAlert('Aucun code généré à exporter', 'warning');
-      return;
-    }
+    try {
+      const response = await productGeneratedInfoService.getAll();
+      const data: ProductGeneratedInfo[] = Array.isArray(response)
+        ? response
+        : response.data || [];
 
-    // Collecter tous les noms de caractéristiques techniques uniques
-    const allFieldNames = new Set<string>();
-    generatedInfos.forEach((info) => {
-      if (info.technicalCharacteristics) {
-        info.technicalCharacteristics.forEach((pf) => {
-          allFieldNames.add(pf.technicalCharacteristic.name);
-        });
+      if (data.length === 0) {
+        await showAlert('Aucun code généré à exporter', 'warning');
+        return;
       }
-    });
-    const sortedFieldNames = Array.from(allFieldNames).sort();
 
-    // Préparer les données pour l'export
-    const exportData = generatedInfos.map((info) => {
-      const row: any = {
-        'Nom produit': info.product.name,
-        'Code généré': info.generatedCode,
-        'Famille': info.product.family.name,
-        'Variante 1': info.variant1 ? `${info.variant1.name} (${info.variant1.code})` : 'Aucune (0)',
-        'Variante 2': info.variant2 ? `${info.variant2.name} (${info.variant2.code})` : 'Aucune (0)',
-        'Date de création': formatDate(info.createdAt),
-      };
-
-      // Ajouter toutes les caractéristiques techniques (même celles qui n'existent pas pour cette info)
-      sortedFieldNames.forEach((fieldName) => {
-        const field = info.technicalCharacteristics?.find(
-          (pf) => pf.technicalCharacteristic.name === fieldName,
-        );
-        row[fieldName] = field ? field.value : '';
+      // Collecter tous les noms de caractéristiques techniques uniques
+      const allFieldNames = new Set<string>();
+      data.forEach((info) => {
+        if (info.technicalCharacteristics) {
+          info.technicalCharacteristics.forEach((pf) => {
+            allFieldNames.add(pf.technicalCharacteristic.name);
+          });
+        }
       });
+      const sortedFieldNames = Array.from(allFieldNames).sort();
 
-      return row;
-    });
+      // Préparer les données pour l'export
+      const exportData = data.map((info) => {
+        const row: any = {
+          'Nom produit': info.product.name,
+          'Code généré': info.generatedCode,
+          'Famille': info.product.family.name,
+          'Variante 1': info.variant1
+            ? `${info.variant1.name} (${info.variant1.code})`
+            : 'Aucune (0)',
+          'Variante 2': info.variant2
+            ? `${info.variant2.name} (${info.variant2.code})`
+            : 'Aucune (0)',
+          'Date de création': formatDate(info.createdAt),
+        };
+
+        // Ajouter toutes les caractéristiques techniques (même celles qui n'existent pas pour cette info)
+        sortedFieldNames.forEach((fieldName) => {
+          const field = info.technicalCharacteristics?.find(
+            (pf) => pf.technicalCharacteristic.name === fieldName,
+          );
+          row[fieldName] = field ? field.value : '';
+        });
+
+        return row;
+      });
 
     // Créer un workbook et une feuille
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -433,22 +461,17 @@ export default function GeneratedCodesPage() {
     });
     ws['!cols'] = colWidths;
 
-    // Générer le nom du fichier avec la date
-    const date = new Date().toISOString().split('T')[0];
-    const fileName = `codes_generes_${date}.xlsx`;
+      // Générer le nom du fichier avec la date
+      const date = new Date().toISOString().split('T')[0];
+      const fileName = `codes_generes_${date}.xlsx`;
 
-    // Télécharger le fichier
-    XLSX.writeFile(wb, fileName);
+      // Télécharger le fichier
+      XLSX.writeFile(wb, fileName);
+    } catch (error) {
+      console.error('Error exporting generated infos:', error);
+      await showAlert('Erreur lors de l’export', 'error');
+    }
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center gap-4 py-12 text-lg text-gray-600">
-        <div className="w-6 h-6 border-[3px] border-gray-300 border-t-purple rounded-full animate-spin"></div>
-        Chargement...
-      </div>
-    );
-  }
 
   return (
     <div className="w-full animate-fade-in">
@@ -457,13 +480,13 @@ export default function GeneratedCodesPage() {
         <div className="flex gap-4">
           <button
             onClick={handleExportToExcel}
-            className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100 flex items-center gap-2"
+            className="bg-linear-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100 flex items-center gap-2"
           >
             <img src={excelIcon} alt="Excel" className="w-5 h-5" />
             Exporter en Excel
           </button>
           <button 
-            onClick={loadGeneratedInfos}
+            onClick={() => setReloadKey((prev) => prev + 1)}
             className="bg-purple text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:bg-purple/90 hover:shadow-xl hover:scale-105 active:scale-100"
           >
             Actualiser
@@ -522,20 +545,18 @@ export default function GeneratedCodesPage() {
       <div className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-purple/20 animate-fade-in">
         <DataTable
           columns={generatedColumns}
-          data={generatedInfos}
-          loading={loading}
+          fetchData={fetchGeneratedCodes}
+          limit={20}
+          reloadKey={reloadKey}
           emptyMessage={
-            generatedInfos.length === 0
-              ? searchTerm
-                ? 'Aucun code généré ne correspond à votre recherche'
-                : 'Utilisez le générateur pour créer des codes produits'
-              : undefined
+            searchTerm
+              ? 'Aucun code généré ne correspond à votre recherche'
+              : 'Utilisez le générateur pour créer des codes produits'
           }
           renderActions={canEditContent ? renderGeneratedActions : undefined}
           searchPlaceholder="🔍 Rechercher un code généré..."
           searchTerm={searchTerm}
           onSearch={(term) => setSearchTerm(term)}
-          searchFields={generatedSearchFields}
         />
       </div>
     </div>

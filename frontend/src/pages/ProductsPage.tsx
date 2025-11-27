@@ -1,101 +1,21 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { productsService, familiesService, productTypesService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import Loader from '../components/Loader';
 import DataTable from '../components/DataTable';
 import SearchableSelectPanel from '../components/SearchableSelectPanel';
-import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { Product, Family, ProductType } from '../utils/types';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function ProductsPage() {
   const { showAlert, showConfirm } = useModal();
   const { canEditContent } = useAuth();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ name: '', code: '', familyId: '', productTypeId: '' });
   const [tableSearchTerm, setTableSearchTerm] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const offsetRef = useRef(0);
-  const LIMIT = 20;
-
-  const loadProducts = useCallback(async (reset: boolean = false, search?: string) => {
-    try {
-      if (reset) {
-        setLoading(true);
-        setHasMore(true);
-      } else {
-        setLoadingMore(true);
-      }
-      
-      const currentOffset = reset ? 0 : offsetRef.current;
-      const searchValue = search !== undefined ? search : tableSearchTerm.trim() || undefined;
-      const response = await productsService.getAll(currentOffset, LIMIT, searchValue);
-      const data = Array.isArray(response) ? response : (response.data || []);
-      const hasMoreData = Array.isArray(response) ? data.length === LIMIT : (response.hasMore !== false && data.length === LIMIT);
-      
-      if (reset) {
-        // Dédupliquer les données
-        const productsMap = new Map<string, Product>();
-        data.forEach((product: Product) => {
-          if (!productsMap.has(product.id)) {
-            productsMap.set(product.id, product);
-          }
-        });
-        const newProducts = Array.from(productsMap.values());
-        setLoading(false);
-        setProducts(newProducts);
-        // Mettre à jour l'offset avec le nombre d'éléments reçus
-        offsetRef.current = currentOffset + data.length;
-        setHasMore(hasMoreData);
-      } else {
-        setProducts(prev => {
-          const productsMap = new Map<string, Product>(prev.map(p => [p.id, p]));
-          data.forEach((product: Product) => {
-            if (!productsMap.has(product.id)) {
-              productsMap.set(product.id, product);
-            }
-          });
-          return Array.from(productsMap.values());
-        });
-        // Mettre à jour l'offset avec le nombre d'éléments reçus
-        offsetRef.current = currentOffset + data.length;
-        setHasMore(hasMoreData);
-      }
-    } catch (error) {
-      console.error('Error loading products:', error);
-      await showAlert('Erreur lors du chargement des produits', 'error');
-      setLoading(false);
-      setLoadingMore(false);
-    } finally {
-      if (!reset) {
-        setLoadingMore(false);
-      }
-    }
-  }, [tableSearchTerm, showAlert]);
-
-  // Charger les données au montage
-  useEffect(() => {
-    offsetRef.current = 0;
-    loadProducts(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Recharger quand la recherche change
-  useEffect(() => {
-    offsetRef.current = 0;
-    
-    const timeoutId = setTimeout(() => {
-      loadProducts(true, tableSearchTerm);
-    }, tableSearchTerm ? 300 : 0);
-
-    return () => clearTimeout(timeoutId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tableSearchTerm]);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!canEditContent) {
@@ -103,17 +23,37 @@ export default function ProductsPage() {
     }
   }, [canEditContent]);
 
-  const loadMore = useCallback(() => {
-    if (!loadingMore && hasMore && !tableSearchTerm.trim()) {
-      loadProducts(false);
-    }
-  }, [loadingMore, hasMore, tableSearchTerm, loadProducts]);
-
-  const observerTarget = useInfiniteScroll({
-    hasMore,
-    loading: loadingMore,
-    onLoadMore: loadMore,
-  });
+  const fetchProducts = useCallback(
+    async ({
+      offset,
+      limit,
+      search,
+    }: {
+      offset: number;
+      limit: number;
+      search?: string;
+    }) => {
+      try {
+        const response = await productsService.getAll(offset, limit, search);
+        if (Array.isArray(response)) {
+          return response;
+        }
+        const data: Product[] = response.data || [];
+        return {
+          data,
+          hasMore:
+            typeof response.hasMore === 'boolean'
+              ? response.hasMore
+              : data.length === limit,
+        };
+      } catch (error) {
+        console.error('Error loading products:', error);
+        await showAlert('Erreur lors du chargement des produits', 'error');
+        return [];
+      }
+    },
+    [showAlert],
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     if (!canEditContent) return;
@@ -123,7 +63,7 @@ export default function ProductsPage() {
       await productsService.create(formData);
       setFormData({ name: '', code: '', familyId: '', productTypeId: '' });
       setShowForm(false);
-      loadProducts(true);
+      setReloadKey((prev) => prev + 1);
     } catch (error: any) {
       console.error('Error creating product:', error);
       await showAlert(error.response?.data?.message || 'Erreur lors de la création du produit', 'error');
@@ -139,7 +79,7 @@ export default function ProductsPage() {
     setDeletingId(id);
     try {
       await productsService.delete(id);
-      loadProducts(true);
+      setReloadKey((prev) => prev + 1);
     } catch (error) {
       console.error('Error deleting product:', error);
       await showAlert('Erreur lors de la suppression', 'error');
@@ -259,7 +199,7 @@ export default function ProductsPage() {
               setShowForm(true);
               setFormData({ name: '', code: '', familyId: '', productTypeId: '' });
             }}
-            className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
+            className="bg-linear-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
           >
             + Nouveau produit
           </button>
@@ -268,8 +208,8 @@ export default function ProductsPage() {
       </div>
 
       {canEditContent && showForm && (
-        <div className="bg-gradient-to-br from-white to-gray-light/30 p-8 rounded-2xl shadow-xl mb-6 border-2 border-purple/20 animate-slide-in backdrop-blur-sm">
-          <h2 className="mt-0 mb-6 text-2xl font-bold bg-gradient-to-r from-purple to-purple-light bg-clip-text text-transparent">
+        <div className="bg-linear-to-br from-white to-gray-light/30 p-8 rounded-2xl shadow-xl mb-6 border-2 border-purple/20 animate-slide-in backdrop-blur-sm">
+          <h2 className="mt-0 mb-6 text-2xl font-bold bg-linear-to-r from-purple to-purple-light bg-clip-text text-transparent">
             Créer un produit
           </h2>
           <form onSubmit={handleSubmit}>
@@ -365,7 +305,7 @@ export default function ProductsPage() {
               <button 
                 type="submit"
                 disabled={submitting}
-                className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg bg-gradient-to-r from-purple-light to-purple text-white hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg flex items-center justify-center gap-2"
+                className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg bg-linear-to-r from-purple-light to-purple text-white hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg flex items-center justify-center gap-2"
               >
                 {submitting && <Loader size="sm" />}
                 {submitting ? 'Enregistrement...' : '✓ Enregistrer'}
@@ -385,30 +325,19 @@ export default function ProductsPage() {
       <div className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-purple/20 animate-fade-in">
         <DataTable
           columns={productColumns}
-          data={products}
-          loading={loading}
+          fetchData={fetchProducts}
+          limit={20}
+          reloadKey={reloadKey}
           emptyMessage={
-            products.length === 0
-              ? tableSearchTerm
-                ? 'Aucun produit ne correspond à votre recherche'
-                : 'Créez votre premier produit pour commencer'
-              : undefined
+            tableSearchTerm
+              ? 'Aucun produit ne correspond à votre recherche'
+              : 'Créez votre premier produit pour commencer'
           }
           renderActions={canEditContent ? renderProductActions : undefined}
           searchPlaceholder="🔍 Rechercher par nom, code, famille ou type..."
           searchTerm={tableSearchTerm}
           onSearch={(term) => setTableSearchTerm(term)}
         />
-        {hasMore && !tableSearchTerm.trim() && (
-          <div ref={observerTarget} className="py-4 flex items-center justify-center">
-            {loadingMore && (
-              <div className="flex items-center gap-2 text-gray-600">
-                <Loader size="sm" />
-                <span>Chargement...</span>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

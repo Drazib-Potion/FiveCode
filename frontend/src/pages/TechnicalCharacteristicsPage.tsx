@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { technicalCharacteristicsService, familiesService, variantsService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import { formatFieldType, getFieldTypeOptions } from '../utils/fieldTypeFormatter';
 import Loader from '../components/Loader';
 import DataTable from '../components/DataTable';
 import SearchableSelectPanel from '../components/SearchableSelectPanel';
-import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { TechnicalCharacteristic, Family, Variant } from '../utils/types';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -40,10 +39,8 @@ const createInitialFormData = (): FormDataState => ({
 export default function TechnicalCharacteristicsPage() {
   const { showAlert, showConfirm } = useModal();
   const { canEditContent } = useAuth();
-  const [technicalCharacteristics, setTechnicalCharacteristics] = useState<TechnicalCharacteristic[]>([]);
   const [variants, setVariants] = useState<Variant[]>([]);
   const [loadingVariants, setLoadingVariants] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormDataState>(() => createInitialFormData());
@@ -52,10 +49,7 @@ export default function TechnicalCharacteristicsPage() {
   const [tableSearchTerm, setTableSearchTerm] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const offsetRef = useRef(0);
-  const LIMIT = 20;
+  const [reloadKey, setReloadKey] = useState(0);
 
   const fetchFamilies = useCallback(
     async ({
@@ -78,80 +72,45 @@ export default function TechnicalCharacteristicsPage() {
     [],
   );
 
-  const loadData = useCallback(async (reset: boolean = false, search?: string) => {
-    try {
-      if (reset) {
-        setLoading(true);
-        setHasMore(true);
-      } else {
-        setLoadingMore(true);
+  const fetchTechnicalCharacteristicsTable = useCallback(
+    async ({
+      offset,
+      limit,
+      search,
+    }: {
+      offset: number;
+      limit: number;
+      search?: string;
+    }) => {
+      try {
+        const response = await technicalCharacteristicsService.getAll(
+          undefined,
+          undefined,
+          offset,
+          limit,
+          search,
+        );
+        const rawData: TechnicalCharacteristic[] = Array.isArray(response)
+          ? response
+          : response.data || [];
+        const uniqueData = Array.from(
+          new Map(rawData.map((tc) => [tc.id, tc])).values(),
+        );
+        return {
+          data: uniqueData,
+          hasMore:
+            typeof response.hasMore === 'boolean'
+              ? response.hasMore
+              : uniqueData.length === limit,
+        };
+      } catch (error) {
+        console.error('Error loading data:', error);
+        await showAlert('Erreur lors du chargement des caractéristiques techniques', 'error');
+        return [];
       }
-      
-      const currentOffset = reset ? 0 : offsetRef.current;
-      const searchValue = search !== undefined ? search : tableSearchTerm.trim() || undefined;
-      // Pour l'instant, on ne filtre pas par famille/variante dans le tableau principal
-      // On charge toutes les caractéristiques techniques
-      const response = await technicalCharacteristicsService.getAll(undefined, undefined, currentOffset, LIMIT, searchValue);
-      const data = Array.isArray(response) ? response : (response.data || []);
-      const hasMoreData = Array.isArray(response) ? data.length === LIMIT : (response.hasMore !== false && data.length === LIMIT);
-      
-      if (reset) {
-        // Dédupliquer les données
-        const tcMap = new Map<string, TechnicalCharacteristic>();
-        data.forEach((tc: TechnicalCharacteristic) => {
-          if (!tcMap.has(tc.id)) {
-            tcMap.set(tc.id, tc);
-          }
-        });
-        const newTCs = Array.from(tcMap.values());
-        setLoading(false);
-        setTechnicalCharacteristics(newTCs);
-        // Mettre à jour l'offset avec le nombre d'éléments reçus
-        offsetRef.current = currentOffset + data.length;
-        setHasMore(hasMoreData);
-      } else {
-        setTechnicalCharacteristics(prev => {
-          const tcMap = new Map<string, TechnicalCharacteristic>(prev.map(tc => [tc.id, tc]));
-          data.forEach((tc: TechnicalCharacteristic) => {
-            if (!tcMap.has(tc.id)) {
-              tcMap.set(tc.id, tc);
-            }
-          });
-          return Array.from(tcMap.values());
-        });
-        // Mettre à jour l'offset avec le nombre d'éléments reçus
-        offsetRef.current = currentOffset + data.length;
-        setHasMore(hasMoreData);
-      }
-    } catch (error) {
-      console.error('Error loading data:', error);
-      setLoading(false);
-      setLoadingMore(false);
-    } finally {
-      if (!reset) {
-        setLoadingMore(false);
-      }
-    }
-  }, [tableSearchTerm]);
-
-  // Charger les données au montage
-  useEffect(() => {
-    offsetRef.current = 0;
-    loadData(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Recharger quand la recherche change
-  useEffect(() => {
-    offsetRef.current = 0;
-    
-    const timeoutId = setTimeout(() => {
-      loadData(true, tableSearchTerm);
-    }, tableSearchTerm ? 300 : 0);
-
-    return () => clearTimeout(timeoutId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tableSearchTerm]);
+    },
+    [showAlert],
+  );
 
   useEffect(() => {
     if (!canEditContent) {
@@ -203,18 +162,6 @@ export default function TechnicalCharacteristicsPage() {
       cancelled = true;
     };
   }, [formData.familyIds]);
-
-  const loadMore = useCallback(() => {
-    if (!loadingMore && hasMore && !tableSearchTerm.trim()) {
-      loadData(false);
-    }
-  }, [loadingMore, hasMore, tableSearchTerm, loadData]);
-
-  const observerTarget = useInfiniteScroll({
-    hasMore,
-    loading: loadingMore,
-    onLoadMore: loadMore,
-  });
 
   const variantItemsByLevel = useMemo(() => {
     const mapItems = (level: 'FIRST' | 'SECOND') =>
@@ -494,7 +441,7 @@ const getVariantNamesByLevel = useCallback(
       setEnumOptionError('');
       setShowForm(false);
       setEditingId(null);
-      loadData(true);
+      setReloadKey((prev) => prev + 1);
     } catch (error: any) {
       console.error('Error saving technical characteristic:', error);
       const message = error.response?.data?.message || 'Erreur lors de la sauvegarde';
@@ -550,7 +497,7 @@ const getVariantNamesByLevel = useCallback(
     setDeletingId(id);
     try {
       await technicalCharacteristicsService.delete(id);
-      loadData(true);
+      setReloadKey((prev) => prev + 1);
     } catch (error) {
       console.error('Error deleting technical characteristic:', error);
       await showAlert('Erreur lors de la suppression', 'error');
@@ -564,24 +511,24 @@ const getVariantNamesByLevel = useCallback(
       <div className="flex justify-between items-center mb-10 pb-4 border-b-2 border-purple/20">
         <h1 className="m-0 text-3xl font-bold text-purple">Gestion des Caractéristiques techniques</h1>
         {canEditContent && (
-        <button 
-        onClick={() => { 
-          setShowForm(true); 
-          setEditingId(null); 
-          setFormData(createInitialFormData()); 
-          setNewEnumOption(''); 
-          setEnumOptionError('');
-        }}
-          className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
-        >
+          <button
+            onClick={() => { 
+              setShowForm(true); 
+              setEditingId(null); 
+              setFormData(createInitialFormData()); 
+              setNewEnumOption(''); 
+              setEnumOptionError('');
+            }}
+            className="bg-linear-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
+          >
           + Nouvelle caractéristique technique
         </button>
         )}
       </div>
 
       {canEditContent && showForm && (
-        <div className="bg-gradient-to-br from-white to-gray-light/30 p-8 rounded-2xl shadow-xl mb-6 border-2 border-purple/20 animate-slide-in backdrop-blur-sm">
-          <h2 className="mt-0 mb-6 text-2xl font-bold bg-gradient-to-r from-purple to-purple-light bg-clip-text text-transparent">
+        <div className="bg-linear-to-br from-white to-gray-light/30 p-8 rounded-2xl shadow-xl mb-6 border-2 border-purple/20 animate-slide-in backdrop-blur-sm">
+          <h2 className="mt-0 mb-6 text-2xl font-bold bg-linear-to-r from-purple to-purple-light bg-clip-text text-transparent">
             {editingId ? 'Modifier' : 'Créer'} une caractéristique technique
           </h2>
           <form onSubmit={handleSubmit}>
@@ -755,7 +702,7 @@ const getVariantNamesByLevel = useCallback(
               <button 
                 type="submit"
                 disabled={submitting}
-                className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg bg-gradient-to-r from-purple-light to-purple text-white hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg flex items-center justify-center gap-2"
+                className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg bg-linear-to-r from-purple-light to-purple text-white hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg flex items-center justify-center gap-2"
               >
                 {submitting && <Loader size="sm" />}
                 {submitting ? 'Enregistrement...' : '✓ Enregistrer'}
@@ -775,30 +722,19 @@ const getVariantNamesByLevel = useCallback(
       <div className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-purple/20 animate-fade-in">
         <DataTable
           columns={technicalColumns}
-          data={technicalCharacteristics}
-          loading={loading}
+          fetchData={fetchTechnicalCharacteristicsTable}
+          limit={20}
+          reloadKey={reloadKey}
           emptyMessage={
-            technicalCharacteristics.length === 0
-              ? tableSearchTerm
-                ? 'Aucune caractéristique technique ne correspond à votre recherche'
-                : 'Créez votre première caractéristique technique pour commencer'
-              : undefined
+            tableSearchTerm
+              ? 'Aucune caractéristique technique ne correspond à votre recherche'
+              : 'Créez votre première caractéristique technique pour commencer'
           }
           renderActions={canEditContent ? renderTechnicalActions : undefined}
           searchPlaceholder="🔍 Rechercher par nom, type, famille ou variante..."
           searchTerm={tableSearchTerm}
           onSearch={(term) => setTableSearchTerm(term)}
         />
-        {hasMore && !tableSearchTerm.trim() && (
-          <div ref={observerTarget} className="py-4 flex items-center justify-center">
-            {loadingMore && (
-              <div className="flex items-center gap-2 text-gray-600">
-                <Loader size="sm" />
-                <span>Chargement...</span>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

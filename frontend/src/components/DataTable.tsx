@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import Loader from '../components/Loader';
 
 type Column<T> = {
@@ -8,9 +8,22 @@ type Column<T> = {
   cellClassName?: string;
 };
 
+type FetchParams = {
+  offset: number;
+  limit: number;
+  search?: string;
+};
+
+type FetchResult<T> =
+  | T[]
+  | {
+      data?: T[];
+      hasMore?: boolean;
+    };
+
 type DataTableProps<T> = {
   columns: Column<T>[];
-  data: T[];
+  data?: T[];
   loading?: boolean;
   loadingMessage?: string;
   emptyMessage?: string;
@@ -24,6 +37,10 @@ type DataTableProps<T> = {
   onSearch?: (term: string) => void;
   searchFields?: (item: T) => string[];
   filterFunction?: (item: T, term: string) => boolean;
+  fetchData?: (params: FetchParams) => Promise<FetchResult<T>>;
+  limit?: number;
+  initialData?: T[];
+  reloadKey?: unknown;
 };
 
 const defaultHeaderClass =
@@ -47,9 +64,14 @@ function DataTable<T>({
   onSearch,
   searchFields,
   filterFunction,
+  fetchData,
+  limit,
+  initialData,
+  reloadKey,
 }: DataTableProps<T>) {
   const totalColumns = columns.length + (renderActions ? 1 : 0);
   const computeRowKey = rowKey || ((_: T, index: number) => `row-${index}`);
+  const dataset = useMemo(() => data ?? [], [data]);
 
   const isControlled = searchTerm !== undefined;
   const [localTerm, setLocalTerm] = useState(searchTerm ?? '');
@@ -61,6 +83,15 @@ function DataTable<T>({
   }, [isControlled, searchTerm]);
 
   const currentSearchTerm = isControlled ? searchTerm ?? '' : localTerm;
+  const [debouncedSearchTerm, setDebouncedSearchTerm] =
+    useState(currentSearchTerm);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(currentSearchTerm);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [currentSearchTerm]);
 
   const handleSearchChange = (value: string) => {
     if (!isControlled) {
@@ -76,9 +107,85 @@ function DataTable<T>({
     normalizedTerm && (searchFields || filterFunction),
   );
 
+  const limitValue = limit ?? 20;
+  const [itemsState, setItemsState] = useState<T[]>(initialData ?? []);
+  const offsetRef = useRef(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [localLoading, setLocalLoading] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  const loadData = useCallback(
+    async (reset = false, search = '') => {
+      if (!fetchData) return;
+      setLocalLoading(true);
+      const nextOffset = reset ? 0 : offsetRef.current;
+      const trimmedSearch = search.trim();
+      try {
+        const fetchResult = await fetchData({
+          offset: nextOffset,
+          limit: limitValue,
+          search: trimmedSearch || undefined,
+        });
+        const nextItems = Array.isArray(fetchResult)
+          ? fetchResult
+          : fetchResult.data ?? [];
+        const derivedHasMore = Array.isArray(fetchResult)
+          ? nextItems.length === limitValue
+          : typeof fetchResult.hasMore === 'boolean'
+          ? fetchResult.hasMore
+          : nextItems.length === limitValue;
+        setItemsState((prev) => (reset ? nextItems : [...prev, ...nextItems]));
+        setHasMore(derivedHasMore);
+        offsetRef.current = nextOffset + nextItems.length;
+      } catch (error) {
+        console.error('DataTable fetch error:', error);
+      } finally {
+        setLocalLoading(false);
+      }
+    },
+    [fetchData, limitValue],
+  );
+
+  useEffect(() => {
+    if (!fetchData) return;
+    offsetRef.current = 0;
+    setHasMore(true);
+    loadData(true, debouncedSearchTerm);
+  }, [fetchData, debouncedSearchTerm, loadData, reloadKey]);
+
+  useEffect(() => {
+    if (!fetchData || !hasMore) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (
+            entry.isIntersecting &&
+            hasMore &&
+            !localLoading
+          ) {
+            loadData(false, debouncedSearchTerm);
+          }
+        });
+      },
+      {
+        rootMargin: '200px',
+        threshold: 0.1,
+      },
+    );
+    observer.observe(sentinel);
+    return () => {
+      observer.disconnect();
+    };
+  }, [fetchData, hasMore, localLoading, loadData, debouncedSearchTerm]);
+
   const filteredData = useMemo(() => {
-    if (!canFilter) return data;
-    return data.filter((item) => {
+    if (fetchData) {
+      return itemsState;
+    }
+    if (!canFilter) return dataset;
+    return dataset.filter((item) => {
       if (filterFunction) {
         return filterFunction(item, normalizedTerm);
       }
@@ -89,7 +196,15 @@ function DataTable<T>({
         (value) => value?.toLowerCase().includes(normalizedTerm),
       );
     });
-  }, [canFilter, data, filterFunction, normalizedTerm, searchFields]);
+  }, [
+    canFilter,
+    dataset,
+    filterFunction,
+    normalizedTerm,
+    searchFields,
+    fetchData,
+    itemsState,
+  ]);
 
   const showSearchBar = Boolean(
     searchPlaceholder ||
@@ -121,7 +236,9 @@ function DataTable<T>({
     headerBlocks.push(headerContent);
   }
 
-  const rows = canFilter ? filteredData : data;
+  const rows = fetchData ? filteredData : canFilter ? filteredData : dataset;
+  const isLoading = fetchData ? localLoading : loading;
+  const showLoaderRow = Boolean(isLoading && rows.length === 0);
 
   return (
     <div className="table-responsive">
@@ -133,7 +250,7 @@ function DataTable<T>({
         </div>
       )}
       <table className="w-full border-collapse">
-        <thead className="bg-gradient-to-r from-purple to-purple-dark text-white">
+        <thead className="bg-linear-to-r from-purple to-purple-dark text-white">
           <tr>
             {columns.map((column, index) => (
               <th
@@ -149,7 +266,7 @@ function DataTable<T>({
           </tr>
         </thead>
         <tbody>
-          {loading ? (
+          {showLoaderRow ? (
             <tr>
               <td colSpan={totalColumns} className="px-6 py-16 text-center">
                 <div className="flex flex-col items-center gap-3 text-gray-600">
@@ -193,6 +310,15 @@ function DataTable<T>({
           )}
         </tbody>
       </table>
+      {fetchData && rows.length > 0 && localLoading && (
+        <div className="flex items-center justify-center gap-2 py-3 text-gray-600">
+          <Loader size="sm" />
+          <span>{loadingMessage || 'Chargement...'}</span>
+        </div>
+      )}
+      {fetchData && hasMore && (
+        <div ref={sentinelRef} className="h-px" aria-hidden="true" />
+      )}
     </div>
   );
 }

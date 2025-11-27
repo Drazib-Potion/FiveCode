@@ -11,8 +11,6 @@ import { useAuth } from '../contexts/AuthContext';
 export default function VariantsPage() {
   const { showAlert, showConfirm } = useModal();
   const { canEditContent } = useAuth();
-  const [variants, setVariants] = useState<Variant[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ 
@@ -24,83 +22,36 @@ export default function VariantsPage() {
   const [tableSearchTerm, setTableSearchTerm] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const offsetRef = useRef(0);
-  const LIMIT = 20;
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const loadData = useCallback(async (reset: boolean = false, search?: string) => {
-    try {
-      if (reset) {
-        setLoading(true);
-        setHasMore(true);
-      } else {
-        setLoadingMore(true);
+  const fetchVariantsTable = useCallback(
+    async ({
+      offset,
+      limit,
+      search,
+    }: {
+      offset: number;
+      limit: number;
+      search?: string;
+    }) => {
+      try {
+        const response = await variantsService.getAll(undefined, offset, limit, search);
+        const data: Variant[] = Array.isArray(response) ? response : response.data || [];
+        return {
+          data,
+          hasMore:
+            typeof response.hasMore === 'boolean'
+              ? response.hasMore
+              : data.length === limit,
+        };
+      } catch (error) {
+        console.error('Error loading data:', error);
+        await showAlert('Erreur lors du chargement des variantes', 'error');
+        return [];
       }
-      
-      const currentOffset = reset ? 0 : offsetRef.current;
-      const searchValue = search !== undefined ? search : tableSearchTerm.trim() || undefined;
-      const response = await variantsService.getAll(undefined, currentOffset, LIMIT, searchValue);
-      const data = Array.isArray(response) ? response : (response.data || []);
-      const hasMoreData = Array.isArray(response) ? data.length === LIMIT : (response.hasMore !== false && data.length === LIMIT);
-      
-      if (reset) {
-        // Dédupliquer les données
-        const variantsMap = new Map<string, Variant>();
-        data.forEach((variant: Variant) => {
-          if (!variantsMap.has(variant.id)) {
-            variantsMap.set(variant.id, variant);
-          }
-        });
-        const newVariants = Array.from(variantsMap.values());
-        setLoading(false);
-        setVariants(newVariants);
-        // Mettre à jour l'offset avec le nombre d'éléments reçus
-        offsetRef.current = currentOffset + data.length;
-        setHasMore(hasMoreData);
-      } else {
-        setVariants(prev => {
-          const variantsMap = new Map<string, Variant>(prev.map(v => [v.id, v]));
-          data.forEach((variant: Variant) => {
-            if (!variantsMap.has(variant.id)) {
-              variantsMap.set(variant.id, variant);
-            }
-          });
-          return Array.from(variantsMap.values());
-        });
-        // Mettre à jour l'offset avec le nombre d'éléments reçus
-        offsetRef.current = currentOffset + data.length;
-        setHasMore(hasMoreData);
-      }
-    } catch (error) {
-      console.error('Error loading data:', error);
-      setLoading(false);
-      setLoadingMore(false);
-    } finally {
-      if (!reset) {
-        setLoadingMore(false);
-      }
-    }
-  }, [tableSearchTerm]);
-
-  // Charger les données au montage
-  useEffect(() => {
-    offsetRef.current = 0;
-    loadData(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Recharger quand la recherche change
-  useEffect(() => {
-    offsetRef.current = 0;
-    
-    const timeoutId = setTimeout(() => {
-      loadData(true, tableSearchTerm);
-    }, tableSearchTerm ? 300 : 0);
-
-    return () => clearTimeout(timeoutId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tableSearchTerm]);
+    },
+    [showAlert],
+  );
 
   useEffect(() => {
     if (!canEditContent) {
@@ -108,18 +59,6 @@ export default function VariantsPage() {
       setEditingId(null);
     }
   }, [canEditContent]);
-
-  const loadMore = useCallback(() => {
-    if (!loadingMore && hasMore && !tableSearchTerm.trim()) {
-      loadData(false);
-    }
-  }, [loadingMore, hasMore, tableSearchTerm, loadData]);
-
-  const observerTarget = useInfiniteScroll({
-    hasMore,
-    loading: loadingMore,
-    onLoadMore: loadMore,
-  });
 
   const fetchFamilies = useCallback(async ({
     offset,
@@ -152,7 +91,7 @@ export default function VariantsPage() {
       setFormData({ familyId: '', name: '', code: '', variantLevel: 'FIRST' });
       setShowForm(false);
       setEditingId(null);
-      loadData(true);
+      setReloadKey((prev) => prev + 1);
     } catch (error: any) {
       console.error('Error saving variant:', error);
       const message = error.response?.data?.message || 'Erreur lors de la sauvegarde';
@@ -182,7 +121,7 @@ export default function VariantsPage() {
     setDeletingId(id);
     try {
       await variantsService.delete(id);
-      loadData(true);
+      setReloadKey((prev) => prev + 1);
     } catch (error) {
       console.error('Error deleting variant:', error);
       await showAlert('Erreur lors de la suppression', 'error');
@@ -254,18 +193,18 @@ export default function VariantsPage() {
       <div className="flex justify-between items-center mb-10 pb-4 border-b-2 border-purple/20">
         <h1 className="m-0 text-3xl font-bold text-purple">Gestion des Variantes</h1>
         {canEditContent && (
-        <button 
-          onClick={() => { setShowForm(true); setEditingId(null); setFormData({ familyId: '', name: '', code: '', variantLevel: 'FIRST' }); }}
-          className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
-        >
+          <button
+            onClick={() => { setShowForm(true); setEditingId(null); setFormData({ familyId: '', name: '', code: '', variantLevel: 'FIRST' }); }}
+            className="bg-linear-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
+          >
           + Nouvelle variante
         </button>
         )}
       </div>
 
       {canEditContent && showForm && (
-        <div className="bg-gradient-to-br from-white to-gray-light/30 p-8 rounded-2xl shadow-xl mb-6 border-2 border-purple/20 animate-slide-in backdrop-blur-sm">
-          <h2 className="mt-0 mb-6 text-2xl font-bold bg-gradient-to-r from-purple to-purple-light bg-clip-text text-transparent">
+        <div className="bg-linear-to-br from-white to-gray-light/30 p-8 rounded-2xl shadow-xl mb-6 border-2 border-purple/20 animate-slide-in backdrop-blur-sm">
+          <h2 className="mt-0 mb-6 text-2xl font-bold bg-linear-to-r from-purple to-purple-light bg-clip-text text-transparent">
             {editingId ? 'Modifier' : 'Créer'} une variante
           </h2>
           <form onSubmit={handleSubmit}>
@@ -349,7 +288,7 @@ export default function VariantsPage() {
               <button 
                 type="submit"
                 disabled={submitting}
-                className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg bg-gradient-to-r from-purple-light to-purple text-white hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg flex items-center justify-center gap-2"
+                className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg bg-linear-to-r from-purple-light to-purple text-white hover:from-purple hover:to-purple-dark hover:shadow-xl hover:scale-105 active:scale-100 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg flex items-center justify-center gap-2"
               >
                 {submitting && <Loader size="sm" />}
                 {submitting ? 'Enregistrement...' : '✓ Enregistrer'}
@@ -369,30 +308,19 @@ export default function VariantsPage() {
       <div className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-purple/20 animate-fade-in">
         <DataTable
           columns={variantColumns}
-          data={variants}
-          loading={loading}
+          fetchData={fetchVariantsTable}
+          limit={20}
+          reloadKey={reloadKey}
           emptyMessage={
-            variants.length === 0
-              ? tableSearchTerm
-                ? 'Aucune variante ne correspond à votre recherche'
-                : 'Créez votre première variante pour commencer'
-              : undefined
+            tableSearchTerm
+              ? 'Aucune variante ne correspond à votre recherche'
+              : 'Créez votre première variante pour commencer'
           }
           renderActions={canEditContent ? renderVariantActions : undefined}
           searchPlaceholder="🔍 Rechercher par nom, code ou famille..."
           searchTerm={tableSearchTerm}
           onSearch={(term) => setTableSearchTerm(term)}
         />
-        {hasMore && !tableSearchTerm.trim() && (
-          <div ref={observerTarget} className="py-4 flex items-center justify-center">
-            {loadingMore && (
-              <div className="flex items-center gap-2 text-gray-600">
-                <Loader size="sm" />
-                <span>Chargement...</span>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
