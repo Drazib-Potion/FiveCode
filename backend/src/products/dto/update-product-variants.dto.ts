@@ -1,4 +1,10 @@
-import { IsArray, ArrayMinSize, IsUUID, IsObject, IsOptional } from 'class-validator';
+import {
+  IsArray,
+  ArrayMinSize,
+  IsUUID,
+  IsObject,
+  IsOptional,
+} from 'class-validator';
 
 export class UpdateProductVariantsDto {
   @IsArray()
@@ -10,4 +16,3 @@ export class UpdateProductVariantsDto {
   @IsOptional()
   values?: Record<string, any>; // { technicalCharacteristicId: value } - Optionnel
 }
-

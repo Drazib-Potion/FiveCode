@@ -1,8 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductTypeDto } from './dto/create-product-type.dto';
 import { UpdateProductTypeDto } from './dto/update-product-type.dto';
-import { normalizeString, normalizeStringForStorage } from '../utils/string-normalizer';
+import {
+  normalizeString,
+  normalizeStringForStorage,
+} from '../utils/string-normalizer';
 
 @Injectable()
 export class ProductTypesService {
@@ -14,7 +21,8 @@ export class ProductTypesService {
 
     // Vérifier que le code n'existe pas déjà (insensible à la casse et aux accents)
     const existingByCode = allProductTypes.find(
-      (pt) => normalizeString(pt.code) === normalizeString(createProductTypeDto.code),
+      (pt) =>
+        normalizeString(pt.code) === normalizeString(createProductTypeDto.code),
     );
 
     if (existingByCode) {
@@ -25,7 +33,8 @@ export class ProductTypesService {
 
     // Vérifier que le nom n'existe pas déjà (insensible à la casse et aux accents)
     const existingByName = allProductTypes.find(
-      (pt) => normalizeString(pt.name) === normalizeString(createProductTypeDto.name),
+      (pt) =>
+        normalizeString(pt.name) === normalizeString(createProductTypeDto.name),
     );
 
     if (existingByName) {
@@ -80,7 +89,9 @@ export class ProductTypesService {
     });
 
     if (!productType) {
-      throw new NotFoundException(`Type de produit avec l'ID ${id} introuvable`);
+      throw new NotFoundException(
+        `Type de produit avec l'ID ${id} introuvable`,
+      );
     }
 
     return productType;
@@ -95,9 +106,15 @@ export class ProductTypesService {
     });
 
     // Si le code est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse et aux accents)
-    if (updateProductTypeDto.code && normalizeString(updateProductTypeDto.code) !== normalizeString(productType.code)) {
+    if (
+      updateProductTypeDto.code &&
+      normalizeString(updateProductTypeDto.code) !==
+        normalizeString(productType.code)
+    ) {
       const existingByCode = allProductTypes.find(
-        (pt) => normalizeString(pt.code) === normalizeString(updateProductTypeDto.code),
+        (pt) =>
+          normalizeString(pt.code) ===
+          normalizeString(updateProductTypeDto.code),
       );
 
       if (existingByCode) {
@@ -108,9 +125,15 @@ export class ProductTypesService {
     }
 
     // Si le nom est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse et aux accents)
-    if (updateProductTypeDto.name && normalizeString(updateProductTypeDto.name) !== normalizeString(productType.name)) {
+    if (
+      updateProductTypeDto.name &&
+      normalizeString(updateProductTypeDto.name) !==
+        normalizeString(productType.name)
+    ) {
       const existingByName = allProductTypes.find(
-        (pt) => normalizeString(pt.name) === normalizeString(updateProductTypeDto.name),
+        (pt) =>
+          normalizeString(pt.name) ===
+          normalizeString(updateProductTypeDto.name),
       );
 
       if (existingByName) {
@@ -138,4 +161,3 @@ export class ProductTypesService {
     });
   }
 }
-

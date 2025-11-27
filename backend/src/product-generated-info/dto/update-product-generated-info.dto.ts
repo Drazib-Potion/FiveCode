@@ -5,4 +5,3 @@ export class UpdateProductGeneratedInfoDto {
   @IsOptional()
   values?: Record<string, any>;
 }
-

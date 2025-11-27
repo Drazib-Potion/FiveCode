@@ -21,4 +21,3 @@ export class CreateVariantDto {
   @IsEnum(VariantLevel, { message: 'variantLevel must be FIRST or SECOND' })
   variantLevel: VariantLevel;
 }
-

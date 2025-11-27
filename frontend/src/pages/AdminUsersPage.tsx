@@ -31,7 +31,7 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  });
 
   const handleRoleChange = async (id: string, role: User['role']) => {
     if (role === users.find((user) => user.id === id)?.role) {

@@ -78,7 +78,9 @@ describe('ProductsService', () => {
     });
 
     it('rejette les doublons de code', async () => {
-      prisma.product.findMany?.mockResolvedValue([{ id: 'product-1', name: 'Ventilo', code: 'V1' }]);
+      prisma.product.findMany?.mockResolvedValue([
+        { id: 'product-1', name: 'Ventilo', code: 'V1' },
+      ]);
 
       await expect(
         service.create({
@@ -95,8 +97,9 @@ describe('ProductsService', () => {
     it('rejette remove si le produit est introuvable', async () => {
       prisma.product.findUnique?.mockResolvedValue(null);
 
-      await expect(service.remove('unknown')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.remove('unknown')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 });
-

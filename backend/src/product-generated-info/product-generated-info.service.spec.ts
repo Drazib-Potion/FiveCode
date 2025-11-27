@@ -28,9 +28,10 @@ describe('ProductGeneratedInfoService', () => {
       prisma.product.findUnique?.mockResolvedValue(null);
 
       await expect(
-        service.create({
-          productId: 'product-1',
-          values: {},
+        service.create(
+          {
+            productId: 'product-1',
+            values: {},
           },
           'test@test.com',
         ),
@@ -55,11 +56,12 @@ describe('ProductGeneratedInfoService', () => {
       prisma.productGeneratedInfo.findMany?.mockResolvedValue([]);
 
       await expect(
-        service.create({
-          productId: 'product-1',
-          variant1Id: 'variant-1',
-          values: {},
-        },
+        service.create(
+          {
+            productId: 'product-1',
+            variant1Id: 'variant-1',
+            values: {},
+          },
           'test@test.com',
         ),
       ).rejects.toBeInstanceOf(BadRequestException);
@@ -72,24 +74,24 @@ describe('ProductGeneratedInfoService', () => {
         productType: { code: 'PT', name: 'Type' },
         code: 'PROD1',
       });
-      prisma.variant.findUnique
-        ?.mockResolvedValueOnce({
-          id: 'variant-1',
-          familyId: 'family-1',
-          name: 'Variante',
-          variantLevel: VariantLevel.SECOND,
-          code: '01',
-        });
+      prisma.variant.findUnique?.mockResolvedValueOnce({
+        id: 'variant-1',
+        familyId: 'family-1',
+        name: 'Variante',
+        variantLevel: VariantLevel.SECOND,
+        code: '01',
+      });
       technicalService.findAll.mockResolvedValue({ data: [] });
       prisma.productGeneratedInfo.findMany?.mockResolvedValue([]);
 
       await expect(
-        service.create({
-          productId: 'product-1',
-          variant1Id: 'variant-1',
-          values: {},
-        },
-        'test@test.com',
+        service.create(
+          {
+            productId: 'product-1',
+            variant1Id: 'variant-1',
+            values: {},
+          },
+          'test@test.com',
         ),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
@@ -127,12 +129,15 @@ describe('ProductGeneratedInfoService', () => {
       const expectedFull = { ...createdInfo, product };
       jest.spyOn(service, 'findOne').mockResolvedValue(expectedFull as any);
 
-      const result = await service.create({
-        productId: 'product-1',
-        variant1Id: 'variant-1',
-        variant2Id: 'variant-2',
-        values: {},
-      }, 'test@test.com');
+      const result = await service.create(
+        {
+          productId: 'product-1',
+          variant1Id: 'variant-1',
+          variant2Id: 'variant-2',
+          values: {},
+        },
+        'test@test.com',
+      );
 
       expect(prisma.productGeneratedInfo.create).toHaveBeenCalledWith({
         data: {
@@ -187,14 +192,14 @@ describe('ProductGeneratedInfoService', () => {
       ]);
 
       await expect(
-        service.create({
-          productId: 'product-1',
-          values: { 'tc-1': 'blue' },
-        },
+        service.create(
+          {
+            productId: 'product-1',
+            values: { 'tc-1': 'blue' },
+          },
           'test@test.com',
         ),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 });
-

@@ -30,28 +30,47 @@ describe('ProductTypesService', () => {
     });
 
     it('rejette si le code existe déjà', async () => {
-      prisma.productType.findMany?.mockResolvedValue([{ id: 'type-1', name: 'Standard', code: 'STD' }]);
+      prisma.productType.findMany?.mockResolvedValue([
+        { id: 'type-1', name: 'Standard', code: 'STD' },
+      ]);
 
-      await expect(service.create({ name: 'Premium', code: 'STD' })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        service.create({ name: 'Premium', code: 'STD' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('rejette si le nom existe déjà', async () => {
-      prisma.productType.findMany?.mockResolvedValue([{ id: 'type-1', name: 'Standard', code: 'STD' }]);
+      prisma.productType.findMany?.mockResolvedValue([
+        { id: 'type-1', name: 'Standard', code: 'STD' },
+      ]);
 
-      await expect(service.create({ name: 'standard', code: 'PREM' })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        service.create({ name: 'standard', code: 'PREM' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 
   describe('update', () => {
     beforeEach(() => {
-      prisma.productType.findUnique?.mockResolvedValue({ id: 'type-1', name: 'Standard', code: 'STD' });
+      prisma.productType.findUnique?.mockResolvedValue({
+        id: 'type-1',
+        name: 'Standard',
+        code: 'STD',
+      });
     });
 
     it('met à jour si les nouvelles valeurs sont libres', async () => {
       prisma.productType.findMany?.mockResolvedValue([]);
-      prisma.productType.update?.mockResolvedValue({ id: 'type-1', name: 'Premium', code: 'PRM' });
+      prisma.productType.update?.mockResolvedValue({
+        id: 'type-1',
+        name: 'Premium',
+        code: 'PRM',
+      });
 
-      const result = await service.update('type-1', { name: 'Premium', code: 'PRM' });
+      const result = await service.update('type-1', {
+        name: 'Premium',
+        code: 'PRM',
+      });
 
       expect(result.name).toBe('Premium');
       expect(prisma.productType.update).toHaveBeenCalledWith({
@@ -61,9 +80,13 @@ describe('ProductTypesService', () => {
     });
 
     it('rejette si le nouveau code existe', async () => {
-      prisma.productType.findMany?.mockResolvedValue([{ id: 'type-2', name: 'Autre', code: 'PRM' }]);
+      prisma.productType.findMany?.mockResolvedValue([
+        { id: 'type-2', name: 'Autre', code: 'PRM' },
+      ]);
 
-      await expect(service.update('type-1', { code: 'PRM' })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        service.update('type-1', { code: 'PRM' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 
@@ -71,8 +94,9 @@ describe('ProductTypesService', () => {
     it('rejette remove si non trouvé', async () => {
       prisma.productType.findUnique?.mockResolvedValue(null);
 
-      await expect(service.remove('unknown')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.remove('unknown')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 });
-

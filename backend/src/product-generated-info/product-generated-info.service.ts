@@ -7,7 +7,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductGeneratedInfoDto } from './dto/create-product-generated-info.dto';
 import { UpdateProductGeneratedInfoDto } from './dto/update-product-generated-info.dto';
 import { TechnicalCharacteristicsService } from '../technical-characteristics/technical-characteristics.service';
-import { normalizeString, normalizeStringForStorage } from '../utils/string-normalizer';
+import {
+  normalizeString,
+  normalizeStringForStorage,
+} from '../utils/string-normalizer';
 
 @Injectable()
 export class ProductGeneratedInfoService {
@@ -73,23 +76,25 @@ export class ProductGeneratedInfoService {
       ? await variantChecks(createDto.variant2Id, 'SECOND')
       : null;
 
-    const selectedVariantIds = [
-      variant1?.id,
-      variant2?.id,
-    ].filter((id): id is string => Boolean(id));
+    const selectedVariantIds = [variant1?.id, variant2?.id].filter(
+      (id): id is string => Boolean(id),
+    );
 
     // Récupérer les caractéristiques techniques applicables AVANT de vérifier les doublons
-    const allTechnicalCharacteristicsResponse = await this.technicalCharacteristicsService.findAll();
-    const allTechnicalCharacteristics = Array.isArray(allTechnicalCharacteristicsResponse) 
-      ? allTechnicalCharacteristicsResponse 
+    const allTechnicalCharacteristicsResponse =
+      await this.technicalCharacteristicsService.findAll();
+    const allTechnicalCharacteristics = Array.isArray(
+      allTechnicalCharacteristicsResponse,
+    )
+      ? allTechnicalCharacteristicsResponse
       : allTechnicalCharacteristicsResponse.data;
 
     // Filtrer pour avoir les caractéristiques techniques qui s'appliquent
-    const applicableTechnicalCharacteristics = allTechnicalCharacteristics.filter(
-      (technicalCharacteristic: any) => {
+    const applicableTechnicalCharacteristics =
+      allTechnicalCharacteristics.filter((technicalCharacteristic: any) => {
         // Vérifier si la caractéristique est associée à la famille du produit
         const isAssociatedWithFamily = technicalCharacteristic.families?.some(
-          (tcFamily: any) => tcFamily.familyId === product.familyId
+          (tcFamily: any) => tcFamily.familyId === product.familyId,
         );
 
         if (!isAssociatedWithFamily) {
@@ -98,7 +103,9 @@ export class ProductGeneratedInfoService {
 
         // Récupérer les variantes associées avec leur famille (en filtrant les null/undefined)
         const associatedVariants = (technicalCharacteristic.variants || [])
-          .filter((tcVariant: any) => tcVariant.variant && tcVariant.variant.familyId) // Filtrer les variantes invalides
+          .filter(
+            (tcVariant: any) => tcVariant.variant && tcVariant.variant.familyId,
+          ) // Filtrer les variantes invalides
           .map((tcVariant: any) => ({
             variantId: tcVariant.variantId,
             familyId: tcVariant.variant.familyId,
@@ -106,7 +113,7 @@ export class ProductGeneratedInfoService {
 
         // Filtrer les variantes pour ne garder que celles qui appartiennent à la famille du produit
         const variantsForThisFamily = associatedVariants.filter(
-          (v) => v.familyId === product.familyId
+          (v) => v.familyId === product.familyId,
         );
 
         // Logique stricte : la caractéristique est associée uniquement à ce qui est explicitement coché
@@ -117,7 +124,9 @@ export class ProductGeneratedInfoService {
         }
 
         // Si la caractéristique a des variantes pour cette famille
-        const variantIdsForThisFamily = variantsForThisFamily.map((v) => v.variantId);
+        const variantIdsForThisFamily = variantsForThisFamily.map(
+          (v) => v.variantId,
+        );
         // Elle s'applique uniquement si des variantes sont sélectionnées ET qu'au moins une correspond
         if (selectedVariantIds.length > 0) {
           return selectedVariantIds.some((variantId) =>
@@ -126,12 +135,18 @@ export class ProductGeneratedInfoService {
         }
         // Si aucune variante n'est sélectionnée mais que la caractéristique a des variantes associées, elle ne s'applique pas
         return false;
-      }
-    );
+      });
 
     // Dédupliquer par ID
     const uniqueTechnicalCharacteristics = Array.from(
-      new Map(applicableTechnicalCharacteristics.map((technicalCharacteristic: any) => [technicalCharacteristic.id, technicalCharacteristic])).values(),
+      new Map(
+        applicableTechnicalCharacteristics.map(
+          (technicalCharacteristic: any) => [
+            technicalCharacteristic.id,
+            technicalCharacteristic,
+          ],
+        ),
+      ).values(),
     );
 
     // Compter combien de ProductGeneratedInfo existent déjà avec cette combinaison produit+variante
@@ -212,8 +227,10 @@ export class ProductGeneratedInfoService {
           // Si une caractéristique n'est pas fournie dans la requête, elle est null
           // Si une caractéristique n'existe pas dans le match, elle est aussi null
           for (const technicalCharacteristic of uniqueTechnicalCharacteristics) {
-            const technicalCharacteristicId = (technicalCharacteristic as any).id;
-            const requestValue = requestValues[technicalCharacteristicId] ?? null; // S'assurer que c'est null si non défini
+            const technicalCharacteristicId = (technicalCharacteristic as any)
+              .id;
+            const requestValue =
+              requestValues[technicalCharacteristicId] ?? null; // S'assurer que c'est null si non défini
             const matchValue = matchValues[technicalCharacteristicId] ?? null; // S'assurer que c'est null si non défini
 
             // Les deux doivent être null ou avoir la même valeur (comparaison insensible à la casse)
@@ -244,7 +261,7 @@ export class ProductGeneratedInfoService {
     const variant1Code = variant1?.code ?? '0';
     const variant2Code = variant2?.code ?? '0';
     const codePrefix = `F${product.productType.code}${product.code}${variant1Code}${variant2Code}`;
-    
+
     const existingIncrements = new Set<number>();
     for (const info of exactVariantMatches) {
       if (info.generatedCode && info.generatedCode.startsWith(codePrefix)) {
@@ -256,26 +273,26 @@ export class ProductGeneratedInfoService {
         }
       }
     }
-    
+
     // Trouver le plus petit incrément disponible (commence à 1)
     let increment = 1;
     while (existingIncrements.has(increment)) {
       increment++;
     }
-    
+
     // Générer le code avec l'incrément trouvé et vérifier qu'il n'existe pas déjà
     let generatedCode: string;
     let codeExists = true;
-    
+
     while (codeExists) {
       const incrementStr = String(increment).padStart(6, '0');
       generatedCode = `${codePrefix}${incrementStr}`;
-      
+
       // Vérifier si ce code existe déjà (double vérification de sécurité)
       const existingCode = await this.prisma.productGeneratedInfo.findUnique({
         where: { generatedCode },
       });
-      
+
       if (!existingCode) {
         codeExists = false;
       } else {
@@ -293,7 +310,9 @@ export class ProductGeneratedInfoService {
       for (const technicalCharacteristic of uniqueTechnicalCharacteristics) {
         const value = createDto.values[(technicalCharacteristic as any).id];
         if (
-          createDto.values.hasOwnProperty((technicalCharacteristic as any).id) &&
+          createDto.values.hasOwnProperty(
+            (technicalCharacteristic as any).id,
+          ) &&
           (value === null || value === '')
         ) {
           throw new BadRequestException(
@@ -349,7 +368,9 @@ export class ProductGeneratedInfoService {
   private ensureValueLength(value: string) {
     const MAX_LENGTH = 30;
     if (value.length > MAX_LENGTH) {
-      throw new BadRequestException(`Les valeurs des caractéristiques techniques sont limitées à ${MAX_LENGTH} caractères`);
+      throw new BadRequestException(
+        `Les valeurs des caractéristiques techniques sont limitées à ${MAX_LENGTH} caractères`,
+      );
     }
   }
 
@@ -357,15 +378,19 @@ export class ProductGeneratedInfoService {
     return normalizeStringForStorage(String(value));
   }
 
-  async update(id: string, updateDto: UpdateProductGeneratedInfoDto, userEmail: string) {
-    const generatedInfo = await this.findOne(id);
-
+  async update(
+    id: string,
+    updateDto: UpdateProductGeneratedInfoDto,
+    userEmail: string,
+  ) {
     if (updateDto.values) {
       await this.prisma.productTechnicalCharacteristic.deleteMany({
         where: { generatedInfoId: id },
       });
 
-      for (const [technicalCharacteristicId, value] of Object.entries(updateDto.values)) {
+      for (const [technicalCharacteristicId, value] of Object.entries(
+        updateDto.values,
+      )) {
         if (value !== undefined && value !== null && value !== '') {
           const normalizedValue = this.normalizeTechValue(value);
           this.ensureValueLength(normalizedValue);

@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
 import { ProductTypesService } from './product-types.service';
 import { CreateProductTypeDto } from './dto/create-product-type.dto';
 import { UpdateProductTypeDto } from './dto/update-product-type.dto';
@@ -18,7 +28,11 @@ export class ProductTypesController {
   }
 
   @Get()
-  findAll(@Query('offset') offset?: string, @Query('limit') limit?: string, @Query('search') search?: string) {
+  findAll(
+    @Query('offset') offset?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+  ) {
     const offsetNum = offset ? parseInt(offset, 10) : 0;
     const limitNum = limit ? parseInt(limit, 10) : 50;
     return this.productTypesService.findAll(offsetNum, limitNum, search);
@@ -31,7 +45,10 @@ export class ProductTypesController {
 
   @Patch(':id')
   @Roles('MANAGER', 'ADMIN')
-  update(@Param('id') id: string, @Body() updateProductTypeDto: UpdateProductTypeDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateProductTypeDto: UpdateProductTypeDto,
+  ) {
     return this.productTypesService.update(id, updateProductTypeDto);
   }
 
@@ -41,4 +58,3 @@ export class ProductTypesController {
     return this.productTypesService.remove(id);
   }
 }
-

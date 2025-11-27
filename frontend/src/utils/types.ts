@@ -46,6 +46,18 @@ export interface Variant {
   };
 }
 
+export interface AuthContextType {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  isInitialized: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string) => Promise<void>;
+  logout: () => void;
+  canEditContent: boolean;
+  isAdmin: boolean;
+}
+
 export interface Product {
   id: string;
   name: string;

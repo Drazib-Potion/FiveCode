@@ -130,6 +130,7 @@ export default function SearchableSelectPanel<T>({
       };
     el.addEventListener('scroll', handler);
     return () => el.removeEventListener('scroll', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchOptions, hasMore, localLoading, load]);
 
   const filteredItems = useMemo(() => {

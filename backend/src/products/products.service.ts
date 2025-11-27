@@ -5,7 +5,10 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
-import { normalizeString, normalizeStringForStorage } from '../utils/string-normalizer';
+import {
+  normalizeString,
+  normalizeStringForStorage,
+} from '../utils/string-normalizer';
 
 @Injectable()
 export class ProductsService {
@@ -89,9 +92,15 @@ export class ProductsService {
       allProducts = allProducts.filter((product) => {
         const normalizedName = normalizeString(product.name);
         const normalizedCode = normalizeString(product.code);
-        const normalizedFamilyName = product.family ? normalizeString(product.family.name) : '';
-        const normalizedProductTypeName = product.productType ? normalizeString(product.productType.name) : '';
-        const normalizedProductTypeCode = product.productType ? normalizeString(product.productType.code) : '';
+        const normalizedFamilyName = product.family
+          ? normalizeString(product.family.name)
+          : '';
+        const normalizedProductTypeName = product.productType
+          ? normalizeString(product.productType.name)
+          : '';
+        const normalizedProductTypeCode = product.productType
+          ? normalizeString(product.productType.code)
+          : '';
         return (
           normalizedName.includes(normalizedSearch) ||
           normalizedCode.includes(normalizedSearch) ||

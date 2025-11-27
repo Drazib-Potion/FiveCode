@@ -11,4 +11,3 @@ import { TechnicalCharacteristicsModule } from '../technical-characteristics/tec
   exports: [ProductGeneratedInfoService],
 })
 export class ProductGeneratedInfoModule {}
-

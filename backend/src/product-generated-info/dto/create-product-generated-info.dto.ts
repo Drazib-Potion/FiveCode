@@ -1,9 +1,4 @@
-import {
-  IsUUID,
-  IsNotEmpty,
-  IsObject,
-  IsOptional,
-} from 'class-validator';
+import { IsUUID, IsNotEmpty, IsObject, IsOptional } from 'class-validator';
 
 export class CreateProductGeneratedInfoDto {
   @IsUUID()

@@ -87,4 +87,3 @@ export const createPrismaMock = (): PrismaDelegateMocks => ({
     delete: jest.fn(),
   },
 });
-

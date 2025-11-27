@@ -1,8 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateVariantDto } from './dto/create-variant.dto';
 import { UpdateVariantDto } from './dto/update-variant.dto';
-import { normalizeString, normalizeStringForStorage } from '../utils/string-normalizer';
+import {
+  normalizeString,
+  normalizeStringForStorage,
+} from '../utils/string-normalizer';
 
 @Injectable()
 export class VariantsService {
@@ -15,7 +22,9 @@ export class VariantsService {
     });
 
     if (!family) {
-      throw new NotFoundException(`Family with ID ${createVariantDto.familyId} not found`);
+      throw new NotFoundException(
+        `Family with ID ${createVariantDto.familyId} not found`,
+      );
     }
 
     // Récupérer toutes les variantes de cette famille pour comparaison case-insensitive
@@ -85,7 +94,9 @@ export class VariantsService {
       allVariants = allVariants.filter((variant) => {
         const normalizedName = normalizeString(variant.name);
         const normalizedCode = normalizeString(variant.code);
-        const normalizedFamilyName = variant.family ? normalizeString(variant.family.name) : '';
+        const normalizedFamilyName = variant.family
+          ? normalizeString(variant.family.name)
+          : '';
         return (
           normalizedName.includes(normalizedSearch) ||
           normalizedCode.includes(normalizedSearch) ||
@@ -105,7 +116,12 @@ export class VariantsService {
     };
   }
 
-  async findByFamily(familyId: string, offset: number = 0, limit: number = 50, search?: string) {
+  async findByFamily(
+    familyId: string,
+    offset: number = 0,
+    limit: number = 50,
+    search?: string,
+  ) {
     // Récupérer toutes les variantes de la famille
     let allVariants = await this.prisma.variant.findMany({
       where: { familyId },
@@ -170,17 +186,23 @@ export class VariantsService {
     const variant = await this.findOne(id);
 
     const targetFamilyId = updateVariantDto.familyId ?? variant.familyId;
-    const targetVariantLevel = updateVariantDto.variantLevel ?? variant.variantLevel;
+    const targetVariantLevel =
+      updateVariantDto.variantLevel ?? variant.variantLevel;
     const targetCode = updateVariantDto.code ?? variant.code;
     const targetName = updateVariantDto.name ?? variant.name;
 
-    if (updateVariantDto.familyId && updateVariantDto.familyId !== variant.familyId) {
+    if (
+      updateVariantDto.familyId &&
+      updateVariantDto.familyId !== variant.familyId
+    ) {
       const family = await this.prisma.family.findUnique({
         where: { id: updateVariantDto.familyId },
       });
 
       if (!family) {
-        throw new NotFoundException(`Family with ID ${updateVariantDto.familyId} not found`);
+        throw new NotFoundException(
+          `Family with ID ${updateVariantDto.familyId} not found`,
+        );
       }
     }
 
@@ -239,4 +261,3 @@ export class VariantsService {
     });
   }
 }
-

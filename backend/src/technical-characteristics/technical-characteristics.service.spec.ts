@@ -9,7 +9,9 @@ describe('TechnicalCharacteristicsService', () => {
 
   beforeEach(() => {
     prisma = createPrismaMock();
-    service = new TechnicalCharacteristicsService(prisma as unknown as PrismaService);
+    service = new TechnicalCharacteristicsService(
+      prisma as unknown as PrismaService,
+    );
     prisma.technicalCharacteristic.findMany?.mockResolvedValue([]);
   });
 
@@ -119,4 +121,3 @@ describe('TechnicalCharacteristicsService', () => {
     });
   });
 });
-

@@ -1,8 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateFamilyDto } from './dto/create-family.dto';
 import { UpdateFamilyDto } from './dto/update-family.dto';
-import { normalizeString, normalizeStringForStorage } from '../utils/string-normalizer';
+import {
+  normalizeString,
+  normalizeStringForStorage,
+} from '../utils/string-normalizer';
 
 @Injectable()
 export class FamiliesService {
@@ -96,9 +103,13 @@ export class FamiliesService {
     });
 
     // Si le nom est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse et aux accents)
-    if (updateFamilyDto.name && normalizeString(updateFamilyDto.name) !== normalizeString(family.name)) {
+    if (
+      updateFamilyDto.name &&
+      normalizeString(updateFamilyDto.name) !== normalizeString(family.name)
+    ) {
       const existing = allFamilies.find(
-        (f) => normalizeString(f.name) === normalizeString(updateFamilyDto.name),
+        (f) =>
+          normalizeString(f.name) === normalizeString(updateFamilyDto.name),
       );
 
       if (existing) {
@@ -126,4 +137,3 @@ export class FamiliesService {
     });
   }
 }
-

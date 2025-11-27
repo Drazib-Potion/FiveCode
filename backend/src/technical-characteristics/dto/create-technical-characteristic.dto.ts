@@ -1,4 +1,11 @@
-import { IsString, IsNotEmpty, IsOptional, IsUUID, IsArray, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsUUID,
+  IsArray,
+  IsBoolean,
+} from 'class-validator';
 
 export class CreateTechnicalCharacteristicDto {
   @IsString()
@@ -28,4 +35,3 @@ export class CreateTechnicalCharacteristicDto {
   @IsOptional()
   variantIds?: string[]; // Tableau de variantIds
 }
-

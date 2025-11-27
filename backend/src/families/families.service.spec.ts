@@ -15,7 +15,10 @@ describe('FamiliesService', () => {
   describe('create', () => {
     it('crée une famille si le nom est unique', async () => {
       prisma.family.findMany?.mockResolvedValue([]);
-      prisma.family.create?.mockResolvedValue({ id: 'family-1', name: 'Ventilo' });
+      prisma.family.create?.mockResolvedValue({
+        id: 'family-1',
+        name: 'Ventilo',
+      });
 
       const result = await service.create({ name: 'Ventilo' });
 
@@ -27,20 +30,30 @@ describe('FamiliesService', () => {
     });
 
     it('rejette si le nom existe déjà (insensible à la casse)', async () => {
-      prisma.family.findMany?.mockResolvedValue([{ id: 'family-1', name: 'Ventilo' }]);
+      prisma.family.findMany?.mockResolvedValue([
+        { id: 'family-1', name: 'Ventilo' },
+      ]);
 
-      await expect(service.create({ name: 'ventilo' })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.create({ name: 'ventilo' })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
   });
 
   describe('update', () => {
     beforeEach(() => {
-      prisma.family.findUnique?.mockResolvedValue({ id: 'family-1', name: 'Ventilo' });
+      prisma.family.findUnique?.mockResolvedValue({
+        id: 'family-1',
+        name: 'Ventilo',
+      });
     });
 
     it('met à jour une famille si le nouveau nom est libre', async () => {
       prisma.family.findMany?.mockResolvedValue([]);
-      prisma.family.update?.mockResolvedValue({ id: 'family-1', name: 'Ventilo Plus' });
+      prisma.family.update?.mockResolvedValue({
+        id: 'family-1',
+        name: 'Ventilo Plus',
+      });
 
       const result = await service.update('family-1', { name: 'Ventilo Plus' });
 
@@ -52,9 +65,13 @@ describe('FamiliesService', () => {
     });
 
     it('rejette si le nom est déjà pris par une autre famille', async () => {
-      prisma.family.findMany?.mockResolvedValue([{ id: 'family-2', name: 'Ventilo Plus' }]);
+      prisma.family.findMany?.mockResolvedValue([
+        { id: 'family-2', name: 'Ventilo Plus' },
+      ]);
 
-      await expect(service.update('family-1', { name: 'Ventilo Plus' })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        service.update('family-1', { name: 'Ventilo Plus' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 
@@ -62,8 +79,9 @@ describe('FamiliesService', () => {
     it('rejette remove sur une famille inexistante', async () => {
       prisma.family.findUnique?.mockResolvedValue(null);
 
-      await expect(service.remove('unknown')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.remove('unknown')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 });
-
