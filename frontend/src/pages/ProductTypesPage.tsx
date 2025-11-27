@@ -217,12 +217,12 @@ export default function ProductTypesPage() {
       <div className="flex justify-between items-center mb-10 pb-4 border-b-2 border-purple/20">
         <h1 className="m-0 text-3xl font-bold text-purple">Gestion des Types de produit</h1>
         {canEditContent && (
-          <button 
-            onClick={() => { setShowForm(true); setEditingId(null); setFormData({ name: '', code: '' }); }}
-            className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
-          >
-            + Nouveau type de produit
-          </button>
+        <button 
+          onClick={() => { setShowForm(true); setEditingId(null); setFormData({ name: '', code: '' }); }}
+          className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
+        >
+          + Nouveau type de produit
+        </button>
         )}
       </div>
 

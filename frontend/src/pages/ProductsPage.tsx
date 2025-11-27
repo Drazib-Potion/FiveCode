@@ -3,6 +3,7 @@ import { productsService, familiesService, productTypesService } from '../servic
 import { useModal } from '../contexts/ModalContext';
 import Loader from '../components/Loader';
 import DataTable from '../components/DataTable';
+import SearchableSelectPanel from '../components/SearchableSelectPanel';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { Product, Family, ProductType } from '../utils/types';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,13 +12,9 @@ export default function ProductsPage() {
   const { showAlert, showConfirm } = useModal();
   const { canEditContent } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
-  const [families, setFamilies] = useState<Family[]>([]);
-  const [productTypes, setProductTypes] = useState<ProductType[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ name: '', code: '', familyId: '', productTypeId: '' });
-  const [familySearch, setFamilySearch] = useState('');
-  const [productTypeSearch, setProductTypeSearch] = useState('');
   const [tableSearchTerm, setTableSearchTerm] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -85,8 +82,6 @@ export default function ProductsPage() {
   useEffect(() => {
     offsetRef.current = 0;
     loadProducts(true);
-    loadFamilies();
-    loadProductTypes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -120,26 +115,6 @@ export default function ProductsPage() {
     onLoadMore: loadMore,
   });
 
-  const loadFamilies = async () => {
-    try {
-      const response = await familiesService.getAll(0, 9999);
-      const data = Array.isArray(response) ? response : (response.data || []);
-      setFamilies(data);
-    } catch (error) {
-      console.error('Error loading families:', error);
-    }
-  };
-
-  const loadProductTypes = async () => {
-    try {
-      const response = await productTypesService.getAll(0, 9999);
-      const data = Array.isArray(response) ? response : (response.data || []);
-      setProductTypes(data);
-    } catch (error) {
-      console.error('Error loading product types:', error);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     if (!canEditContent) return;
     e.preventDefault();
@@ -147,8 +122,6 @@ export default function ProductsPage() {
     try {
       await productsService.create(formData);
       setFormData({ name: '', code: '', familyId: '', productTypeId: '' });
-      setFamilySearch('');
-      setProductTypeSearch('');
       setShowForm(false);
       loadProducts(true);
     } catch (error: any) {
@@ -175,32 +148,47 @@ export default function ProductsPage() {
     }
   };
 
-  // Filtrer les familles selon la recherche
-  const getFilteredFamilies = () => {
-    if (!familySearch) return families;
-    const searchLower = familySearch.toLowerCase();
-    return families.filter((family) => family.name.toLowerCase().includes(searchLower));
-  };
+  const fetchFamilies = useCallback(
+    async ({
+    offset,
+    limit,
+    search,
+  }: {
+    offset: number;
+    limit: number;
+    search?: string;
+  }) => {
+    const response = await familiesService.getAll(offset, limit, search);
+    const data: Family[] = Array.isArray(response) ? response : response.data || [];
+    return data.map((family) => ({
+      key: family.id,
+      label: family.name,
+      value: family.id,
+    }));
+    },
+    [],
+  );
 
-  // Filtrer les types de produit selon la recherche
-  const getFilteredProductTypes = () => {
-    if (!productTypeSearch) return productTypes;
-    const searchLower = productTypeSearch.toLowerCase();
-    return productTypes.filter((productType) => 
-      productType.name.toLowerCase().includes(searchLower) ||
-      productType.code.toLowerCase().includes(searchLower)
-    );
-  };
-
-  // Gérer la sélection d'un type de produit (une seule sélection)
-  const handleProductTypeToggle = (productTypeId: string) => {
-    setFormData({ ...formData, productTypeId: formData.productTypeId === productTypeId ? '' : productTypeId });
-  };
-
-  // Gérer la sélection d'une famille (une seule sélection)
-  const handleFamilyToggle = (familyId: string) => {
-    setFormData({ ...formData, familyId: formData.familyId === familyId ? '' : familyId });
-  };
+  const fetchProductTypes = useCallback(
+    async ({
+    offset,
+    limit,
+    search,
+  }: {
+    offset: number;
+    limit: number;
+    search?: string;
+  }) => {
+    const response = await productTypesService.getAll(offset, limit, search);
+    const data: ProductType[] = Array.isArray(response) ? response : response.data || [];
+    return data.map((productType) => ({
+      key: productType.id,
+      label: `${productType.name} (${productType.code})`,
+      value: productType.id,
+    }));
+    },
+    [],
+  );
 
   const productColumns = useMemo(
     () => [
@@ -266,17 +254,15 @@ export default function ProductsPage() {
         <h1 className="m-0 text-3xl font-bold text-purple">Liste des Produits</h1>
         <div className="flex gap-4">
           {canEditContent && (
-            <button
-              onClick={() => {
-                setShowForm(true);
-                setFormData({ name: '', code: '', familyId: '', productTypeId: '' });
-                setFamilySearch('');
-                setProductTypeSearch('');
-              }}
-              className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
-            >
-              + Nouveau produit
-            </button>
+          <button
+            onClick={() => {
+              setShowForm(true);
+              setFormData({ name: '', code: '', familyId: '', productTypeId: '' });
+            }}
+            className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
+          >
+            + Nouveau produit
+          </button>
           )}
         </div>
       </div>
@@ -308,76 +294,73 @@ export default function ProductsPage() {
                 className="w-full px-4 py-3.5 border-2 border-gray-light rounded-xl text-base bg-white focus:outline-none focus:border-purple focus:ring-4 focus:ring-purple/20 transition-all duration-300 shadow-sm hover:border-purple/50 font-mono font-semibold"
               />
             </div>
-            <div className="mb-5">
-              <label className="block mb-2.5 text-gray-dark font-semibold text-sm uppercase tracking-wide">Type de produit</label>
-              <input
-                type="text"
-                placeholder="🔍 Rechercher un type de produit..."
-                value={productTypeSearch}
-                onChange={(e) => setProductTypeSearch(e.target.value)}
-                className="w-full px-2 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
-              />
-              <div className="border border-gray-300 rounded p-2.5 max-h-[200px] overflow-y-auto bg-gray-50">
-                {getFilteredProductTypes().length === 0 ? (
-                  <p className="text-gray-500 italic m-0">
-                    {productTypeSearch ? 'Aucun type de produit ne correspond à votre recherche' : 'Aucun type de produit disponible'}
-                  </p>
-                ) : (
-                  getFilteredProductTypes().map((productType) => (
-                    <label
-                      key={productType.id}
-                      className="flex items-center px-2 py-2 cursor-pointer rounded mb-1 transition-colors duration-200 hover:bg-gray-100"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.productTypeId === productType.id}
-                        onChange={() => handleProductTypeToggle(productType.id)}
-                        className="mr-1.5 cursor-pointer"
-                      />
-                      <span>{productType.name} ({productType.code})</span>
-                    </label>
-                  ))
-                )}
-              </div>
-              <small className="block mt-1.5 text-gray-500">
-                {formData.productTypeId ? '1 type de produit sélectionné' : 'Aucun type de produit sélectionné'}
-              </small>
-            </div>
-            <div className="mb-5">
-              <label className="block mb-2.5 text-gray-dark font-semibold text-sm uppercase tracking-wide">Famille</label>
-              <input
-                type="text"
+            <SearchableSelectPanel
+              className="mb-5"
+              label="Type de produit"
+              fetchOptions={fetchProductTypes}
+              limit={30}
+              selectedKeys={formData.productTypeId ? [formData.productTypeId] : []}
+              onToggle={(key) => {
+                setFormData({ ...formData, productTypeId: formData.productTypeId === key ? '' : key });
+              }}
+              placeholder="🔍 Rechercher un type de produit..."
+              footer={
+                <small className="text-xs text-gray-500">
+                  {formData.productTypeId ? '1 type de produit sélectionné' : 'Aucun type de produit sélectionné'}
+                </small>
+              }
+              renderItem={(item) => (
+                <label
+                  key={item.key}
+                  className={`flex items-center px-3 py-2 mb-2 rounded cursor-pointer transition-colors duration-200 ${
+                    formData.productTypeId === item.key ? 'bg-purple/10 text-purple' : 'hover:bg-gray-100'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    checked={formData.productTypeId === item.key}
+                    onChange={() =>
+                      setFormData({ ...formData, productTypeId: formData.productTypeId === item.key ? '' : item.key })
+                    }
+                    className="mr-2 cursor-pointer"
+                  />
+                  <span className="text-sm text-gray-800">{item.label}</span>
+                </label>
+              )}
+            />
+            <SearchableSelectPanel
+              label="Famille"
+              fetchOptions={fetchFamilies}
+              limit={30}
+              selectedKeys={formData.familyId ? [formData.familyId] : []}
+              onToggle={(key) => {
+                setFormData({ ...formData, familyId: formData.familyId === key ? '' : key });
+              }}
                 placeholder="🔍 Rechercher une famille..."
-                value={familySearch}
-                onChange={(e) => setFamilySearch(e.target.value)}
-                className="w-full px-2 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
-              />
-              <div className="border border-gray-300 rounded p-2.5 max-h-[200px] overflow-y-auto bg-gray-50">
-                {getFilteredFamilies().length === 0 ? (
-                  <p className="text-gray-500 italic m-0">
-                    {familySearch ? 'Aucune famille ne correspond à votre recherche' : 'Aucune famille disponible'}
-                  </p>
-                ) : (
-                  getFilteredFamilies().map((family) => (
+              footer={
+                <small className="text-xs text-gray-500">
+                  {formData.familyId ? '1 famille sélectionnée' : 'Aucune famille sélectionnée'}
+                </small>
+              }
+              renderItem={(item) => (
                     <label
-                      key={family.id}
-                      className="flex items-center px-2 py-2 cursor-pointer rounded mb-1 transition-colors duration-200 hover:bg-gray-100"
+                  key={item.key}
+                  className={`flex items-center px-3 py-2 mb-2 rounded cursor-pointer transition-colors duration-200 ${
+                    formData.familyId === item.key ? 'bg-purple/10 text-purple' : 'hover:bg-gray-100'
+                  }`}
                     >
                       <input
-                        type="checkbox"
-                        checked={formData.familyId === family.id}
-                        onChange={() => handleFamilyToggle(family.id)}
-                        className="mr-1.5 cursor-pointer"
+                    type="radio"
+                    checked={formData.familyId === item.key}
+                    onChange={() =>
+                      setFormData({ ...formData, familyId: formData.familyId === item.key ? '' : item.key })
+                    }
+                    className="mr-2 cursor-pointer"
                       />
-                      <span>{family.name}</span>
+                  <span className="text-sm text-gray-800">{item.label}</span>
                     </label>
-                  ))
                 )}
-              </div>
-              <small className="block mt-1.5 text-gray-500">
-                {formData.familyId ? '1 famille sélectionnée' : 'Aucune famille sélectionnée'}
-              </small>
-            </div>
+            />
             <div className="flex gap-4 mt-8 pt-6 border-t-2 border-gray-light">
               <button 
                 type="submit"
@@ -389,7 +372,7 @@ export default function ProductsPage() {
               </button>
               <button 
                 type="button" 
-                onClick={() => { setShowForm(false); setFamilySearch(''); setProductTypeSearch(''); }}
+                onClick={() => { setShowForm(false); }}
                 className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg hover:scale-105 active:scale-100"
               >
                 ✕ Annuler

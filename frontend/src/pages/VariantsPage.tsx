@@ -3,6 +3,7 @@ import { variantsService, familiesService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import Loader from '../components/Loader';
 import DataTable from '../components/DataTable';
+import SearchableSelectPanel from '../components/SearchableSelectPanel';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { Variant, Family } from '../utils/types';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,7 +12,6 @@ export default function VariantsPage() {
   const { showAlert, showConfirm } = useModal();
   const { canEditContent } = useAuth();
   const [variants, setVariants] = useState<Variant[]>([]);
-  const [families, setFamilies] = useState<Family[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -21,7 +21,6 @@ export default function VariantsPage() {
     code: '',
     variantLevel: 'FIRST' as 'FIRST' | 'SECOND',
   });
-  const [familySearch, setFamilySearch] = useState('');
   const [tableSearchTerm, setTableSearchTerm] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -88,7 +87,6 @@ export default function VariantsPage() {
   useEffect(() => {
     offsetRef.current = 0;
     loadData(true);
-    loadFamilies();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -111,16 +109,6 @@ export default function VariantsPage() {
     }
   }, [canEditContent]);
 
-  const loadFamilies = async () => {
-    try {
-      const data = await familiesService.getAll(0, 9999);
-      const familiesData = Array.isArray(data) ? data : (data.data || []);
-      setFamilies(familiesData);
-    } catch (error) {
-      console.error('Error loading families:', error);
-    }
-  };
-
   const loadMore = useCallback(() => {
     if (!loadingMore && hasMore && !tableSearchTerm.trim()) {
       loadData(false);
@@ -133,6 +121,24 @@ export default function VariantsPage() {
     onLoadMore: loadMore,
   });
 
+  const fetchFamilies = useCallback(async ({
+    offset,
+    limit,
+    search,
+  }: {
+    offset: number;
+    limit: number;
+    search?: string;
+  }) => {
+    const response = await familiesService.getAll(offset, limit, search);
+    const data: Family[] = Array.isArray(response) ? response : response.data || [];
+    return data.map((family) => ({
+      key: family.id,
+      label: family.name,
+      value: family.id,
+    }));
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     if (!canEditContent) return;
     e.preventDefault();
@@ -144,7 +150,6 @@ export default function VariantsPage() {
         await variantsService.create(formData as { familyId: string; name: string; code: string; variantLevel: 'FIRST' | 'SECOND' });
       }
       setFormData({ familyId: '', name: '', code: '', variantLevel: 'FIRST' });
-      setFamilySearch('');
       setShowForm(false);
       setEditingId(null);
       loadData(true);
@@ -159,14 +164,13 @@ export default function VariantsPage() {
 
   const handleEdit = (variant: Variant) => {
     if (!canEditContent) return;
-    setFormData({ 
-      familyId: variant.familyId, 
-      name: variant.name, 
-      code: variant.code,
-      variantLevel: variant.variantLevel,
-    });
-    setFamilySearch('');
-    setEditingId(variant.id);
+      setFormData({ 
+        familyId: variant.familyId, 
+        name: variant.name, 
+        code: variant.code,
+        variantLevel: variant.variantLevel,
+      });
+      setEditingId(variant.id);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -187,25 +191,10 @@ export default function VariantsPage() {
     }
   };
 
-  // Filtrer les familles selon la recherche
-  const getFilteredFamilies = () => {
-    if (!familySearch) return families;
-    const searchLower = familySearch.toLowerCase();
-    return families.filter((family) => family.name.toLowerCase().includes(searchLower));
-  };
-
-  // Gérer la sélection d'une famille (une seule sélection)
-  const handleFamilyToggle = (familyId: string) => {
-    setFormData({ ...formData, familyId: formData.familyId === familyId ? '' : familyId });
-  };
-
   const variantLevelOptions = [
     { value: 'FIRST' as const, label: 'Variante 1' },
     { value: 'SECOND' as const, label: 'Variante 2' },
   ];
-
-  const getVariantLevelLabel = (level: 'FIRST' | 'SECOND') =>
-    level === 'FIRST' ? 'Variante 1' : 'Variante 2';
 
   const variantColumns = useMemo(
     () => [
@@ -225,7 +214,7 @@ export default function VariantsPage() {
         header: 'Type',
         render: (variant: Variant) => (
           <span className="text-gray-dark font-medium">
-            {getVariantLevelLabel(variant.variantLevel)}
+            {variant.variantLevel === 'FIRST' ? 'Variante 1' : 'Variante 2'}
           </span>
         ),
       },
@@ -238,7 +227,7 @@ export default function VariantsPage() {
         ),
       },
     ],
-    [getVariantLevelLabel],
+    [],
   );
 
   const renderVariantActions = (variant: Variant) => (
@@ -265,12 +254,12 @@ export default function VariantsPage() {
       <div className="flex justify-between items-center mb-10 pb-4 border-b-2 border-purple/20">
         <h1 className="m-0 text-3xl font-bold text-purple">Gestion des Variantes</h1>
         {canEditContent && (
-          <button 
-            onClick={() => { setShowForm(true); setEditingId(null); setFormData({ familyId: '', name: '', code: '', variantLevel: 'FIRST' }); setFamilySearch(''); }}
-            className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
-          >
-            + Nouvelle variante
-          </button>
+        <button 
+          onClick={() => { setShowForm(true); setEditingId(null); setFormData({ familyId: '', name: '', code: '', variantLevel: 'FIRST' }); }}
+          className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
+        >
+          + Nouvelle variante
+        </button>
         )}
       </div>
 
@@ -280,41 +269,40 @@ export default function VariantsPage() {
             {editingId ? 'Modifier' : 'Créer'} une variante
           </h2>
           <form onSubmit={handleSubmit}>
-            <div className="mb-5">
-              <label className="block mb-2.5 text-gray-dark font-semibold text-sm uppercase tracking-wide">Famille</label>
-              <input
-                type="text"
-                placeholder="🔍 Rechercher une famille..."
-                value={familySearch}
-                onChange={(e) => setFamilySearch(e.target.value)}
-                className="w-full px-2 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
-              />
-              <div className="border border-gray-300 rounded p-2.5 max-h-[200px] overflow-y-auto bg-gray-50">
-                {getFilteredFamilies().length === 0 ? (
-                  <p className="text-gray-500 italic m-0">
-                    {familySearch ? 'Aucune famille ne correspond à votre recherche' : 'Aucune famille disponible'}
-                  </p>
-                ) : (
-                  getFilteredFamilies().map((family) => (
-                    <label
-                      key={family.id}
-                      className="flex items-center px-2 py-2 cursor-pointer rounded mb-1 transition-colors duration-200 hover:bg-gray-100"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.familyId === family.id}
-                        onChange={() => handleFamilyToggle(family.id)}
-                        className="mr-1.5 cursor-pointer"
-                      />
-                      <span>{family.name}</span>
-                    </label>
-                  ))
-                )}
-              </div>
-              <small className="block mt-1.5 text-gray-500">
-                {formData.familyId ? '1 famille sélectionnée' : 'Aucune famille sélectionnée'}
-              </small>
-            </div>
+            <SearchableSelectPanel
+              className="mb-5"
+              label="Famille"
+              fetchOptions={fetchFamilies}
+              limit={30}
+              selectedKeys={formData.familyId ? [formData.familyId] : []}
+              onToggle={(key) => {
+                setFormData({ ...formData, familyId: formData.familyId === key ? '' : key });
+              }}
+              placeholder="🔍 Rechercher une famille..."
+              footer={
+                <small className="text-xs text-gray-500">
+                  {formData.familyId ? '1 famille sélectionnée' : 'Aucune famille sélectionnée'}
+                </small>
+              }
+              renderItem={(item) => (
+                <label
+                  key={item.key}
+                  className={`flex items-center px-3 py-2 mb-2 rounded cursor-pointer transition-colors duration-200 ${
+                    formData.familyId === item.key ? 'bg-purple/10 text-purple' : 'hover:bg-gray-100'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    checked={formData.familyId === item.key}
+                    onChange={() =>
+                      setFormData({ ...formData, familyId: formData.familyId === item.key ? '' : item.key })
+                    }
+                    className="mr-2 cursor-pointer"
+                  />
+                  <span className="text-sm text-gray-800">{item.label}</span>
+                </label>
+              )}
+            />
             <div className="mb-5">
               <label className="block mb-2.5 text-gray-dark font-semibold text-sm uppercase tracking-wide">Nom</label>
               <input
@@ -368,7 +356,7 @@ export default function VariantsPage() {
               </button>
               <button 
                 type="button" 
-                onClick={() => { setShowForm(false); setEditingId(null); setFamilySearch(''); }}
+                onClick={() => { setShowForm(false); setEditingId(null); }}
                 className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg hover:scale-105 active:scale-100"
               >
                 ✕ Annuler

@@ -163,21 +163,21 @@ export default function GeneratedCodesPage() {
       return null;
     }
     return (
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => handleStartEditing(info)}
-          className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
-        >
-          Modifier
-        </button>
-        <button
-          onClick={() => handleDelete(info.id)}
-          className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg"
-        >
-          Supprimer
-        </button>
-      </div>
-    );
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => handleStartEditing(info)}
+        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple text-white hover:opacity-90 hover:shadow-lg"
+      >
+        Modifier
+      </button>
+      <button
+        onClick={() => handleDelete(info.id)}
+        className="px-4 py-2 border-none rounded-md cursor-pointer text-sm font-medium transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg"
+      >
+        Supprimer
+      </button>
+    </div>
+  );
   };
 
   const generatedSearchFields = (info: ProductGeneratedInfo) =>
@@ -472,53 +472,53 @@ export default function GeneratedCodesPage() {
       </div>
 
       {canEditContent && editingInfo && (
-        <div className="bg-purple-light/10 rounded-xl shadow-lg border-2 border-purple/40 mb-6 p-6">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-bold text-purple">Modifier {editingInfo.generatedCode}</h2>
-              <p className="text-sm text-gray-600">
-                Produit : <strong>{editingInfo.product.name}</strong> ({editingInfo.product.code}) &mdash; Variante 1 : <strong>{editingInfo.variant1 ? editingInfo.variant1.name : 'Sans variante'}</strong>, Variante 2 : <strong>{editingInfo.variant2 ? editingInfo.variant2.name : 'Sans variante'}</strong>
-              </p>
+          <div className="bg-purple-light/10 rounded-xl shadow-lg border-2 border-purple/40 mb-6 p-6">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-purple">Modifier {editingInfo.generatedCode}</h2>
+                <p className="text-sm text-gray-600">
+                  Produit : <strong>{editingInfo.product.name}</strong> ({editingInfo.product.code}) &mdash; Variante 1 : <strong>{editingInfo.variant1 ? editingInfo.variant1.name : 'Sans variante'}</strong>, Variante 2 : <strong>{editingInfo.variant2 ? editingInfo.variant2.name : 'Sans variante'}</strong>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="text-sm text-purple/80 hover:text-purple transition-colors duration-200"
+              >
+                Annuler
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={handleCancelEdit}
-              className="text-sm text-purple/80 hover:text-purple transition-colors duration-200"
-            >
-              Annuler
-            </button>
+            <div className="grid gap-4 mt-6">
+              {editingInfo.technicalCharacteristics.length === 0 ? (
+                <p className="text-sm text-gray-500 italic">Aucune caractéristique technique à modifier pour cette combinaison</p>
+              ) : (
+                editingInfo.technicalCharacteristics.map((tech) => (
+                  <div key={tech.technicalCharacteristic.id} className="flex flex-col text-sm text-gray-700">
+                    <span className="font-semibold mb-1">{tech.technicalCharacteristic.name}</span>
+                    {renderEditingCharacteristicInput(tech)}
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="px-4 py-2 rounded border border-purple/50 text-purple transition-colors duration-200 hover:bg-purple/10"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={savingEdit}
+                className="px-5 py-2 rounded bg-purple-dark text-white font-semibold transition-all duration-200 hover:bg-purple-dark/90 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {savingEdit ? 'Enregistrement...' : 'Enregistrer les modifications'}
+              </button>
+            </div>
           </div>
-          <div className="grid gap-4 mt-6">
-            {editingInfo.technicalCharacteristics.length === 0 ? (
-              <p className="text-sm text-gray-500 italic">Aucune caractéristique technique à modifier pour cette combinaison</p>
-            ) : (
-              editingInfo.technicalCharacteristics.map((tech) => (
-                <div key={tech.technicalCharacteristic.id} className="flex flex-col text-sm text-gray-700">
-                  <span className="font-semibold mb-1">{tech.technicalCharacteristic.name}</span>
-                  {renderEditingCharacteristicInput(tech)}
-                </div>
-              ))
-            )}
-          </div>
-          <div className="flex justify-end gap-3 mt-6">
-            <button
-              type="button"
-              onClick={handleCancelEdit}
-              className="px-4 py-2 rounded border border-purple/50 text-purple transition-colors duration-200 hover:bg-purple/10"
-            >
-              Annuler
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveEdit}
-              disabled={savingEdit}
-              className="px-5 py-2 rounded bg-purple-dark text-white font-semibold transition-all duration-200 hover:bg-purple-dark/90 disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {savingEdit ? 'Enregistrement...' : 'Enregistrer les modifications'}
-            </button>
-          </div>
-        </div>
-      )}
+        )}
       <div className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-purple/20 animate-fade-in">
         <DataTable
           columns={generatedColumns}

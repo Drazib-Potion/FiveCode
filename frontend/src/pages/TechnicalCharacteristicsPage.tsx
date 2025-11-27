@@ -4,6 +4,7 @@ import { useModal } from '../contexts/ModalContext';
 import { formatFieldType, getFieldTypeOptions } from '../utils/fieldTypeFormatter';
 import Loader from '../components/Loader';
 import DataTable from '../components/DataTable';
+import SearchableSelectPanel from '../components/SearchableSelectPanel';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { TechnicalCharacteristic, Family, Variant } from '../utils/types';
 import { useAuth } from '../contexts/AuthContext';
@@ -40,7 +41,6 @@ export default function TechnicalCharacteristicsPage() {
   const { showAlert, showConfirm } = useModal();
   const { canEditContent } = useAuth();
   const [technicalCharacteristics, setTechnicalCharacteristics] = useState<TechnicalCharacteristic[]>([]);
-  const [families, setFamilies] = useState<Family[]>([]);
   const [variants, setVariants] = useState<Variant[]>([]);
   const [loadingVariants, setLoadingVariants] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -49,9 +49,6 @@ export default function TechnicalCharacteristicsPage() {
   const [formData, setFormData] = useState<FormDataState>(() => createInitialFormData());
   const [newEnumOption, setNewEnumOption] = useState('');
   const [enumOptionError, setEnumOptionError] = useState('');
-  const [familySearch, setFamilySearch] = useState('');
-  const [variant1Search, setVariant1Search] = useState('');
-  const [variant2Search, setVariant2Search] = useState('');
   const [tableSearchTerm, setTableSearchTerm] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -59,6 +56,27 @@ export default function TechnicalCharacteristicsPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const offsetRef = useRef(0);
   const LIMIT = 20;
+
+  const fetchFamilies = useCallback(
+    async ({
+      offset,
+      limit,
+      search,
+    }: {
+      offset: number;
+      limit: number;
+      search?: string;
+    }) => {
+      const response = await familiesService.getAll(offset, limit, search);
+      const data: Family[] = Array.isArray(response) ? response : response.data || [];
+      return data.map((family) => ({
+        key: family.id,
+        label: family.name,
+        value: family.id,
+      }));
+    },
+    [],
+  );
 
   const loadData = useCallback(async (reset: boolean = false, search?: string) => {
     try {
@@ -120,7 +138,6 @@ export default function TechnicalCharacteristicsPage() {
   useEffect(() => {
     offsetRef.current = 0;
     loadData(true);
-    loadFamilies();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -142,16 +159,6 @@ export default function TechnicalCharacteristicsPage() {
       setEditingId(null);
     }
   }, [canEditContent]);
-
-  const loadFamilies = async () => {
-    try {
-      const data = await familiesService.getAll(0, 9999);
-      const familiesData = Array.isArray(data) ? data : (data.data || []);
-      setFamilies(familiesData);
-    } catch (error) {
-      console.error('Error loading families:', error);
-    }
-  };
 
   useEffect(() => {
     let cancelled = false;
@@ -209,48 +216,79 @@ export default function TechnicalCharacteristicsPage() {
     onLoadMore: loadMore,
   });
 
-  // Filtrer les familles selon la recherche
-  const getFilteredFamilies = () => {
-    if (!familySearch) return families;
-    const searchLower = familySearch.toLowerCase();
-    return families.filter((family) => family.name.toLowerCase().includes(searchLower));
+  const variantItemsByLevel = useMemo(() => {
+    const mapItems = (level: 'FIRST' | 'SECOND') =>
+      variants
+        .filter(
+          (variant) =>
+            variant.variantLevel === level && formData.familyIds.includes(variant.familyId),
+        )
+        .map((variant) => ({
+          key: variant.id,
+          label: (
+            <span>
+              {variant.name}
+              {variant.family && (
+                <span className="text-xs text-gray-500 ml-1">
+                  ({variant.family.name})
+                </span>
+              )}
+            </span>
+          ),
+          value: variant.id,
+        }));
+
+    return {
+      FIRST: mapItems('FIRST'),
+      SECOND: mapItems('SECOND'),
+    };
+  }, [variants, formData.familyIds]);
+
+  const getVariantSummaryText = (level: 'FIRST' | 'SECOND') => {
+    const currentList = level === 'FIRST' ? formData.variantIdsFirst : formData.variantIdsSecond;
+    const hasSans = level === 'FIRST' ? formData.sansVariantFirst : formData.sansVariantSecond;
+    if (currentList.length > 0) {
+      return `${currentList.length} sélectionnée(s)`;
+    }
+    if (hasSans) {
+      return SANS_VARIANT_LABEL;
+    }
+    return 'Aucune sélection';
   };
 
-  // Filtrer les variantes selon la famille sélectionnée, le type (1 ou 2) et la recherche
-  const getFilteredVariantsByLevel = (level: 'FIRST' | 'SECOND', searchTerm: string) => {
-    if (formData.familyIds.length === 0) {
-      return [];
-    }
+  const renderSansVariantExtraSlot = (level: 'FIRST' | 'SECOND') => {
+    const isDisabled = formData.familyIds.length === 0;
+    const isFirst = level === 'FIRST';
+    const isChecked = isFirst ? formData.sansVariantFirst : formData.sansVariantSecond;
 
-    let filtered = variants.filter(
-      (variant) =>
-        variant.variantLevel === level && formData.familyIds.includes(variant.familyId),
+    return (
+      <label
+        className="flex items-start gap-2 mb-3 px-3 py-2 rounded border border-dashed border-purple/40 bg-purple/5 text-sm cursor-pointer transition-colors duration-200 hover:bg-purple/10"
+      >
+        <input
+          type="checkbox"
+          checked={isChecked}
+          onChange={() => handleSansVariantToggle(level)}
+          disabled={isDisabled}
+          className="mt-1 cursor-pointer"
+        />
+        <div>
+          <span className="font-semibold text-purple">{SANS_VARIANT_LABEL}</span>
+          <p className="text-xs text-gray-600 m-0 mt-1">
+            Cochez cette case pour valider cette caractéristique quand la variante n'est pas sélectionnée.
+          </p>
+        </div>
+      </label>
     );
-
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (variant) =>
-          variant.name.toLowerCase().includes(searchLower) ||
-          (variant.family && variant.family.name.toLowerCase().includes(searchLower)),
-      );
-    }
-
-    return filtered;
   };
-
-const filteredVariant1 = getFilteredVariantsByLevel('FIRST', variant1Search);
-const filteredVariant2 = getFilteredVariantsByLevel('SECOND', variant2Search);
 
 const getAllSelectedVariantIds = () => [
   ...formData.variantIdsFirst,
   ...formData.variantIdsSecond,
 ];
 
-const getVariantNamesByLevel = (
-  technicalCharacteristic: TechnicalCharacteristic,
-  level: 'FIRST' | 'SECOND',
-) => {
+const getVariantNamesByLevel = useCallback(
+  (technicalCharacteristic: TechnicalCharacteristic, level: 'FIRST' | 'SECOND') => {
   if (!technicalCharacteristic.variants) return [];
   const variantNames = technicalCharacteristic.variants
     .map(({ variant }) => {
@@ -264,7 +302,9 @@ const getVariantNamesByLevel = (
     .filter((name): name is string => Boolean(name));
 
   return variantNames.length > 0 ? variantNames : [SANS_VARIANT_LABEL];
-};
+  },
+  [variants],
+);
 
   const technicalColumns = useMemo(
     () => [
@@ -366,18 +406,15 @@ const getVariantNamesByLevel = (
     });
   };
 
-  const handleToggleAllVariants = (level: 'FIRST' | 'SECOND') => {
-    const filteredVariants = level === 'FIRST' ? filteredVariant1 : filteredVariant2;
+  const handleToggleAllVariants = (level: 'FIRST' | 'SECOND', visibleKeys: string[]) => {
+    if (visibleKeys.length === 0) return;
     const currentList = level === 'FIRST' ? formData.variantIdsFirst : formData.variantIdsSecond;
-    
-    // Vérifier si toutes les variantes filtrées sont déjà sélectionnées
-    const allSelected = filteredVariants.length > 0 && 
-      filteredVariants.every(variant => currentList.includes(variant.id));
-    
-    if (allSelected) {
-      // Décocher toutes les variantes filtrées
-      const filteredIds = filteredVariants.map(v => v.id);
-      const updatedList = currentList.filter(id => !filteredIds.includes(id));
+    const allSelected = visibleKeys.every((variantId) => currentList.includes(variantId));
+
+    const updatedList = allSelected
+      ? currentList.filter((variantId) => !visibleKeys.includes(variantId))
+      : [...new Set([...currentList, ...visibleKeys])];
+
       setFormData({
         ...formData,
         variantIdsFirst: level === 'FIRST' ? updatedList : formData.variantIdsFirst,
@@ -385,18 +422,6 @@ const getVariantNamesByLevel = (
         sansVariantFirst: level === 'FIRST' ? false : formData.sansVariantFirst,
         sansVariantSecond: level === 'SECOND' ? false : formData.sansVariantSecond,
       });
-    } else {
-      // Cocher toutes les variantes filtrées
-      const filteredIds = filteredVariants.map(v => v.id);
-      const updatedList = [...new Set([...currentList, ...filteredIds])];
-      setFormData({
-        ...formData,
-        variantIdsFirst: level === 'FIRST' ? updatedList : formData.variantIdsFirst,
-        variantIdsSecond: level === 'SECOND' ? updatedList : formData.variantIdsSecond,
-        sansVariantFirst: level === 'FIRST' ? false : formData.sansVariantFirst,
-        sansVariantSecond: level === 'SECOND' ? false : formData.sansVariantSecond,
-      });
-    }
   };
 
   const handleAddEnumOption = () => {
@@ -467,9 +492,6 @@ const getVariantNamesByLevel = (
       setFormData(createInitialFormData());
       setNewEnumOption('');
       setEnumOptionError('');
-      setFamilySearch('');
-      setVariant1Search('');
-      setVariant2Search('');
       setShowForm(false);
       setEditingId(null);
       loadData(true);
@@ -516,8 +538,6 @@ const getVariantNamesByLevel = (
       sansVariantSecond: !hasVariantSecond,
     });
     setNewEnumOption('');
-    setVariant1Search('');
-    setVariant2Search('');
     setEditingId(technicalCharacteristic.id);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -544,21 +564,18 @@ const getVariantNamesByLevel = (
       <div className="flex justify-between items-center mb-10 pb-4 border-b-2 border-purple/20">
         <h1 className="m-0 text-3xl font-bold text-purple">Gestion des Caractéristiques techniques</h1>
         {canEditContent && (
-          <button 
-            onClick={() => { 
-              setShowForm(true); 
-              setEditingId(null); 
-              setFormData(createInitialFormData()); 
-              setNewEnumOption(''); 
-              setEnumOptionError('');
-              setFamilySearch(''); 
-              setVariant1Search(''); 
-              setVariant2Search(''); 
-            }}
-            className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
-          >
-            + Nouvelle caractéristique technique
-          </button>
+        <button 
+        onClick={() => { 
+          setShowForm(true); 
+          setEditingId(null); 
+          setFormData(createInitialFormData()); 
+          setNewEnumOption(''); 
+          setEnumOptionError('');
+        }}
+          className="bg-gradient-to-r from-purple to-purple-light text-white border-none px-6 py-3 rounded-lg cursor-pointer text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100"
+        >
+          + Nouvelle caractéristique technique
+        </button>
         )}
       </div>
 
@@ -674,231 +691,64 @@ const getVariantNamesByLevel = (
               </div>
               </>
             )}
-            <div className="mb-5">
-              <label className="block mb-2.5 text-gray-dark font-semibold text-sm uppercase tracking-wide">Familles (optionnel)</label>
-              <input
-                type="text"
-                placeholder="🔍 Rechercher une famille..."
-                value={familySearch}
-                onChange={(e) => setFamilySearch(e.target.value)}
-                className="w-full px-2 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
-              />
-              <div className="border border-gray-300 rounded p-2.5 max-h-[200px] overflow-y-auto bg-gray-50">
-                {getFilteredFamilies().length === 0 ? (
-                  <p className="text-gray-500 italic m-0">
-                    {familySearch ? 'Aucune famille ne correspond à votre recherche' : 'Aucune famille disponible'}
-                  </p>
-                ) : (
-                  getFilteredFamilies().map((family) => (
-                    <label
-                      key={family.id}
-                      className="flex items-center px-2 py-2 cursor-pointer rounded mb-1 transition-colors duration-200 hover:bg-gray-100"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.familyIds.includes(family.id)}
-                        onChange={() => handleFamilyToggle(family.id)}
-                        className="mr-1.5 cursor-pointer"
-                      />
-                      <span>{family.name}</span>
-                    </label>
-                  ))
-                )}
-              </div>
-              <small className="block mt-1.5 text-gray-500">
-                {formData.familyIds.length > 0 ? `${formData.familyIds.length} famille(s) sélectionnée(s)` : 'Aucune famille sélectionnée'}
-              </small>
-            </div>
+            <SearchableSelectPanel
+              className="mb-5"
+              label="Familles"
+              fetchOptions={fetchFamilies}
+              limit={30}
+              selectedKeys={formData.familyIds}
+              onToggle={(key) => handleFamilyToggle(key)}
+              placeholder="🔍 Rechercher une famille..."
+              footer={
+                <small className="text-xs text-gray-500">
+                  {formData.familyIds.length > 0 ? `${formData.familyIds.length} famille(s) sélectionnée(s)` : 'Aucune famille sélectionnée'}
+                </small>
+              }
+            />
             <div className="mb-5">
               <div className="grid gap-6 md:grid-cols-2">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-dark font-semibold text-sm uppercase tracking-wide">
-                      Variantes 1
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {formData.variantIdsFirst.length > 0
-                        ? `${formData.variantIdsFirst.length} sélectionnée(s)`
-                        : formData.sansVariantFirst
-                          ? SANS_VARIANT_LABEL
-                          : 'Aucune sélection'}
-                    </span>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="🔍 Rechercher une variante 1..."
-                    value={variant1Search}
-                    onChange={(e) => setVariant1Search(e.target.value)}
-                    disabled={formData.familyIds.length === 0}
-                    className={`w-full px-2 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20 ${
-                      formData.familyIds.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                  />
-                  {formData.familyIds.length > 0 && filteredVariant1.length > 0 && (
-                    <label className="flex items-center px-2 py-1.5 mb-2 cursor-pointer rounded bg-purple/10 hover:bg-purple/20 transition-colors duration-200">
-                      <input
-                        type="checkbox"
-                        checked={filteredVariant1.length > 0 && 
-                          filteredVariant1.every(variant => formData.variantIdsFirst.includes(variant.id))}
-                        onChange={() => handleToggleAllVariants('FIRST')}
-                        className="mr-1.5 cursor-pointer"
-                      />
-                      <span className="text-sm font-medium text-purple">Tout cocher / Tout décocher</span>
-                    </label>
-                  )}
-                  <div className="border border-gray-300 rounded p-2.5 max-h-[200px] overflow-y-auto bg-gray-50">
-                    {formData.familyIds.length === 0 ? (
-                      <p className="text-gray-500 italic m-0">
-                        Sélectionnez d&apos;abord au moins une famille
-                      </p>
-                    ) : (
-                      <>
-                        <label className="flex items-start gap-2 mb-3 px-3 py-2 rounded border border-dashed border-purple/40 bg-purple/5 text-sm cursor-pointer transition-colors duration-200 hover:bg-purple/10">
-                          <input
-                            type="checkbox"
-                            checked={formData.sansVariantFirst}
-                            onChange={() => handleSansVariantToggle('FIRST')}
-                            className="mt-1 cursor-pointer"
-                          />
-                          <div>
-                            <span className="font-semibold text-purple">{SANS_VARIANT_LABEL}</span>
-                            {/* <p className="text-xs text-gray-600 m-0 mt-1">
-                              Cochez pour indiquer que cette caractéristique s'applique lorsque la variante 1 n'est pas choisie (code 0).
-                            </p> */}
-                          </div>
-                        </label>
-                        {loadingVariants ? (
-                          <div className="flex items-center gap-2 text-gray-600 text-sm">
-                            <Loader size="sm" />
-                            <span>Chargement des variantes...</span>
-                          </div>
-                        ) : filteredVariant1.length === 0 ? (
-                          <p className="text-gray-500 italic m-0">
-                            {variant1Search
-                              ? 'Aucune variante 1 ne correspond à votre recherche'
-                              : 'Aucune variante 1 disponible pour les familles sélectionnées'}
-                          </p>
-                        ) : (
-                          filteredVariant1.map((variant) => (
-                            <label
-                              key={variant.id}
-                              className="flex items-center px-2 py-2 cursor-pointer rounded mb-1 transition-colors duration-200 hover:bg-gray-100"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={formData.variantIdsFirst.includes(variant.id)}
-                                onChange={() => handleVariantToggle(variant.id, 'FIRST')}
-                                className="mr-1.5 cursor-pointer"
-                              />
-                              <span>
-                                {variant.name}
-                                {variant.family && (
-                                  <span className="text-gray-500 ml-1">
-                                    ({variant.family.name})
-                                  </span>
-                                )}
-                              </span>
-                            </label>
-                          ))
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-dark font-semibold text-sm uppercase tracking-wide">
-                      Variantes 2
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {formData.variantIdsSecond.length > 0
-                        ? `${formData.variantIdsSecond.length} sélectionnée(s)`
-                        : formData.sansVariantSecond
-                          ? SANS_VARIANT_LABEL
-                          : 'Aucune sélection'}
-                    </span>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="🔍 Rechercher une variante 2..."
-                    value={variant2Search}
-                    onChange={(e) => setVariant2Search(e.target.value)}
-                    disabled={formData.familyIds.length === 0}
-                    className={`w-full px-2 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20 ${
-                      formData.familyIds.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                  />
-                  {formData.familyIds.length > 0 && filteredVariant2.length > 0 && (
-                    <label className="flex items-center px-2 py-1.5 mb-2 cursor-pointer rounded bg-purple/10 hover:bg-purple/20 transition-colors duration-200">
-                      <input
-                        type="checkbox"
-                        checked={filteredVariant2.length > 0 && 
-                          filteredVariant2.every(variant => formData.variantIdsSecond.includes(variant.id))}
-                        onChange={() => handleToggleAllVariants('SECOND')}
-                        className="mr-1.5 cursor-pointer"
-                      />
-                      <span className="text-sm font-medium text-purple">Tout cocher / Tout décocher</span>
-                    </label>
-                  )}
-                  <div className="border border-gray-300 rounded p-2.5 max-h-[200px] overflow-y-auto bg-gray-50">
-                    {formData.familyIds.length === 0 ? (
-                      <p className="text-gray-500 italic m-0">
-                        Sélectionnez d&apos;abord au moins une famille
-                      </p>
-                    ) : (
-                      <>
-                        <label className="flex items-start gap-2 mb-3 px-3 py-2 rounded border border-dashed border-purple/40 bg-purple/5 text-sm cursor-pointer transition-colors duration-200 hover:bg-purple/10">
-                          <input
-                            type="checkbox"
-                            checked={formData.sansVariantSecond}
-                            onChange={() => handleSansVariantToggle('SECOND')}
-                            className="mt-1 cursor-pointer"
-                          />
-                          <div>
-                            <span className="font-semibold text-purple">{SANS_VARIANT_LABEL}</span>
-                            {/* <p className="text-xs text-gray-600 m-0 mt-1">
-                              Cochez pour indiquer que cette caractéristique s'applique lorsque la variante 2 n'est pas choisie (code 0).
-                            </p> */}
-                          </div>
-                        </label>
-                        {loadingVariants ? (
-                          <div className="flex items-center gap-2 text-gray-600 text-sm">
-                            <Loader size="sm" />
-                            <span>Chargement des variantes...</span>
-                          </div>
-                        ) : filteredVariant2.length === 0 ? (
-                          <p className="text-gray-500 italic m-0">
-                            {variant2Search
-                              ? 'Aucune variante 2 ne correspond à votre recherche'
-                              : 'Aucune variante 2 disponible pour les familles sélectionnées'}
-                          </p>
-                        ) : (
-                          filteredVariant2.map((variant) => (
-                            <label
-                              key={variant.id}
-                              className="flex items-center px-2 py-2 cursor-pointer rounded mb-1 transition-colors duration-200 hover:bg-gray-100"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={formData.variantIdsSecond.includes(variant.id)}
-                                onChange={() => handleVariantToggle(variant.id, 'SECOND')}
-                                className="mr-1.5 cursor-pointer"
-                              />
-                              <span>
-                                {variant.name}
-                                {variant.family && (
-                                  <span className="text-gray-500 ml-1">
-                                    ({variant.family.name})
-                                  </span>
-                                )}
-                              </span>
-                            </label>
-                          ))
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
+                <SearchableSelectPanel
+                  label="Variantes 1"
+                  className="mb-0"
+                  items={variantItemsByLevel.FIRST}
+                  selectedKeys={formData.variantIdsFirst}
+                  onToggle={(key) => handleVariantToggle(key, 'FIRST')}
+                  showSelectAll={variantItemsByLevel.FIRST.length > 0}
+                  onToggleAll={(visibleKeys) => handleToggleAllVariants('FIRST', visibleKeys)}
+                  extraSlot={renderSansVariantExtraSlot('FIRST')}
+                  loading={loadingVariants}
+                  footer={
+                    <small className="text-xs text-gray-500">
+                      {getVariantSummaryText('FIRST')}
+                    </small>
+                  }
+                  emptyMessage={
+                    formData.familyIds.length === 0
+                      ? 'Sélectionnez d’abord au moins une famille'
+                      : 'Aucune variante 1 disponible pour les familles sélectionnées'
+                  }
+                />
+                <SearchableSelectPanel
+                  label="Variantes 2"
+                  className="mb-0"
+                  items={variantItemsByLevel.SECOND}
+                  selectedKeys={formData.variantIdsSecond}
+                  onToggle={(key) => handleVariantToggle(key, 'SECOND')}
+                  showSelectAll={variantItemsByLevel.SECOND.length > 0}
+                  onToggleAll={(visibleKeys) => handleToggleAllVariants('SECOND', visibleKeys)}
+                  extraSlot={renderSansVariantExtraSlot('SECOND')}
+                  loading={loadingVariants}
+                  footer={
+                    <small className="text-xs text-gray-500">
+                      {getVariantSummaryText('SECOND')}
+                    </small>
+                  }
+                  emptyMessage={
+                    formData.familyIds.length === 0
+                      ? 'Sélectionnez d’abord au moins une famille'
+                      : 'Aucune variante 2 disponible pour les familles sélectionnées'
+                  }
+                />
               </div>
             </div>
             <div className="flex gap-4 mt-8 pt-6 border-t-2 border-gray-light">
@@ -912,7 +762,7 @@ const getVariantNamesByLevel = (
               </button>
               <button 
                 type="button" 
-                onClick={() => { setShowForm(false); setEditingId(null); setFamilySearch(''); setVariant1Search(''); setVariant2Search(''); setEnumOptionError(''); setNewEnumOption(''); }}
+                onClick={() => { setShowForm(false); setEditingId(null); setEnumOptionError(''); setNewEnumOption(''); }}
                 className="flex-1 px-8 py-3.5 border-none rounded-xl cursor-pointer text-base font-semibold transition-all duration-300 shadow-md bg-purple-dark text-white hover:opacity-90 hover:shadow-lg hover:scale-105 active:scale-100"
               >
                 ✕ Annuler

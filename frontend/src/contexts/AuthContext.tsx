@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let isMounted = true;
 
     const initialize = async () => {
-      const storedToken = localStorage.getItem('token');
+    const storedToken = localStorage.getItem('token');
       if (!storedToken) {
         if (isMounted) {
           setIsInitialized(true);
@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (isMounted) {
           setUser(profile);
           localStorage.setItem('user', JSON.stringify(profile));
-        }
+    }
       } catch (error) {
         console.error('Unable to refresh profile', error);
         if (isMounted) {
@@ -81,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } finally {
         if (isMounted) {
-          setIsInitialized(true);
+    setIsInitialized(true);
         }
       }
     };

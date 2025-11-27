@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   productsService,
   productGeneratedInfoService,
@@ -8,6 +8,7 @@ import {
 import { useModal } from '../contexts/ModalContext';
 import { formatFieldType } from '../utils/fieldTypeFormatter';
 import Loader from '../components/Loader';
+import SearchableSelectPanel from '../components/SearchableSelectPanel';
 import { Product, Variant, TechnicalCharacteristic } from '../utils/types';
 
 type VariantSelectionState = {
@@ -37,7 +38,6 @@ const getEffectiveVariantId = (selection: VariantSelectionState, level: 'FIRST' 
 
 export default function GeneratorPage() {
   const { showAlert } = useModal();
-  const [products, setProducts] = useState<Product[]>([]);
   const [variants, setVariants] = useState<Variant[]>([]);
   const [technicalCharacteristics, setTechnicalCharacteristics] = useState<TechnicalCharacteristic[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string>('');
@@ -48,13 +48,28 @@ export default function GeneratorPage() {
   const MAX_TECH_VALUE_LENGTH = 30;
   const [values, setValues] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
-  const [productSearch, setProductSearch] = useState('');
-  const [variant1Search, setVariant1Search] = useState('');
-  const [variant2Search, setVariant2Search] = useState('');
   const [enumSearch, setEnumSearch] = useState<Record<string, string>>({});
-  const [productsLoading, setProductsLoading] = useState(true);
   const [variantsLoading, setVariantsLoading] = useState(false);
   const [valueErrors, setValueErrors] = useState<Record<string, string>>({});
+
+  const fetchProducts = useCallback(
+    async ({ offset, limit, search }: { offset: number; limit: number; search?: string }) => {
+      const response = await productsService.getAll(offset, limit, search);
+      const data: Product[] = Array.isArray(response)
+        ? response
+        : response.data || [];
+      return data.map((product) => ({
+        key: product.id,
+        label: `${product.name} (${product.code}) - ${product.family?.name ?? 'Famille inconnue'}`,
+        value: product.id,
+      }));
+    },
+    [],
+  );
+
+  const handleProductToggle = (key: string) => {
+    setSelectedProductId((prev) => (prev === key ? '' : key));
+  };
 
   const isSansVariantSelected = (level: 'FIRST' | 'SECOND') =>
     level === 'FIRST'
@@ -76,48 +91,61 @@ export default function GeneratorPage() {
     });
   };
 
-  // Charger les produits au montage
-  useEffect(() => {
-    loadProducts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const variantItemsByLevel = useMemo(() => {
+    const mapItems = (level: 'FIRST' | 'SECOND') =>
+      variants
+        .filter((variant) => variant.variantLevel === level)
+        .map((variant) => ({
+          key: variant.id,
+          label: (
+            <span>
+              {variant.name}
+              {variant.code && (
+                <span className="text-xs text-gray-500 ml-1">({variant.code})</span>
+              )}
+            </span>
+          ),
+          value: variant.id,
+        }));
 
-  // Recharger les produits quand la recherche change
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      loadProducts(productSearch);
-    }, productSearch ? 300 : 0);
+    return {
+      FIRST: mapItems('FIRST'),
+      SECOND: mapItems('SECOND'),
+    };
+  }, [variants]);
 
-    return () => clearTimeout(timeoutId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productSearch]);
-
-  useEffect(() => {
-    if (selectedProductId) {
-      const product = products.find((p) => p.id === selectedProductId);
-      setSelectedProduct(product || null);
-      if (product) {
-        loadVariants(product.family.id);
-        // Réinitialiser les sélections
-        setVariantSelection(createInitialVariantSelection());
-        setValues({});
-        setValueErrors({});
-        setVariant1Search('');
-        setVariant2Search('');
-      }
-    } else {
-      setSelectedProduct(null);
-      setVariants([]);
-      setVariantSelection(createInitialVariantSelection());
-      setTechnicalCharacteristics([]);
-      setValues({});
-      setValueErrors({});
-      setVariant1Search('');
-      setVariant2Search('');
+  const getVariantFooterText = (level: 'FIRST' | 'SECOND') => {
+    const variantId = level === 'FIRST' ? variantSelection.variant1Id : variantSelection.variant2Id;
+    const sans = level === 'FIRST' ? variantSelection.sansVariantFirst : variantSelection.sansVariantSecond;
+    if (variantId) {
+      return '1 variante sélectionnée';
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProductId, products]);
+    if (sans) {
+      return SANS_VARIANT_LABEL;
+    }
+    return 'Aucune sélection';
+  };
 
+  const renderSansVariantExtraSlot = (level: 'FIRST' | 'SECOND') => (
+    <label
+      className="flex items-start gap-2 mb-3 px-3 py-2 rounded border border-dashed border-purple/40 bg-purple/5 text-sm cursor-pointer transition-colors duration-200 hover:bg-purple/10"
+    >
+      <input
+        type="checkbox"
+        checked={isSansVariantSelected(level)}
+        onChange={() => handleSansVariantToggle(level)}
+        className="mt-1 cursor-pointer"
+      />
+      <div>
+        <span className="font-semibold text-purple">{SANS_VARIANT_LABEL}</span>
+        <p className="text-xs text-gray-600 m-0 mt-1">
+          Cochez pour valider le code 0 lorsque cette variante n’est pas renseignée.
+        </p>
+      </div>
+    </label>
+  );
+
+  // Charger les produits au montage
   useEffect(() => {
     if (selectedProduct) {
       // Charger les caractéristiques techniques dès qu'un produit est sélectionné
@@ -133,32 +161,6 @@ export default function GeneratorPage() {
       setValues({});
     }
   }, [selectedProduct, variantSelection]);
-
-  const loadProducts = async (search?: string) => {
-    try {
-      setProductsLoading(true);
-      const searchValue = search !== undefined ? search : productSearch.trim() || undefined;
-      // Charger tous les produits sans limite
-      let allProducts: Product[] = [];
-      let offset = 0;
-      const limit = 50;
-      let hasMore = true;
-
-      while (hasMore) {
-        const response = await productsService.getAll(offset, limit, searchValue);
-        const data = Array.isArray(response) ? response : (response.data || []);
-        allProducts = [...allProducts, ...data];
-        hasMore = Array.isArray(response) ? data.length === limit : (response.hasMore !== false && data.length === limit);
-        offset += data.length;
-      }
-
-      setProducts(allProducts);
-    } catch (error) {
-      console.error('Error loading products:', error);
-    } finally {
-      setProductsLoading(false);
-    }
-  };
 
   const loadVariants = async (familyId: string) => {
     try {
@@ -184,6 +186,40 @@ export default function GeneratorPage() {
       setVariantsLoading(false);
     }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSelectedProduct = async () => {
+      if (!selectedProductId) {
+        setSelectedProduct(null);
+        setVariants([]);
+        setVariantSelection(createInitialVariantSelection());
+        setTechnicalCharacteristics([]);
+        setValues({});
+        setValueErrors({});
+        return;
+      }
+
+      try {
+        const product = await productsService.getById(selectedProductId);
+        if (cancelled) return;
+        setSelectedProduct(product);
+        loadVariants(product.family.id);
+        setVariantSelection(createInitialVariantSelection());
+        setValues({});
+        setValueErrors({});
+      } catch (error) {
+        console.error('Error loading selected product:', error);
+      }
+    };
+
+    loadSelectedProduct();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProductId]);
 
   const loadTechnicalCharacteristics = async (familyId: string, variantIds: string[]) => {
     try {
@@ -238,25 +274,6 @@ export default function GeneratorPage() {
     handleValueChange(technicalCharacteristicId, value);
   };
 
-  const getMatchingVariants = (level: 'FIRST' | 'SECOND', searchTerm: string) => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-    return variants
-      .filter((variant) => variant.variantLevel === level)
-      .filter((variant) => {
-        if (!normalizedSearch) return true;
-        return (
-          variant.name.toLowerCase().includes(normalizedSearch) ||
-          variant.code.toLowerCase().includes(normalizedSearch)
-        );
-      });
-  };
-
-  const variant1Matches = getMatchingVariants('FIRST', variant1Search);
-  const variant2Matches = getMatchingVariants('SECOND', variant2Search);
-
-  const variant1Options = selectedProduct ? variant1Matches : [];
-  const variant2Options = selectedProduct ? variant2Matches : [];
-
   const hasSelectedRealVariant = Boolean(
     getEffectiveVariantId(variantSelection, 'FIRST') ||
     getEffectiveVariantId(variantSelection, 'SECOND'),
@@ -282,8 +299,6 @@ export default function GeneratorPage() {
     setVariantSelection(createInitialVariantSelection());
     setValues({});
     setValueErrors({});
-    setVariant1Search('');
-    setVariant2Search('');
     setEnumSearch({});
   };
 
@@ -507,177 +522,65 @@ export default function GeneratorPage() {
       </h1>
 
       <div className="bg-gradient-to-br from-white to-gray-light/30 p-12 rounded-2xl shadow-xl border-2 border-purple/20 max-w-[1200px] mx-auto relative animate-slide-in backdrop-blur-sm">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 pb-8 border-b-2 border-gray-200">
-          <div className="mb-4">
-            <label className="block mb-2 text-gray-dark font-medium">Produit</label>
-            <input
-              type="text"
-              placeholder="🔍 Rechercher un produit..."
-              value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value)}
-              className="w-full px-3 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
-            />
-            <div className="border border-gray-300 rounded p-2.5 max-h-[200px] overflow-y-auto bg-gray-50">
-              {productsLoading ? (
-                <div className="py-8 flex items-center justify-center">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Loader size="md" />
-                    <span>Chargement...</span>
-                  </div>
-                </div>
-              ) : products.length === 0 ? (
-                <p className="text-gray-500 italic m-0">
-                  {productSearch 
-                    ? 'Aucun produit ne correspond à votre recherche'
-                    : 'Aucun produit disponible'}
-                </p>
-              ) : (
-                <>
-                  {products.map((product) => (
-                    <label 
-                      key={product.id} 
-                      className="flex items-center cursor-pointer px-2 py-2 rounded transition-colors duration-200 hover:bg-gray-100"
-                    >
-                      <input
-                        type="radio"
-                        name="product-selection"
-                        checked={selectedProductId === product.id}
-                        onChange={() => setSelectedProductId(product.id)}
-                        className="mr-3 cursor-pointer"
-                      />
-                      <span className="select-none">
-                        {product.name} ({product.code}) - {product.family.name}
-                      </span>
-                    </label>
-                      ))}
-                    </>
-                  )}
-            </div>
-          </div>
+        <div className="grid items-start grid-cols-1 md:grid-cols-2 gap-6 mb-8 pb-8 border-b-2 border-gray-200">
+          <SearchableSelectPanel
+            label="Produit"
+            className="mb-0"
+            fetchOptions={fetchProducts}
+            limit={30}
+            selectedKeys={selectedProductId ? [selectedProductId] : []}
+            onToggle={handleProductToggle}
+            mode="single"
+            placeholder="🔍 Rechercher un produit..."
+            footer={
+              <small className="text-xs text-gray-500">
+                {selectedProduct ? `${selectedProduct.name} (${selectedProduct.code})` : 'Sélectionnez un produit'}
+              </small>
+            }
+            emptyMessage="Aucun produit disponible"
+          />
           {selectedProduct && (
-            <div className="mb-4 grid gap-6 md:grid-cols-2">
-              <div>
-                <label className="flex items-center justify-between mb-2 text-gray-dark font-medium">
-                  <span>Variante 1</span>
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-red-500">Obligatoire</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="🔍 Rechercher une variante 1..."
-                  value={variant1Search}
-                  onChange={(e) => setVariant1Search(e.target.value)}
-                  className="w-full px-3 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
-                />
-                <div className="border border-gray-300 rounded p-2.5 max-h-[200px] overflow-y-auto bg-gray-50">
-                  {variantsLoading ? (
-                    <div className="py-8 flex items-center justify-center">
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Loader size="md" />
-                        <span>Chargement...</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <label className="flex items-start gap-2 mb-3 px-3 py-2 rounded border border-dashed border-purple/40 bg-purple/5 text-sm cursor-pointer transition-colors duration-200 hover:bg-purple/10">
-                        <input
-                          type="checkbox"
-                          checked={isSansVariantSelected('FIRST')}
-                          onChange={() => handleSansVariantToggle('FIRST')}
-                          className="mt-1 cursor-pointer"
-                        />
-                        <div>
-                          <span className="font-semibold text-purple">{SANS_VARIANT_LABEL}</span>
-                          {/* <p className="text-xs text-gray-600 m-0 mt-1">
-                            Cochez cette case pour forcer le code 0 quand aucune variante 1 réelle n’est sélectionnée.
-                          </p> */}
-                        </div>
-                      </label>
-                      {variant1Options.map((variant) => (
-                        <label
-                          key={variant.id}
-                          className="flex items-center cursor-pointer px-2 py-2 rounded transition-colors duration-200 hover:bg-gray-100"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={variantSelection.variant1Id === variant.id}
-                            onChange={() => handleVariant1Toggle(variant.id)}
-                            className="mr-3 cursor-pointer"
-                          />
-                          <span className="select-none">{variant.name} ({variant.code})</span>
-                        </label>
-                      ))}
-                      {variant1Matches.length === 0 && (
-                        <p className="text-gray-500 italic text-sm mt-2">
-                          {variant1Search
-                            ? 'Aucune variante 1 ne correspond à votre recherche — cochez la case "Sans Variante (code 0)"'
-                            : 'Aucune variante 1 disponible pour cette famille — cochez la case "Sans Variante (code 0)"'}
-                        </p>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-              <div>
-                <label className="flex items-center justify-between mb-2 text-gray-dark font-medium">
-                  <span>Variante 2</span>
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-red-500">Obligatoire</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="🔍 Rechercher une variante 2..."
-                  value={variant2Search}
-                  onChange={(e) => setVariant2Search(e.target.value)}
-                  className="w-full px-3 py-2 mb-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-purple focus:ring-2 focus:ring-purple/20"
-                />
-                <div className="border border-gray-300 rounded p-2.5 max-h-[200px] overflow-y-auto bg-gray-50">
-                  {variantsLoading ? (
-                    <div className="py-8 flex items-center justify-center">
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Loader size="md" />
-                        <span>Chargement...</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <label className="flex items-start gap-2 mb-3 px-3 py-2 rounded border border-dashed border-purple/40 bg-purple/5 text-sm cursor-pointer transition-colors duration-200 hover:bg-purple/10">
-                        <input
-                          type="checkbox"
-                          checked={isSansVariantSelected('SECOND')}
-                          onChange={() => handleSansVariantToggle('SECOND')}
-                          className="mt-1 cursor-pointer"
-                        />
-                        <div>
-                          <span className="font-semibold text-purple">{SANS_VARIANT_LABEL}</span>
-                          {/* <p className="text-xs text-gray-600 m-0 mt-1">
-                            Cochez cette case pour valider le code 0 lorsque la variante 2 reste non spécifiée.
-                          </p> */}
-                        </div>
-                      </label>
-                      {variant2Options.map((variant) => (
-                        <label
-                          key={variant.id}
-                          className="flex items-center cursor-pointer px-2 py-2 rounded transition-colors duration-200 hover:bg-gray-100"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={variantSelection.variant2Id === variant.id}
-                            onChange={() => handleVariant2Toggle(variant.id)}
-                            className="mr-3 cursor-pointer"
-                          />
-                          <span className="select-none">{variant.name} ({variant.code})</span>
-                        </label>
-                      ))}
-                      {variant2Matches.length === 0 && (
-                        <p className="text-gray-500 italic text-sm mt-2">
-                          {variant2Search
-                            ? 'Aucune variante 2 ne correspond à votre recherche — cochez la case "Sans Variante (code 0)"'
-                            : 'Aucune variante 2 disponible pour cette famille — cochez la case "Sans Variante (code 0)"'}
-                        </p>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
+            <div className="mb-4 gap-6">
+              <SearchableSelectPanel
+                label="Variante 1"
+                className="mb-5"
+                items={variantItemsByLevel.FIRST}
+                selectedKeys={variantSelection.variant1Id ? [variantSelection.variant1Id] : []}
+                onToggle={(key) => handleVariant1Toggle(key)}
+                mode="single"
+                loading={variantsLoading}
+                extraSlot={renderSansVariantExtraSlot('FIRST')}
+                footer={
+                  <small className="text-xs text-gray-500">
+                    {getVariantFooterText('FIRST')}
+                  </small>
+                }
+                emptyMessage={
+                  selectedProduct
+                    ? 'Aucune variante 1 disponible pour ce produit'
+                    : 'Sélectionnez d’abord un produit'
+                }
+              />
+              <SearchableSelectPanel
+                label="Variante 2"
+                className="mb-0"
+                items={variantItemsByLevel.SECOND}
+                selectedKeys={variantSelection.variant2Id ? [variantSelection.variant2Id] : []}
+                onToggle={(key) => handleVariant2Toggle(key)}
+                mode="single"
+                loading={variantsLoading}
+                extraSlot={renderSansVariantExtraSlot('SECOND')}
+                footer={
+                  <small className="text-xs text-gray-500">
+                    {getVariantFooterText('SECOND')}
+                  </small>
+                }
+                emptyMessage={
+                  selectedProduct
+                    ? 'Aucune variante 2 disponible pour ce produit'
+                    : 'Sélectionnez d’abord un produit'
+                }
+              />
             </div>
           )}
         </div>
