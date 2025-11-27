@@ -22,6 +22,17 @@ export default function VariantsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const variantLevelOptions = [
+    { value: 'FIRST' as const, label: 'Variante 1' },
+    { value: 'SECOND' as const, label: 'Variante 2' },
+  ];
+
+  useEffect(() => {
+    if (!canEditContent) {
+      setShowForm(false);
+      setEditingId(null);
+    }
+  }, [canEditContent]);
 
   const fetchVariantsTable = useCallback(
     async ({
@@ -51,14 +62,7 @@ export default function VariantsPage() {
     },
     [showAlert],
   );
-
-  useEffect(() => {
-    if (!canEditContent) {
-      setShowForm(false);
-      setEditingId(null);
-    }
-  }, [canEditContent]);
-
+  
   const fetchFamilies = useCallback(async ({
     offset,
     limit,
@@ -76,6 +80,40 @@ export default function VariantsPage() {
       value: family.id,
     }));
   }, []);
+
+  const variantColumns = useMemo(
+    () => [
+      {
+        header: 'Nom',
+        render: (variant: Variant) => (
+          <span className="text-gray-dark font-medium">{variant.name}</span>
+        ),
+      },
+      {
+        header: 'Code',
+        render: (variant: Variant) => (
+          <span className="text-gray-dark font-mono font-semibold">{variant.code}</span>
+        ),
+      },
+      {
+        header: 'Type',
+        render: (variant: Variant) => (
+          <span className="text-gray-dark font-medium">
+            {variant.variantLevel === 'FIRST' ? 'Variante 1' : 'Variante 2'}
+          </span>
+        ),
+      },
+      {
+        header: 'Famille',
+        render: (variant: Variant) => (
+          <span className="text-gray-dark font-medium">
+            {variant.family?.name || 'N/A'}
+          </span>
+        ),
+      },
+    ],
+    [],
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     if (!canEditContent) return;
@@ -128,45 +166,6 @@ export default function VariantsPage() {
       setDeletingId(null);
     }
   };
-
-  const variantLevelOptions = [
-    { value: 'FIRST' as const, label: 'Variante 1' },
-    { value: 'SECOND' as const, label: 'Variante 2' },
-  ];
-
-  const variantColumns = useMemo(
-    () => [
-      {
-        header: 'Nom',
-        render: (variant: Variant) => (
-          <span className="text-gray-dark font-medium">{variant.name}</span>
-        ),
-      },
-      {
-        header: 'Code',
-        render: (variant: Variant) => (
-          <span className="text-gray-dark font-mono font-semibold">{variant.code}</span>
-        ),
-      },
-      {
-        header: 'Type',
-        render: (variant: Variant) => (
-          <span className="text-gray-dark font-medium">
-            {variant.variantLevel === 'FIRST' ? 'Variante 1' : 'Variante 2'}
-          </span>
-        ),
-      },
-      {
-        header: 'Famille',
-        render: (variant: Variant) => (
-          <span className="text-gray-dark font-medium">
-            {variant.family?.name || 'N/A'}
-          </span>
-        ),
-      },
-    ],
-    [],
-  );
 
   const renderVariantActions = (variant: Variant) => (
     <div className="flex items-center gap-2">

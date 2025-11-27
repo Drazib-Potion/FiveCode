@@ -6,8 +6,7 @@ import {
   normalizeString,
   normalizeStringForStorage,
 } from '../utils/string-normalizer';
-
-const MAX_ENUM_OPTION_LENGTH = 30;
+import { MAX_ENUM_OPTION_LENGTH } from '../utils/constants';
 
 @Injectable()
 export class TechnicalCharacteristicsService {

@@ -55,39 +55,6 @@ export default function ProductsPage() {
     [showAlert],
   );
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    if (!canEditContent) return;
-    e.preventDefault();
-    setSubmitting(true);
-    try {
-      await productsService.create(formData);
-      setFormData({ name: '', code: '', familyId: '', productTypeId: '' });
-      setShowForm(false);
-      setReloadKey((prev) => prev + 1);
-    } catch (error: any) {
-      console.error('Error creating product:', error);
-      await showAlert(error.response?.data?.message || 'Erreur lors de la création du produit', 'error');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!canEditContent) return;
-    const confirmed = await showConfirm('Êtes-vous sûr de vouloir supprimer ce produit ?');
-    if (!confirmed) return;
-    setDeletingId(id);
-    try {
-      await productsService.delete(id);
-      setReloadKey((prev) => prev + 1);
-    } catch (error) {
-      console.error('Error deleting product:', error);
-      await showAlert('Erreur lors de la suppression', 'error');
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
   const fetchFamilies = useCallback(
     async ({
     offset,
@@ -129,6 +96,40 @@ export default function ProductsPage() {
     },
     [],
   );
+
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    if (!canEditContent) return;
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await productsService.create(formData);
+      setFormData({ name: '', code: '', familyId: '', productTypeId: '' });
+      setShowForm(false);
+      setReloadKey((prev) => prev + 1);
+    } catch (error: any) {
+      console.error('Error creating product:', error);
+      await showAlert(error.response?.data?.message || 'Erreur lors de la création du produit', 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!canEditContent) return;
+    const confirmed = await showConfirm('Êtes-vous sûr de vouloir supprimer ce produit ?');
+    if (!confirmed) return;
+    setDeletingId(id);
+    try {
+      await productsService.delete(id);
+      setReloadKey((prev) => prev + 1);
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      await showAlert('Erreur lors de la suppression', 'error');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const productColumns = useMemo(
     () => [

@@ -4,6 +4,25 @@ export interface User {
   role: 'CONSULTATION' | 'MANAGER' | 'ADMIN';
 }
 
+export type VariantSelectionState = {
+  variant1Id: string;
+  variant2Id: string;
+  sansVariantFirst: boolean;
+  sansVariantSecond: boolean;
+};
+
+export type FormDataState = {
+  name: string;
+  type: string;
+  enumOptions: string[];
+  enumMultiple: boolean;
+  familyIds: string[];
+  variantIdsFirst: string[];
+  variantIdsSecond: string[];
+  sansVariantFirst: boolean;
+  sansVariantSecond: boolean;
+};
+
 export interface Family {
   id: string;
   name: string;

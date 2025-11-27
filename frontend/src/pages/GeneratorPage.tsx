@@ -10,15 +10,8 @@ import { formatFieldType } from '../utils/fieldTypeFormatter';
 import Loader from '../components/Loader';
 import SearchableSelectPanel from '../components/SearchableSelectPanel';
 import { Product, Variant, TechnicalCharacteristic } from '../utils/types';
-
-type VariantSelectionState = {
-  variant1Id: string;
-  variant2Id: string;
-  sansVariantFirst: boolean;
-  sansVariantSecond: boolean;
-};
-
-const SANS_VARIANT_LABEL = 'Sans Variante (code 0)';
+import { VariantSelectionState } from '../utils/types';
+import { SANS_VARIANT_LABEL } from '../utils/constants.ts';
 
 const createInitialVariantSelection = (): VariantSelectionState => ({
   variant1Id: '',

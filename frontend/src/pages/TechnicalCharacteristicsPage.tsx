@@ -7,22 +7,9 @@ import DataTable from '../components/DataTable';
 import SearchableSelectPanel from '../components/SearchableSelectPanel';
 import { TechnicalCharacteristic, Family, Variant } from '../utils/types';
 import { useAuth } from '../contexts/AuthContext';
+import { FormDataState } from '../utils/types';
+import { SANS_VARIANT_LABEL, MAX_ENUM_OPTION_LENGTH } from '../utils/constants.ts';
 
-type FormDataState = {
-  name: string;
-  type: string;
-  enumOptions: string[];
-  enumMultiple: boolean;
-  familyIds: string[];
-  variantIdsFirst: string[];
-  variantIdsSecond: string[];
-  sansVariantFirst: boolean;
-  sansVariantSecond: boolean;
-};
-
-const SANS_VARIANT_LABEL = 'Sans Variante (code 0)';
-
-const MAX_ENUM_OPTION_LENGTH = 30;
 
 const createInitialFormData = (): FormDataState => ({
   name: '',
