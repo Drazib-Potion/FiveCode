@@ -423,11 +423,11 @@ const getVariantNamesByLevel = useCallback(
       } else {
         await technicalCharacteristicsService.create(submitData);
       }
-      setFormData(createInitialFormData());
-      setNewEnumOption('');
-      setEnumOptionError('');
-      setShowForm(false);
-      setEditingId(null);
+      // setFormData(createInitialFormData());
+      // setNewEnumOption('');
+      // setEnumOptionError('');
+      // setShowForm(false);
+      // setEditingId(null);
       setReloadKey((prev) => prev + 1);
     } catch (error: any) {
       console.error('Error saving technical characteristic:', error);
