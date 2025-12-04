@@ -383,6 +383,207 @@ export class ProductGeneratedInfoService {
     updateDto: UpdateProductGeneratedInfoDto,
     userEmail: string,
   ) {
+    // Récupérer l'élément actuel pour connaître son productId et ses variantes
+    const currentGeneratedInfo = await this.findOne(id);
+    
+    // Si des valeurs sont fournies, vérifier les doublons avant de mettre à jour
+    if (updateDto.values) {
+      // Vérifier que le produit existe (au cas où il serait modifié)
+      const product = await this.prisma.product.findUnique({
+        where: { id: currentGeneratedInfo.productId },
+        include: {
+          family: true,
+          productType: true,
+        },
+      });
+
+      if (!product) {
+        throw new NotFoundException(
+          `Product with ID ${currentGeneratedInfo.productId} not found`,
+        );
+      }
+
+      // Récupérer les variantes actuelles
+      const variant1 = currentGeneratedInfo.variant1;
+      const variant2 = currentGeneratedInfo.variant2;
+      const selectedVariantIds = [variant1?.id, variant2?.id].filter(
+        (id): id is string => Boolean(id),
+      );
+
+      // Récupérer les caractéristiques techniques applicables
+      const allTechnicalCharacteristicsResponse =
+        await this.technicalCharacteristicsService.findAll();
+      const allTechnicalCharacteristics = Array.isArray(
+        allTechnicalCharacteristicsResponse,
+      )
+        ? allTechnicalCharacteristicsResponse
+        : allTechnicalCharacteristicsResponse.data;
+
+      // Filtrer pour avoir les caractéristiques techniques qui s'appliquent
+      const applicableTechnicalCharacteristics =
+        allTechnicalCharacteristics.filter((technicalCharacteristic: any) => {
+          // Vérifier si la caractéristique est associée à la famille du produit
+          const isAssociatedWithFamily = technicalCharacteristic.families?.some(
+            (tcFamily: any) => tcFamily.familyId === product.familyId,
+          );
+
+          if (!isAssociatedWithFamily) {
+            return false;
+          }
+
+          // Récupérer les variantes associées avec leur famille (en filtrant les null/undefined)
+          const associatedVariants = (technicalCharacteristic.variants || [])
+            .filter(
+              (tcVariant: any) => tcVariant.variant && tcVariant.variant.familyId,
+            ) // Filtrer les variantes invalides
+            .map((tcVariant: any) => ({
+              variantId: tcVariant.variantId,
+              familyId: tcVariant.variant.familyId,
+            }));
+
+          // Filtrer les variantes pour ne garder que celles qui appartiennent à la famille du produit
+          const variantsForThisFamily = associatedVariants.filter(
+            (v) => v.familyId === product.familyId,
+          );
+
+          // Logique stricte : la caractéristique est associée uniquement à ce qui est explicitement coché
+          // Si la caractéristique n'a pas de variantes pour cette famille
+          if (variantsForThisFamily.length === 0) {
+            // Elle s'applique uniquement si aucune variante spécifique n'est sélectionnée
+            return selectedVariantIds.length === 0;
+          }
+
+          // Si la caractéristique a des variantes pour cette famille
+          const variantIdsForThisFamily = variantsForThisFamily.map(
+            (v) => v.variantId,
+          );
+          // Elle s'applique uniquement si des variantes sont sélectionnées ET qu'au moins une correspond
+          if (selectedVariantIds.length > 0) {
+            return selectedVariantIds.some((variantId) =>
+              variantIdsForThisFamily.includes(variantId),
+            );
+          }
+          // Si aucune variante n'est sélectionnée mais que la caractéristique a des variantes associées, elle ne s'applique pas
+          return false;
+        });
+
+      // Dédupliquer par ID
+      const uniqueTechnicalCharacteristics = Array.from(
+        new Map(
+          applicableTechnicalCharacteristics.map(
+            (technicalCharacteristic: any) => [
+              technicalCharacteristic.id,
+              technicalCharacteristic,
+            ],
+          ),
+        ).values(),
+      );
+
+      // Récupérer tous les ProductGeneratedInfo avec la même combinaison produit+variante
+      // EXCLURE l'élément actuel de la recherche
+      const allProductInfos = await this.prisma.productGeneratedInfo.findMany({
+        where: {
+          productId: currentGeneratedInfo.productId,
+          variant1Id: variant1?.id ?? null,
+          variant2Id: variant2?.id ?? null,
+          id: { not: id }, // Exclure l'élément actuel
+        },
+        include: {
+          variant1: true,
+          variant2: true,
+          technicalCharacteristics: {
+            include: {
+              technicalCharacteristic: true,
+            },
+          },
+        },
+      });
+
+      // Vérifier s'il existe un doublon exact (mêmes variantes ET mêmes valeurs pour toutes les caractéristiques techniques)
+      if (allProductInfos.length > 0) {
+        // Préparer les valeurs des caractéristiques techniques de la requête
+        const requestValues: Record<string, string | null> = {};
+        for (const technicalCharacteristic of uniqueTechnicalCharacteristics) {
+          const value = updateDto.values?.[(technicalCharacteristic as any).id];
+          if (value !== undefined && value !== null && value !== '') {
+            requestValues[(technicalCharacteristic as any).id] = String(value);
+          } else {
+            // Marquer comme null si non fournie
+            requestValues[(technicalCharacteristic as any).id] = null;
+          }
+        }
+
+        // Vérifier chaque match pour voir si les valeurs des caractéristiques techniques sont identiques
+        for (const match of allProductInfos) {
+          // Préparer les valeurs des caractéristiques techniques de ce match
+          const matchValues: Record<string, string | null> = {};
+          // Initialiser toutes les caractéristiques techniques applicables
+          for (const technicalCharacteristic of uniqueTechnicalCharacteristics) {
+            matchValues[(technicalCharacteristic as any).id] = null;
+          }
+          // Remplir avec les valeurs existantes
+          if (match.technicalCharacteristics) {
+            for (const tc of match.technicalCharacteristics) {
+              const technicalCharacteristicId = tc.technicalCharacteristic.id;
+              if (matchValues.hasOwnProperty(technicalCharacteristicId)) {
+                matchValues[technicalCharacteristicId] = tc.value;
+              }
+            }
+          }
+
+          // Comparer TOUTES les caractéristiques techniques applicables
+          let allValuesMatch = true;
+
+          // Si aucune caractéristique technique n'est applicable, vérifier que le match n'a pas non plus de caractéristiques techniques
+          if (uniqueTechnicalCharacteristics.length === 0) {
+            // Pas de caractéristiques techniques applicables, vérifier si le match n'a pas non plus de caractéristiques techniques
+            const matchHasNoTechChars =
+              !match.technicalCharacteristics ||
+              match.technicalCharacteristics.length === 0;
+            const requestHasNoTechChars =
+              !updateDto.values ||
+              Object.keys(updateDto.values || {}).length === 0;
+
+            // Si les deux n'ont pas de caractéristiques techniques, c'est un match exact
+            if (matchHasNoTechChars && requestHasNoTechChars) {
+              allValuesMatch = true;
+            } else {
+              allValuesMatch = false;
+            }
+          } else {
+            // Comparer toutes les caractéristiques techniques applicables
+            for (const technicalCharacteristic of uniqueTechnicalCharacteristics) {
+              const technicalCharacteristicId = (technicalCharacteristic as any)
+                .id;
+              const requestValue =
+                requestValues[technicalCharacteristicId] ?? null;
+              const matchValue = matchValues[technicalCharacteristicId] ?? null;
+
+              // Les deux doivent être null ou avoir la même valeur (comparaison insensible à la casse)
+              const normalizedRequestValue = requestValue
+                ? normalizeString(String(requestValue).trim())
+                : null;
+              const normalizedMatchValue = matchValue
+                ? normalizeString(String(matchValue).trim())
+                : null;
+
+              if (normalizedRequestValue !== normalizedMatchValue) {
+                allValuesMatch = false;
+                break;
+              }
+            }
+          }
+
+          if (allValuesMatch) {
+            throw new BadRequestException(
+              'Un code généré identique existe déjà pour ce produit avec les mêmes variantes et les mêmes valeurs de caractéristiques techniques.',
+            );
+          }
+        }
+      }
+    }
+
+    // Mettre à jour les valeurs si fournies
     if (updateDto.values) {
       await this.prisma.productTechnicalCharacteristic.deleteMany({
         where: { generatedInfoId: id },
