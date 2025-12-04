@@ -373,6 +373,12 @@ const getVariantNamesByLevel = useCallback(
     setEnumOptionError('');
   };
 
+  const handleEditEnumOption = (option: any, index: number) => {
+    const updatedFormData = {...formData}
+    updatedFormData.enumOptions[index] = option
+    setFormData(updatedFormData)
+  }
+
   const handleSansVariantToggle = (level: 'FIRST' | 'SECOND') => {
     const isFirst = level === 'FIRST';
     const isActive = isFirst ? formData.sansVariantFirst : formData.sansVariantSecond;
@@ -595,7 +601,7 @@ const getVariantNamesByLevel = useCallback(
                         key={index}
                         className="flex justify-between items-center px-3 py-2 border border-gray-300 rounded bg-white transition-all duration-200 hover:border-purple hover:bg-purple/5"
                       >
-                        <span className="text-gray-dark font-medium text-sm">{option}</span>
+                        <input className="text-gray-dark font-medium text-sm border-2 rounded-md border-fuchsia-800" value={option} onChange={(e) => handleEditEnumOption(e.target.value, index)}></input>
                         <button
                           type="button"
                           onClick={() => {

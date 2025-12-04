@@ -610,6 +610,80 @@ export class TechnicalCharacteristicsService {
       };
     }
 
+    // Si le type est "enum" et que les options sont modifiées, synchroniser les valeurs
+    if (finalType === 'enum' && updateTechnicalCharacteristicDto.enumOptions !== undefined) {
+      const oldEnumOptions = (technicalCharacteristic.enumOptions as string[] | null) || [];
+      const newEnumOptions = updateTechnicalCharacteristicDto.enumOptions.filter(
+        (opt) => opt.trim().length > 0,
+      );
+      
+      // Normaliser les options pour la comparaison
+      const normalizedOldOptions = oldEnumOptions.map(opt => normalizeStringForStorage(opt));
+      const normalizedNewOptions = newEnumOptions.map(opt => normalizeStringForStorage(opt));
+      
+      // Créer un Set des nouvelles options pour vérifier rapidement si une option existe
+      const newOptionsSet = new Set(normalizedNewOptions);
+      
+      // Trouver les correspondances entre anciennes et nouvelles options par index
+      const optionMapping = new Map<string, string>();
+      const maxLength = Math.max(normalizedOldOptions.length, normalizedNewOptions.length);
+      
+      // Mapping par index : option à l'index i devient la nouvelle option à l'index i (si elle existe)
+      for (let i = 0; i < maxLength; i++) {
+        if (i < normalizedOldOptions.length && i < normalizedNewOptions.length) {
+          const oldOption = normalizedOldOptions[i];
+          const newOption = normalizedNewOptions[i];
+          if (oldOption !== newOption) {
+            optionMapping.set(oldOption, newOption);
+          }
+        }
+      }
+      
+      // Trouver les options supprimées (présentes dans l'ancienne liste mais absentes de la nouvelle)
+      const deletedOptions = new Set<string>();
+      for (const oldOption of normalizedOldOptions) {
+        // Vérifier si l'option existe toujours dans la nouvelle liste (par valeur exacte)
+        if (!newOptionsSet.has(oldOption)) {
+          // Vérifier aussi si elle n'a pas été renommée (via le mapping)
+          if (!optionMapping.has(oldOption)) {
+            deletedOptions.add(oldOption);
+          }
+        }
+      }
+      
+      // Récupérer toutes les ProductTechnicalCharacteristic pour cette caractéristique technique
+      const productTechChars = await this.prisma.productTechnicalCharacteristic.findMany({
+        where: {
+          technicalCharacteristicId: id,
+        },
+      });
+      
+      // Mettre à jour les valeurs
+      for (const productTechChar of productTechChars) {
+        const normalizedValue = normalizeStringForStorage(productTechChar.value);
+        let shouldUpdate = false;
+        let newValue = productTechChar.value;
+        
+        // Si la valeur correspond à une option renommée, la mettre à jour
+        if (optionMapping.has(normalizedValue)) {
+          newValue = optionMapping.get(normalizedValue)!;
+          shouldUpdate = true;
+        }
+        // Si la valeur correspond à une option supprimée, la vider
+        else if (deletedOptions.has(normalizedValue)) {
+          newValue = '';
+          shouldUpdate = true;
+        }
+        
+        if (shouldUpdate) {
+          await this.prisma.productTechnicalCharacteristic.update({
+            where: { id: productTechChar.id },
+            data: { value: newValue },
+          });
+        }
+      }
+    }
+
     return this.prisma.technicalCharacteristic.update({
       where: { id },
       data: updateData,

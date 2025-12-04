@@ -107,7 +107,6 @@ model Product {
   @@map("products")
 }
 
-// Informations générées (code généré + variante + champs)
 model ProductGeneratedInfo {
   id            String   @id @default(uuid())
   productId     String
