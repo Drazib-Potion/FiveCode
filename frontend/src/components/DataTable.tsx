@@ -261,7 +261,9 @@ function DataTable<T>({
               </th>
             ))}
             {renderActions && (
-              <th className={defaultHeaderClass}>{actionsHeader}</th>
+              <th className={`${defaultHeaderClass} sticky right-0 bg-linear-to-r from-purple to-purple-dark z-10`}>
+                {actionsHeader}
+              </th>
             )}
           </tr>
         </thead>
@@ -301,7 +303,9 @@ function DataTable<T>({
                   </td>
                 ))}
                 {renderActions && (
-                  <td className={actionCellClassName || defaultCellClass}>
+                  <td className={`${actionCellClassName || defaultCellClass} sticky right-0 z-10 ${
+                    index % 2 === 0 ? 'bg-white' : 'bg-gray-light'
+                  }`}>
                     {renderActions(item)}
                   </td>
                 )}
