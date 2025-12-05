@@ -4,7 +4,7 @@ Full-stack NestJS + React app (deployed on Railway) to manage an industrial arti
 
 ## 🎬 Demo
 
-<iframe src="https://player.vimeo.com/video/1141417291?badge=0&amp;autopause=0&amp;player_id=0&amp;app_id=58479" width="1434" height="722" frameborder="0" allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share" referrerpolicy="strict-origin-when-cross-origin" title="demo-fivesCode"></iframe>
+[![Watch the demo](https://vumbnail.com/1141417291.jpg)](https://vimeo.com/1141417291)
 
 ## 🧰 Requirements
 - Node.js 18+
