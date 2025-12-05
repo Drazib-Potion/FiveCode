@@ -1,11 +1,4 @@
-/*
-  Warnings:
 
-  - You are about to drop the column `values` on the `products` table. All the data in the column will be lost.
-  - You are about to drop the column `variantId` on the `products` table. All the data in the column will be lost.
-  - You are about to drop the `rules` table. If the table is not empty, all the data it contains will be lost.
-
-*/
 -- DropForeignKey
 ALTER TABLE "products" DROP CONSTRAINT "products_variantId_fkey";
 

@@ -13,7 +13,7 @@ async function bootstrap() {
     }),
   );
 
-  // CORS configuration - accept requests from frontend
+
   const allowedOrigins = process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',')
     : [

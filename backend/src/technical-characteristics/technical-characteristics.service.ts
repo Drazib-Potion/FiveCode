@@ -19,7 +19,6 @@ export class TechnicalCharacteristicsService {
   async create(
     createTechnicalCharacteristicDto: CreateTechnicalCharacteristicDto,
   ) {
-    // Valider le type
     const validTypes = ['string', 'number', 'boolean', 'enum'];
     if (!validTypes.includes(createTechnicalCharacteristicDto.type)) {
       throw new BadRequestException(
@@ -31,7 +30,6 @@ export class TechnicalCharacteristicsService {
     const normalizedName = normalizeStringForStorage(
       createTechnicalCharacteristicDto.name,
     );
-    // Si le type est "enum", vérifier que enumOptions est fourni et non vide
     if (createTechnicalCharacteristicDto.type === 'enum') {
       if (
         !createTechnicalCharacteristicDto.enumOptions ||
@@ -41,7 +39,7 @@ export class TechnicalCharacteristicsService {
           'Les options enum sont requises pour le type "enum"',
         );
       }
-      // Filtrer les options vides
+
       const filteredOptions =
         createTechnicalCharacteristicDto.enumOptions.filter(
           (opt) => opt.trim().length > 0,
@@ -57,7 +55,6 @@ export class TechnicalCharacteristicsService {
       );
     }
 
-    // Vérifier qu'au moins une famille ou une variante est fournie
     const hasFamilies =
       createTechnicalCharacteristicDto.familyIds &&
       createTechnicalCharacteristicDto.familyIds.length > 0;
@@ -65,9 +62,7 @@ export class TechnicalCharacteristicsService {
       createTechnicalCharacteristicDto.variantIds &&
       createTechnicalCharacteristicDto.variantIds.length > 0;
 
-    // Vérifier que le nom n'existe pas déjà dans les familles spécifiées (insensible à la casse et aux accents)
     if (hasFamilies) {
-      // Récupérer toutes les caractéristiques techniques associées aux familles spécifiées
       const existingCharacteristics =
         await this.prisma.technicalCharacteristic.findMany({
           where: {
@@ -82,7 +77,6 @@ export class TechnicalCharacteristicsService {
           },
         });
 
-      // Vérifier pour chaque famille si le nom existe déjà
       for (const familyId of createTechnicalCharacteristicDto.familyIds!) {
         const characteristicsInFamily = existingCharacteristics.filter((tc) =>
           tc.families.some((f: any) => f.familyId === familyId),
@@ -111,7 +105,6 @@ export class TechnicalCharacteristicsService {
       );
     }
 
-    // Vérifier que les familles existent
     if (hasFamilies) {
       const families = await this.prisma.family.findMany({
         where: { id: { in: createTechnicalCharacteristicDto.familyIds! } },
@@ -123,7 +116,7 @@ export class TechnicalCharacteristicsService {
       }
     }
 
-    // Vérifier que les variantes existent
+
     if (hasVariants) {
       const variants = await this.prisma.variant.findMany({
         where: { id: { in: createTechnicalCharacteristicDto.variantIds! } },
@@ -174,7 +167,6 @@ export class TechnicalCharacteristicsService {
   }
 
   async findAll(offset: number = 0, limit: number = 50, search?: string) {
-    // Récupérer toutes les caractéristiques techniques si recherche, sinon utiliser la pagination normale
     let allTechnicalCharacteristics =
       await this.prisma.technicalCharacteristic.findMany({
         include: {
@@ -190,7 +182,7 @@ export class TechnicalCharacteristicsService {
         },
       });
 
-    // Filtrer avec normalisation si recherche
+
     if (search && typeof search === 'string' && search.trim().length > 0) {
       const normalizedSearch = normalizeString(search.trim());
       allTechnicalCharacteristics = allTechnicalCharacteristics.filter((tc) => {
@@ -213,7 +205,7 @@ export class TechnicalCharacteristicsService {
       });
     }
 
-    // Appliquer la pagination
+
     const total = allTechnicalCharacteristics.length;
     const data = allTechnicalCharacteristics.slice(offset, offset + limit);
 
@@ -230,7 +222,6 @@ export class TechnicalCharacteristicsService {
     limit: number = 50,
     search?: string,
   ) {
-    // Récupérer toutes les caractéristiques techniques de la famille
     let allTechnicalCharacteristics =
       await this.prisma.technicalCharacteristic.findMany({
         where: {
@@ -251,7 +242,7 @@ export class TechnicalCharacteristicsService {
         },
       });
 
-    // Filtrer avec normalisation si recherche
+
     if (search && typeof search === 'string' && search.trim().length > 0) {
       const normalizedSearch = normalizeString(search.trim());
       allTechnicalCharacteristics = allTechnicalCharacteristics.filter((tc) => {
@@ -264,7 +255,7 @@ export class TechnicalCharacteristicsService {
       });
     }
 
-    // Appliquer la pagination
+
     const total = allTechnicalCharacteristics.length;
     const data = allTechnicalCharacteristics.slice(offset, offset + limit);
 
@@ -281,7 +272,6 @@ export class TechnicalCharacteristicsService {
     limit: number = 50,
     search?: string,
   ) {
-    // Récupérer toutes les caractéristiques techniques de la variante
     let allTechnicalCharacteristics =
       await this.prisma.technicalCharacteristic.findMany({
         where: {
@@ -302,7 +292,7 @@ export class TechnicalCharacteristicsService {
         },
       });
 
-    // Filtrer avec normalisation si recherche
+
     if (search && typeof search === 'string' && search.trim().length > 0) {
       const normalizedSearch = normalizeString(search.trim());
       allTechnicalCharacteristics = allTechnicalCharacteristics.filter((tc) => {
@@ -315,7 +305,7 @@ export class TechnicalCharacteristicsService {
       });
     }
 
-    // Appliquer la pagination
+
     const total = allTechnicalCharacteristics.length;
     const data = allTechnicalCharacteristics.slice(offset, offset + limit);
 
@@ -333,14 +323,12 @@ export class TechnicalCharacteristicsService {
     limit: number = 50,
     search?: string,
   ) {
-    // Construire le filtre de base
     const baseFilter: any = {
       families: {
         some: { familyId },
       },
     };
 
-    // Récupérer toutes les caractéristiques techniques associées à la famille
     const allTechnicalCharacteristics =
       await this.prisma.technicalCharacteristic.findMany({
         where: baseFilter,
@@ -361,32 +349,24 @@ export class TechnicalCharacteristicsService {
         },
       });
 
-    // Filtrer selon la logique stricte : la caractéristique est associée uniquement à ce qui est explicitement coché
-    // Si variantIds est vide, on cherche les caractéristiques qui s'appliquent à toute la famille (sans variantes spécifiques)
-    // Si variantIds n'est pas vide, on cherche uniquement les caractéristiques qui ont ces variantes spécifiques associées
     const filtered = allTechnicalCharacteristics.filter(
       (technicalCharacteristic) => {
-        // Récupérer les variantes associées avec leur famille (en filtrant les null/undefined)
         const associatedVariants = (technicalCharacteristic.variants || [])
           .filter(
             (tcVariant: any) => tcVariant.variant && tcVariant.variant.familyId,
-          ) // Filtrer les variantes invalides
+          )
           .map((tcVariant: any) => ({
             variantId: tcVariant.variantId,
             familyId: tcVariant.variant.familyId,
           }));
 
-        // Filtrer les variantes pour ne garder que celles qui appartiennent à la famille
         const variantsForThisFamily = associatedVariants.filter(
           (v) => v.familyId === familyId,
         );
 
-        // Si on cherche des variantes spécifiques (variantIds n'est pas vide)
         if (variantIds.length > 0) {
-          // La caractéristique doit avoir des variantes associées pour cette famille
-          // ET au moins une de ces variantes doit correspondre aux variantes recherchées
           if (variantsForThisFamily.length === 0) {
-            return false; // Pas de variantes associées, donc ne s'applique pas aux variantes spécifiques
+            return false;
           }
           const variantIdsForThisFamily = variantsForThisFamily.map(
             (v) => v.variantId,
@@ -395,15 +375,11 @@ export class TechnicalCharacteristicsService {
             variantIdsForThisFamily.includes(variantId),
           );
         } else {
-          // Si on ne cherche pas de variantes spécifiques (variantIds est vide)
-          // On retourne uniquement les caractéristiques qui n'ont pas de variantes associées pour cette famille
-          // (caractéristiques qui s'appliquent à toute la famille sans restriction de variantes)
           return variantsForThisFamily.length === 0;
         }
       },
     );
 
-    // Appliquer la recherche avec normalisation si nécessaire
     let finalFiltered = filtered;
     if (search && typeof search === 'string' && search.trim().length > 0) {
       const normalizedSearch = normalizeString(search.trim());
@@ -427,7 +403,6 @@ export class TechnicalCharacteristicsService {
       });
     }
 
-    // Appliquer la pagination sur le résultat filtré
     const total = finalFiltered.length;
     const data = finalFiltered.slice(offset, offset + limit);
 
@@ -476,7 +451,6 @@ export class TechnicalCharacteristicsService {
       }
     }
 
-    // Si le type est "enum", vérifier que enumOptions est fourni et non vide
     const finalType =
       updateTechnicalCharacteristicDto.type || technicalCharacteristic.type;
     if (finalType === 'enum') {
@@ -490,7 +464,6 @@ export class TechnicalCharacteristicsService {
           'Les options enum sont requises pour le type "enum"',
         );
       }
-      // Filtrer les options vides
       const filteredOptions = enumOptions.filter(
         (opt) => opt.trim().length > 0,
       );
@@ -509,19 +482,17 @@ export class TechnicalCharacteristicsService {
       updateTechnicalCharacteristicDto.variantIds &&
       updateTechnicalCharacteristicDto.variantIds.length > 0;
 
-    // Si le nom est modifié, vérifier qu'il n'existe pas déjà dans les familles spécifiées (insensible à la casse et aux accents)
+
     if (
       updateTechnicalCharacteristicDto.name &&
       normalizeString(updateTechnicalCharacteristicDto.name) !==
         normalizeString(technicalCharacteristic.name)
     ) {
-      // Utiliser les familles fournies dans la mise à jour, sinon les familles actuelles
       const familyIdsToCheck = hasFamilies
         ? updateTechnicalCharacteristicDto.familyIds!
         : technicalCharacteristic.families.map((f: any) => f.familyId);
 
       if (familyIdsToCheck.length > 0) {
-        // Récupérer toutes les caractéristiques techniques associées aux familles spécifiées (sauf la caractéristique actuelle)
         const existingCharacteristics =
           await this.prisma.technicalCharacteristic.findMany({
             where: {
@@ -534,10 +505,9 @@ export class TechnicalCharacteristicsService {
             },
             include: {
               families: true,
-            },
-          });
+          },
+        });
 
-        // Vérifier pour chaque famille si le nom existe déjà
         for (const familyId of familyIdsToCheck) {
           const characteristicsInFamily = existingCharacteristics.filter((tc) =>
             tc.families.some((f: any) => f.familyId === familyId),
@@ -561,7 +531,6 @@ export class TechnicalCharacteristicsService {
       }
     }
 
-    // Vérifier que les familles existent
     if (hasFamilies) {
       const families = await this.prisma.family.findMany({
         where: { id: { in: updateTechnicalCharacteristicDto.familyIds! } },
@@ -573,7 +542,7 @@ export class TechnicalCharacteristicsService {
       }
     }
 
-    // Vérifier que les variantes existent
+
     if (hasVariants) {
       const variants = await this.prisma.variant.findMany({
         where: { id: { in: updateTechnicalCharacteristicDto.variantIds! } },
@@ -587,7 +556,6 @@ export class TechnicalCharacteristicsService {
       }
     }
 
-    // Préparer les données de mise à jour
     const updateData: any = {
       name: updateTechnicalCharacteristicDto.name
         ? normalizeStringForStorage(updateTechnicalCharacteristicDto.name)
@@ -595,7 +563,6 @@ export class TechnicalCharacteristicsService {
       type: updateTechnicalCharacteristicDto.type,
     };
 
-    // Gérer enumOptions
     if (
       updateTechnicalCharacteristicDto.type === 'enum' ||
       (finalType === 'enum' &&
@@ -616,12 +583,11 @@ export class TechnicalCharacteristicsService {
       updateTechnicalCharacteristicDto.type &&
       updateTechnicalCharacteristicDto.type !== 'enum'
     ) {
-      // Si on change le type vers autre chose que enum, supprimer enumOptions et enumMultiple
       updateData.enumOptions = null;
       updateData.enumMultiple = null;
     }
 
-    // Gérer enumMultiple
+
     if (
       updateTechnicalCharacteristicDto.type === 'enum' ||
       (finalType === 'enum' &&
@@ -630,10 +596,9 @@ export class TechnicalCharacteristicsService {
       updateData.enumMultiple =
         updateTechnicalCharacteristicDto.enumMultiple ?? false;
     } else if (
-      updateTechnicalCharacteristicDto.type &&
-      updateTechnicalCharacteristicDto.type !== 'enum'
+        updateTechnicalCharacteristicDto.type &&
+        updateTechnicalCharacteristicDto.type !== 'enum'
     ) {
-      // Si on change le type vers autre chose que enum, supprimer enumMultiple
       updateData.enumMultiple = null;
     }
 
@@ -641,7 +606,6 @@ export class TechnicalCharacteristicsService {
       updateData.uniqueInItself = updateTechnicalCharacteristicDto.uniqueInItself;
     }
 
-    // Mettre à jour les familles si fournies
     if (hasFamilies !== undefined) {
       updateData.families = {
         deleteMany: {},
@@ -653,7 +617,6 @@ export class TechnicalCharacteristicsService {
       };
     }
 
-    // Mettre à jour les variantes si fournies
     if (hasVariants !== undefined) {
       updateData.variants = {
         deleteMany: {},
@@ -665,7 +628,6 @@ export class TechnicalCharacteristicsService {
       };
     }
 
-    // Si le type est "enum" et que les options sont modifiées, synchroniser les valeurs
     if (
       finalType === 'enum' &&
       updateTechnicalCharacteristicDto.enumOptions !== undefined
@@ -674,10 +636,9 @@ export class TechnicalCharacteristicsService {
         (technicalCharacteristic.enumOptions as string[] | null) || [];
       const newEnumOptions =
         updateTechnicalCharacteristicDto.enumOptions.filter(
-          (opt) => opt.trim().length > 0,
-        );
+        (opt) => opt.trim().length > 0,
+      );
 
-      // Normaliser les options pour la comparaison
       const normalizedOldOptions = oldEnumOptions.map((opt) =>
         normalizeStringForStorage(opt),
       );
@@ -685,17 +646,14 @@ export class TechnicalCharacteristicsService {
         normalizeStringForStorage(opt),
       );
 
-      // Créer un Set des nouvelles options pour vérifier rapidement si une option existe
       const newOptionsSet = new Set(normalizedNewOptions);
 
-      // Trouver les correspondances entre anciennes et nouvelles options par index
       const optionMapping = new Map<string, string>();
       const maxLength = Math.max(
         normalizedOldOptions.length,
         normalizedNewOptions.length,
       );
 
-      // Mapping par index : option à l'index i devient la nouvelle option à l'index i (si elle existe)
       for (let i = 0; i < maxLength; i++) {
         if (
           i < normalizedOldOptions.length &&
@@ -709,19 +667,15 @@ export class TechnicalCharacteristicsService {
         }
       }
 
-      // Trouver les options supprimées (présentes dans l'ancienne liste mais absentes de la nouvelle)
       const deletedOptions = new Set<string>();
       for (const oldOption of normalizedOldOptions) {
-        // Vérifier si l'option existe toujours dans la nouvelle liste (par valeur exacte)
         if (!newOptionsSet.has(oldOption)) {
-          // Vérifier aussi si elle n'a pas été renommée (via le mapping)
           if (!optionMapping.has(oldOption)) {
             deletedOptions.add(oldOption);
           }
         }
       }
 
-      // Récupérer toutes les ProductTechnicalCharacteristic pour cette caractéristique technique
       const productTechChars =
         await this.prisma.productTechnicalCharacteristic.findMany({
           where: {
@@ -729,7 +683,6 @@ export class TechnicalCharacteristicsService {
           },
         });
 
-      // Mettre à jour les valeurs
       for (const productTechChar of productTechChars) {
         const normalizedValue = normalizeStringForStorage(
           productTechChar.value,
@@ -737,12 +690,10 @@ export class TechnicalCharacteristicsService {
         let shouldUpdate = false;
         let newValue = productTechChar.value;
 
-        // Si la valeur correspond à une option renommée, la mettre à jour
         if (optionMapping.has(normalizedValue)) {
           newValue = optionMapping.get(normalizedValue)!;
           shouldUpdate = true;
         }
-        // Si la valeur correspond à une option supprimée, la vider
         else if (deletedOptions.has(normalizedValue)) {
           newValue = '';
           shouldUpdate = true;

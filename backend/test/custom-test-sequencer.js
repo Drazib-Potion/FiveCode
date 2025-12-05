@@ -4,7 +4,6 @@ class CustomTestSequencer {
   }
 
   cacheResults(_tests, _results) {
-    // no-op
   }
 }
 

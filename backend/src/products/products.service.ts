@@ -15,7 +15,7 @@ export class ProductsService {
   constructor(private prisma: PrismaService) {}
 
   async create(createProductDto: CreateProductDto) {
-    // Vérifier que la famille existe
+
     const family = await this.prisma.family.findUnique({
       where: { id: createProductDto.familyId },
     });
@@ -25,7 +25,7 @@ export class ProductsService {
       );
     }
 
-    // Vérifier que le type de produit existe
+
     const productType = await this.prisma.productType.findUnique({
       where: { id: createProductDto.productTypeId },
     });
@@ -35,10 +35,10 @@ export class ProductsService {
       );
     }
 
-    // Récupérer tous les produits pour comparaison case-insensitive
+
     const allProducts = await this.prisma.product.findMany();
 
-    // Vérifier que le code n'existe pas déjà (insensible à la casse et aux accents)
+
     const existingByCode = allProducts.find(
       (p) => normalizeString(p.code) === normalizeString(createProductDto.code),
     );
@@ -49,7 +49,7 @@ export class ProductsService {
       );
     }
 
-    // Vérifier que le nom n'existe pas déjà (insensible à la casse et aux accents)
+
     const existingByName = allProducts.find(
       (p) => normalizeString(p.name) === normalizeString(createProductDto.name),
     );
@@ -75,7 +75,7 @@ export class ProductsService {
   }
 
   async findAll(offset: number = 0, limit: number = 50, search?: string) {
-    // Récupérer tous les produits si recherche, sinon utiliser la pagination normale
+
     let allProducts = await this.prisma.product.findMany({
       include: {
         family: true,
@@ -86,7 +86,7 @@ export class ProductsService {
       },
     });
 
-    // Filtrer avec normalisation si recherche
+
     if (search && typeof search === 'string' && search.trim().length > 0) {
       const normalizedSearch = normalizeString(search.trim());
       allProducts = allProducts.filter((product) => {
@@ -111,7 +111,7 @@ export class ProductsService {
       });
     }
 
-    // Appliquer la pagination
+
     const total = allProducts.length;
     const data = allProducts.slice(offset, offset + limit);
 

@@ -1,10 +1,4 @@
-/*
-  Warnings:
 
-  - You are about to drop the `fields` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `product_fields` table. If the table is not empty, all the data it contains will be lost.
-
-*/
 -- DropForeignKey
 ALTER TABLE "fields" DROP CONSTRAINT "fields_familyId_fkey";
 

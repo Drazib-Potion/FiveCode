@@ -58,7 +58,7 @@ export function ModalProvider({ children }: { children: React.ReactNode }) {
       modalState.resolve(false);
     }
     setModalState((prev) => ({ ...prev, isOpen: false, resolve: undefined }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [modalState.resolve]);
 
   const handleConfirm = useCallback(() => {
@@ -66,7 +66,7 @@ export function ModalProvider({ children }: { children: React.ReactNode }) {
       modalState.resolve(true);
     }
     setModalState((prev) => ({ ...prev, isOpen: false, resolve: undefined }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [modalState.resolve]);
 
   return (

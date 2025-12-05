@@ -1,10 +1,4 @@
-/*
-  Warnings:
 
-  - You are about to drop the column `variantId` on the `product_generated_infos` table. All the data in the column will be lost.
-  - You are about to drop the `variant_exclusions` table. If the table is not empty, all the data it contains will be lost.
-
-*/
 -- CreateEnum
 CREATE TYPE "VariantLevel" AS ENUM ('FIRST', 'SECOND');
 

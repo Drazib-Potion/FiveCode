@@ -308,7 +308,6 @@ const getVariantNamesByLevel = useCallback(
   const handleFamilyToggle = (familyId: string) => {
     const isSelected = formData.familyIds.includes(familyId);
     if (isSelected) {
-      // Désélectionner la famille et retirer les variantes de cette famille
       const newFamilyIds = formData.familyIds.filter((id) => id !== familyId);
       const filterVariantIds = (variantIds: string[]) =>
         variantIds.filter((variantId) => {
@@ -322,7 +321,6 @@ const getVariantNamesByLevel = useCallback(
         variantIdsSecond: filterVariantIds(formData.variantIdsSecond),
       });
     } else {
-      // Sélectionner la famille
       setFormData({ ...formData, familyIds: [...formData.familyIds, familyId] });
     }
   };
@@ -332,7 +330,6 @@ const getVariantNamesByLevel = useCallback(
     const allSelected = visibleKeys.every((familyId) => formData.familyIds.includes(familyId));
 
     if (allSelected) {
-      // Désélectionner toutes les familles visibles et retirer leurs variantes
       const newFamilyIds = formData.familyIds.filter((id) => !visibleKeys.includes(id));
       const filterVariantIds = (variantIds: string[]) =>
         variantIds.filter((variantId) => {
@@ -357,12 +354,10 @@ const getVariantNamesByLevel = useCallback(
           : response.data || [];
         const allFamilyIds = allFamilies.map((family) => family.id);
 
-        // Sélectionner toutes les familles disponibles
         const updatedFamilyIds = [...new Set([...formData.familyIds, ...allFamilyIds])];
         setFormData({ ...formData, familyIds: updatedFamilyIds });
       } catch (error) {
         console.error('Error loading all families:', error);
-        // Fallback: sélectionner seulement les familles visibles
         const updatedFamilyIds = [...new Set([...formData.familyIds, ...visibleKeys])];
         setFormData({ ...formData, familyIds: updatedFamilyIds });
       }
@@ -393,7 +388,6 @@ const getVariantNamesByLevel = useCallback(
       ? currentList.filter((variantId) => !visibleKeys.includes(variantId))
       : [...new Set([...currentList, ...visibleKeys])];
 
-    // Si on coche tout, cocher aussi "Sans variant". Si on décoche tout, décocher aussi "Sans variant"
     setFormData({
       ...formData,
       variantIdsFirst: level === 'FIRST' ? updatedList : formData.variantIdsFirst,
@@ -473,11 +467,6 @@ const getVariantNamesByLevel = useCallback(
       } else {
         await technicalCharacteristicsService.create(submitData);
       }
-      // setFormData(createInitialFormData());
-      // setNewEnumOption('');
-      // setEnumOptionError('');
-      // setShowForm(false);
-      // setEditingId(null);
       setReloadKey((prev) => prev + 1);
     } catch (error: any) {
       console.error('Error saving technical characteristic:', error);

@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -127,9 +124,6 @@ model ProductGeneratedInfo {
   @@map("product_generated_infos")
 }
 
-
-// Table d'exclusions entre variantes
-// Table de liaison pour ProductGeneratedInfo <-> TechnicalCharacteristic avec valeurs
 model ProductTechnicalCharacteristic {
   id                        String   @id @default(uuid())
   generatedInfoId           String // Pointe vers ProductGeneratedInfo au lieu de Product
@@ -144,7 +138,6 @@ model ProductTechnicalCharacteristic {
   @@map("product_technical_characteristics")
 }
 
-// Table de liaison pour TechnicalCharacteristic <-> Family (many-to-many)
 model TechnicalCharacteristicFamily {
   id                        String   @id @default(uuid())
   technicalCharacteristicId String
@@ -158,7 +151,6 @@ model TechnicalCharacteristicFamily {
   @@map("technical_characteristic_families")
 }
 
-// Table de liaison pour TechnicalCharacteristic <-> Variant (many-to-many)
 model TechnicalCharacteristicVariant {
   id                        String   @id @default(uuid())
   technicalCharacteristicId String

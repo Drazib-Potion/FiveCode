@@ -45,11 +45,11 @@ export class TechnicalCharacteristicsController {
     const limitNum = limit ? parseInt(limit, 10) : 50;
 
     if (familyId) {
-      // Si variantIds est fourni (même vide), utiliser findByFamilyAndVariant
-      // Cela permet de filtrer correctement : avec un tableau vide, on obtient uniquement
-      // les caractéristiques qui ne sont pas liées à une variante
+
+
+
       if (variantIds !== undefined) {
-        // variantIds peut être une chaîne séparée par des virgules ou une chaîne vide
+
         const variantIdsArray = variantIds
           ? variantIds.split(',').filter((id) => id.trim() !== '')
           : [];
@@ -61,7 +61,7 @@ export class TechnicalCharacteristicsController {
           search,
         );
       }
-      // Si variantIds n'est pas fourni du tout, retourner toutes les caractéristiques de la famille
+
       return this.technicalCharacteristicsService.findByFamily(
         familyId,
         offsetNum,
@@ -81,9 +81,9 @@ export class TechnicalCharacteristicsController {
           search,
         );
       }
-      // Pour plusieurs variantes, on utilise findByFamilyAndVariant avec une famille vide
-      // Mais on a besoin d'une famille, donc on récupère la famille de la première variante
-      // Pour l'instant, on retourne toutes les caractéristiques associées à ces variantes
+
+
+
       return this.technicalCharacteristicsService.findByVariant(
         variantIdsArray[0],
         offsetNum,

@@ -16,7 +16,7 @@ export class VariantsService {
   constructor(private prisma: PrismaService) {}
 
   async create(createVariantDto: CreateVariantDto) {
-    // Vérifier que la famille existe
+
     const family = await this.prisma.family.findUnique({
       where: { id: createVariantDto.familyId },
     });
@@ -27,12 +27,12 @@ export class VariantsService {
       );
     }
 
-    // Récupérer toutes les variantes de cette famille pour comparaison case-insensitive
+
     const familyVariants = await this.prisma.variant.findMany({
       where: { familyId: createVariantDto.familyId },
     });
 
-    // Vérifier que le code n'existe pas déjà pour cette famille (insensible à la casse et aux accents)
+
     const existingByCode = familyVariants.find(
       (v) =>
         v.variantLevel === createVariantDto.variantLevel &&
@@ -45,7 +45,7 @@ export class VariantsService {
       );
     }
 
-    // Vérifier que le nom n'existe pas déjà pour cette famille (insensible à la casse et aux accents)
+
     const existingByName = familyVariants.find(
       (v) => normalizeString(v.name) === normalizeString(createVariantDto.name),
     );
@@ -56,7 +56,7 @@ export class VariantsService {
       );
     }
 
-    // Créer la variante
+
     const variant = await this.prisma.variant.create({
       data: {
         familyId: createVariantDto.familyId,
@@ -73,7 +73,7 @@ export class VariantsService {
   }
 
   async findAll(offset: number = 0, limit: number = 50, search?: string) {
-    // Récupérer toutes les variantes si recherche, sinon utiliser la pagination normale
+
     let allVariants = await this.prisma.variant.findMany({
       include: {
         family: true,
@@ -88,7 +88,7 @@ export class VariantsService {
       },
     });
 
-    // Filtrer avec normalisation si recherche
+
     if (search && typeof search === 'string' && search.trim().length > 0) {
       const normalizedSearch = normalizeString(search.trim());
       allVariants = allVariants.filter((variant) => {
@@ -105,7 +105,7 @@ export class VariantsService {
       });
     }
 
-    // Appliquer la pagination
+
     const total = allVariants.length;
     const paginatedVariants = allVariants.slice(offset, offset + limit);
 
@@ -122,7 +122,7 @@ export class VariantsService {
     limit: number = 50,
     search?: string,
   ) {
-    // Récupérer toutes les variantes de la famille
+
     let allVariants = await this.prisma.variant.findMany({
       where: { familyId },
       include: {
@@ -138,7 +138,7 @@ export class VariantsService {
       },
     });
 
-    // Filtrer avec normalisation si recherche
+
     if (search && typeof search === 'string' && search.trim().length > 0) {
       const normalizedSearch = normalizeString(search.trim());
       allVariants = allVariants.filter((variant) => {
@@ -151,7 +151,7 @@ export class VariantsService {
       });
     }
 
-    // Appliquer la pagination
+
     const total = allVariants.length;
     const paginatedVariants = allVariants.slice(offset, offset + limit);
 
@@ -206,7 +206,7 @@ export class VariantsService {
       }
     }
 
-    // Récupérer toutes les variantes de la famille cible (sauf la variante actuelle) pour comparaison case-insensitive
+
     const familyVariants = await this.prisma.variant.findMany({
       where: {
         familyId: targetFamilyId,
@@ -236,7 +236,7 @@ export class VariantsService {
       );
     }
 
-    // Mettre à jour la variante (sans les exclusions pour l'instant)
+
     const updatedVariant = await this.prisma.variant.update({
       where: { id },
       data: {

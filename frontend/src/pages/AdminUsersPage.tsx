@@ -31,7 +31,7 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     loadUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, []);
 
   const handleRoleChange = async (id: string, role: User['role']) => {

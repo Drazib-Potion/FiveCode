@@ -1,10 +1,4 @@
-/*
-  Warnings:
 
-  - You are about to drop the column `familyId` on the `technical_characteristics` table. All the data in the column will be lost.
-  - You are about to drop the column `variantId` on the `technical_characteristics` table. All the data in the column will be lost.
-
-*/
 -- DropForeignKey
 ALTER TABLE "technical_characteristics" DROP CONSTRAINT "technical_characteristics_familyId_fkey";
 

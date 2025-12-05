@@ -16,10 +16,10 @@ export class FamiliesService {
   constructor(private prisma: PrismaService) {}
 
   async create(createFamilyDto: CreateFamilyDto) {
-    // Récupérer toutes les familles pour comparaison case-insensitive
+
     const allFamilies = await this.prisma.family.findMany();
 
-    // Vérifier que le nom n'existe pas déjà (insensible à la casse et aux accents)
+
     const existing = allFamilies.find(
       (f) => normalizeString(f.name) === normalizeString(createFamilyDto.name),
     );
@@ -39,7 +39,7 @@ export class FamiliesService {
   }
 
   async findAll(offset: number = 0, limit: number = 50, search?: string) {
-    // Récupérer toutes les familles si recherche, sinon utiliser la pagination normale
+
     let allFamilies = await this.prisma.family.findMany({
       include: {
         variants: true,
@@ -54,7 +54,7 @@ export class FamiliesService {
       },
     });
 
-    // Filtrer avec normalisation si recherche
+
     if (search && typeof search === 'string' && search.trim().length > 0) {
       const normalizedSearch = normalizeString(search.trim());
       allFamilies = allFamilies.filter((family) => {
@@ -63,7 +63,7 @@ export class FamiliesService {
       });
     }
 
-    // Appliquer la pagination
+
     const total = allFamilies.length;
     const data = allFamilies.slice(offset, offset + limit);
 
@@ -97,12 +97,12 @@ export class FamiliesService {
   async update(id: string, updateFamilyDto: UpdateFamilyDto) {
     const family = await this.findOne(id);
 
-    // Récupérer toutes les familles pour comparaison case-insensitive
+
     const allFamilies = await this.prisma.family.findMany({
       where: { id: { not: id } },
     });
 
-    // Si le nom est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse et aux accents)
+
     if (
       updateFamilyDto.name &&
       normalizeString(updateFamilyDto.name) !== normalizeString(family.name)

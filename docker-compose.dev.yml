@@ -1,7 +1,3 @@
-# Configuration pour le développement local
-# Contient uniquement la base de données PostgreSQL
-# Le frontend et le backend sont lancés en local avec npm run dev
-
 services:
   postgres:
     image: postgres:15-alpine

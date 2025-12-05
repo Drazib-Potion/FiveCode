@@ -64,7 +64,6 @@
   }
 }
 
-/* Navbar styles */
 .nav-link {
   color: white;
   text-decoration: none;
@@ -98,7 +97,6 @@
   border-radius: 2px 2px 0 0;
 }
 
-/* Responsive styles for Layout */
 @media (max-width: 1400px) {
   .nav-links {
     gap: 0.75rem !important;
@@ -219,8 +217,6 @@
   }
 }
 
-/* Responsive styles for page content */
-/* Always allow horizontal scrolling for tables */
 .table-responsive {
   width: 100%;
   overflow-x: auto;
@@ -234,7 +230,6 @@
 
 @media (max-width: 992px) {
   
-  /* Responsive page headers */
   .page-header-responsive {
     flex-direction: column !important;
     align-items: flex-start !important;
@@ -251,19 +246,16 @@
 }
 
 @media (max-width: 768px) {
-  /* Stack form buttons on mobile */
   .form-buttons-responsive {
     flex-direction: column !important;
   }
   
-  /* Make table cells more compact */
   .table-responsive table th,
   .table-responsive table td {
     padding: 0.75rem 0.5rem !important;
     font-size: 0.875rem;
   }
   
-  /* Stack action buttons on mobile */
   .table-responsive table td:last-child {
     display: flex;
     flex-direction: column;
@@ -277,7 +269,6 @@
 }
 
 @media (max-width: 576px) {
-  /* Further reduce sizes on very small screens */
   .page-header-responsive h1 {
     font-size: 1.25rem !important;
   }

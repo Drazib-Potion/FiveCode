@@ -39,7 +39,7 @@ export class AuthService {
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {
-          // Erreur de contrainte unique
+
           throw new ConflictException('Email already exists');
         }
       }

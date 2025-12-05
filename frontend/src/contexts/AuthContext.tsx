@@ -17,7 +17,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Initialiser directement depuis localStorage pour éviter le problème de timing
+
   const getInitialToken = () => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('token');

@@ -138,12 +138,12 @@ export default function GeneratorPage() {
     </label>
   );
 
-  // Charger les produits au montage
+
   useEffect(() => {
     if (selectedProduct) {
-      // Charger les caractéristiques techniques dès qu'un produit est sélectionné
-      // Si une variante est sélectionnée, on charge les caractéristiques pour cette variante
-      // Sinon, on charge les caractéristiques qui ne sont pas liées à une variante (tableau vide)
+
+
+
       const variantIds = [
         getEffectiveVariantId(variantSelection, 'FIRST'),
         getEffectiveVariantId(variantSelection, 'SECOND'),
@@ -158,7 +158,7 @@ export default function GeneratorPage() {
   const loadVariants = async (familyId: string) => {
     try {
       setVariantsLoading(true);
-      // Charger toutes les variantes sans limite
+
       let allVariants: Variant[] = [];
       let offset = 0;
       const limit = 1000;
@@ -216,14 +216,14 @@ export default function GeneratorPage() {
 
   const loadTechnicalCharacteristics = async (familyId: string, variantIds: string[]) => {
     try {
-      // Utiliser findByFamilyAndVariant avec le tableau de variantIds
+
       const variantIdsParam = variantIds.length > 0 ? variantIds.join(',') : '';
       const response = await technicalCharacteristicsService.getAll(familyId, variantIdsParam, 0, 1000); // Charger un grand nombre
 
-      // Extraire les données de la réponse paginée
+
       const data = Array.isArray(response) ? response : (response.data || []);
 
-      // Dédupliquer par ID
+
       const uniqueTechnicalCharacteristics: TechnicalCharacteristic[] = Array.from(
         new Map(data.map((technicalCharacteristic: any) => [technicalCharacteristic.id, technicalCharacteristic])).values(),
       ) as TechnicalCharacteristic[];
@@ -328,7 +328,7 @@ export default function GeneratorPage() {
     const variant1RequestId = getEffectiveVariantId(variantSelection, 'FIRST');
     const variant2RequestId = getEffectiveVariantId(variantSelection, 'SECOND');
 
-    // Convertir les valeurs enum (tableaux pour multiple, string pour unique) en JSON strings
+
     const processedValues: Record<string, any> = {};
     if (technicalCharacteristics.length > 0 && Object.keys(values).length > 0) {
       for (const [key, value] of Object.entries(values)) {
@@ -337,14 +337,14 @@ export default function GeneratorPage() {
           const isMultiple = technicalCharacteristic.enumMultiple ?? false;
           if (Array.isArray(value)) {
             if (isMultiple) {
-              // Pour les enums multiples, convertir le tableau en JSON string
+
               processedValues[key] = JSON.stringify(value);
             } else {
-              // Pour les enums uniques, prendre le premier élément du tableau comme string
+
               processedValues[key] = value.length > 0 ? value[0] : '';
             }
           } else {
-            // Fallback pour compatibilité
+
             processedValues[key] = value;
           }
         } else {
@@ -364,7 +364,7 @@ export default function GeneratorPage() {
         values: valuesToSend,
       });
       
-      // Afficher le code généré dans une popup de confirmation
+
       await showAlert(
         `Code généré avec succès !\n\nCode : ${result.generatedCode}`,
         'success',
@@ -428,7 +428,7 @@ export default function GeneratorPage() {
           opt.toLowerCase().includes(searchTerm.toLowerCase())
         );
 
-        // Normaliser les valeurs : toujours utiliser un tableau pour faciliter la gestion
+
         const selectedValues = Array.isArray(value) 
           ? value 
           : (value ? [value] : []);
@@ -458,14 +458,14 @@ export default function GeneratorPage() {
                       onChange={(e) => {
                         if (e.target.checked) {
                           if (isMultiple) {
-                            // Sélection multiple : ajouter à la liste
+
                             handleValueChange(technicalCharacteristic.id, [...selectedValues, option]);
                           } else {
-                            // Sélection unique : remplacer la sélection précédente
+
                             handleValueChange(technicalCharacteristic.id, [option]);
                           }
                         } else {
-                          // Décocher : retirer de la liste
+
                           handleValueChange(technicalCharacteristic.id, selectedValues.filter(v => v !== option));
                         }
                       }}

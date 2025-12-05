@@ -16,10 +16,10 @@ export class ProductTypesService {
   constructor(private prisma: PrismaService) {}
 
   async create(createProductTypeDto: CreateProductTypeDto) {
-    // Récupérer tous les types de produit pour comparaison case-insensitive
+
     const allProductTypes = await this.prisma.productType.findMany();
 
-    // Vérifier que le code n'existe pas déjà (insensible à la casse et aux accents)
+
     const existingByCode = allProductTypes.find(
       (pt) =>
         normalizeString(pt.code) === normalizeString(createProductTypeDto.code),
@@ -31,7 +31,7 @@ export class ProductTypesService {
       );
     }
 
-    // Vérifier que le nom n'existe pas déjà (insensible à la casse et aux accents)
+
     const existingByName = allProductTypes.find(
       (pt) =>
         normalizeString(pt.name) === normalizeString(createProductTypeDto.name),
@@ -52,14 +52,14 @@ export class ProductTypesService {
   }
 
   async findAll(offset: number = 0, limit: number = 50, search?: string) {
-    // Récupérer tous les types de produit si recherche, sinon utiliser la pagination normale
+
     let allProductTypes = await this.prisma.productType.findMany({
       orderBy: {
         name: 'asc',
       },
     });
 
-    // Filtrer avec normalisation si recherche
+
     if (search && typeof search === 'string' && search.trim().length > 0) {
       const normalizedSearch = normalizeString(search.trim());
       allProductTypes = allProductTypes.filter((productType) => {
@@ -72,7 +72,7 @@ export class ProductTypesService {
       });
     }
 
-    // Appliquer la pagination
+
     const total = allProductTypes.length;
     const data = allProductTypes.slice(offset, offset + limit);
 
@@ -100,12 +100,12 @@ export class ProductTypesService {
   async update(id: string, updateProductTypeDto: UpdateProductTypeDto) {
     const productType = await this.findOne(id);
 
-    // Récupérer tous les types de produit pour comparaison case-insensitive
+
     const allProductTypes = await this.prisma.productType.findMany({
       where: { id: { not: id } },
     });
 
-    // Si le code est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse et aux accents)
+
     if (
       updateProductTypeDto.code &&
       normalizeString(updateProductTypeDto.code) !==
@@ -124,7 +124,7 @@ export class ProductTypesService {
       }
     }
 
-    // Si le nom est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse et aux accents)
+
     if (
       updateProductTypeDto.name &&
       normalizeString(updateProductTypeDto.name) !==

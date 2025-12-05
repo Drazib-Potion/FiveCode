@@ -80,7 +80,7 @@ export default function GeneratedCodesPage() {
         displayValue = parsed.join(', ');
       }
     } catch {
-      // Keep original string if not JSON
+
     }
     return displayValue;
   };
@@ -484,7 +484,7 @@ export default function GeneratedCodesPage() {
         return;
       }
 
-      // Collecter tous les noms de caractéristiques techniques uniques
+
       const allFieldNames = new Set<string>();
       data.forEach((info) => {
         if (info.technicalCharacteristics) {
@@ -495,7 +495,7 @@ export default function GeneratedCodesPage() {
       });
       const sortedFieldNames = Array.from(allFieldNames).sort();
 
-      // Préparer les données pour l'export
+
       const exportData = data.map((info) => {
         const row: any = {
           'Nom produit': info.product.name,
@@ -510,7 +510,7 @@ export default function GeneratedCodesPage() {
           'Date de création': formatDate(info.createdAt),
         };
 
-        // Ajouter toutes les caractéristiques techniques (même celles qui n'existent pas pour cette info)
+
         sortedFieldNames.forEach((fieldName) => {
           const field = info.technicalCharacteristics?.find(
             (pf) => pf.technicalCharacteristic.name === fieldName,
@@ -521,12 +521,12 @@ export default function GeneratedCodesPage() {
         return row;
       });
 
-    // Créer un workbook et une feuille
+
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Codes générés');
 
-    // Ajuster la largeur des colonnes
+
     const colWidths = [
       { wch: 25 }, // Code généré
       { wch: 20 }, // Nom produit
@@ -535,17 +535,17 @@ export default function GeneratedCodesPage() {
       { wch: 25 }, // Variante 2
       { wch: 20 }, // Date de création
     ];
-    // Ajouter des largeurs pour les caractéristiques techniques dynamiques (15 caractères par défaut)
+
     sortedFieldNames.forEach(() => {
       colWidths.push({ wch: 15 });
     });
     ws['!cols'] = colWidths;
 
-      // Générer le nom du fichier avec la date
+
       const date = new Date().toISOString().split('T')[0];
       const fileName = `codes_generes_${date}.xlsx`;
 
-      // Télécharger le fichier
+
       XLSX.writeFile(wb, fileName);
     } catch (error) {
       console.error('Error exporting generated infos:', error);

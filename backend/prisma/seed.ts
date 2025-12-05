@@ -248,7 +248,7 @@ async function main() {
 
   console.log('✅ Product type Commerce created');
 
-  // Créer toutes les familles présentes dans le CSV
+
   for (const row of rows) {
     if (row.productFamily) await getFamilyId(row.productFamily);
     if (row.variant1Family) await getFamilyId(row.variant1Family);
@@ -256,7 +256,7 @@ async function main() {
   }
   console.log('✅ Families created/updated');
 
-  // Créer les variantes pour les deux niveaux
+
   for (const row of rows) {
     if (row.variant1Name) {
       await createVariant({
