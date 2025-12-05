@@ -57,23 +57,6 @@ export class TechnicalCharacteristicsService {
       );
     }
 
-    // Récupérer toutes les caractéristiques techniques pour comparaison case-insensitive
-    const allTechnicalCharacteristics =
-      await this.prisma.technicalCharacteristic.findMany();
-
-    // Vérifier que le nom n'existe pas déjà (insensible à la casse et aux accents)
-    const existing = allTechnicalCharacteristics.find(
-      (tc) =>
-        normalizeString(tc.name) ===
-        normalizeString(createTechnicalCharacteristicDto.name),
-    );
-
-    if (existing) {
-      throw new BadRequestException(
-        `Une caractéristique technique avec le nom "${createTechnicalCharacteristicDto.name}" existe déjà`,
-      );
-    }
-
     // Vérifier qu'au moins une famille ou une variante est fournie
     const hasFamilies =
       createTechnicalCharacteristicDto.familyIds &&
@@ -81,6 +64,46 @@ export class TechnicalCharacteristicsService {
     const hasVariants =
       createTechnicalCharacteristicDto.variantIds &&
       createTechnicalCharacteristicDto.variantIds.length > 0;
+
+    // Vérifier que le nom n'existe pas déjà dans les familles spécifiées (insensible à la casse et aux accents)
+    if (hasFamilies) {
+      // Récupérer toutes les caractéristiques techniques associées aux familles spécifiées
+      const existingCharacteristics =
+        await this.prisma.technicalCharacteristic.findMany({
+          where: {
+            families: {
+              some: {
+                familyId: { in: createTechnicalCharacteristicDto.familyIds! },
+              },
+            },
+          },
+          include: {
+            families: true,
+          },
+        });
+
+      // Vérifier pour chaque famille si le nom existe déjà
+      for (const familyId of createTechnicalCharacteristicDto.familyIds!) {
+        const characteristicsInFamily = existingCharacteristics.filter((tc) =>
+          tc.families.some((f: any) => f.familyId === familyId),
+        );
+
+        const existing = characteristicsInFamily.find(
+          (tc) =>
+            normalizeString(tc.name) ===
+            normalizeString(createTechnicalCharacteristicDto.name),
+        );
+
+        if (existing) {
+          const family = await this.prisma.family.findUnique({
+            where: { id: familyId },
+          });
+          throw new BadRequestException(
+            `Une caractéristique technique avec le nom "${createTechnicalCharacteristicDto.name}" existe déjà dans la famille "${family?.name || familyId}"`,
+          );
+        }
+      }
+    }
 
     if (!hasFamilies && !hasVariants) {
       throw new BadRequestException(
@@ -478,37 +501,64 @@ export class TechnicalCharacteristicsService {
       this.ensureEnumOptionsLength(filteredOptions);
     }
 
-    // Récupérer toutes les caractéristiques techniques (sauf la caractéristique actuelle) pour comparaison case-insensitive
-    const allTechnicalCharacteristics =
-      await this.prisma.technicalCharacteristic.findMany({
-        where: { id: { not: id } },
-      });
-
-    // Si le nom est modifié, vérifier qu'il n'existe pas déjà (insensible à la casse et aux accents)
-    if (
-      updateTechnicalCharacteristicDto.name &&
-      normalizeString(updateTechnicalCharacteristicDto.name) !==
-        normalizeString(technicalCharacteristic.name)
-    ) {
-      const existing = allTechnicalCharacteristics.find(
-        (tc) =>
-          normalizeString(tc.name) ===
-          normalizeString(updateTechnicalCharacteristicDto.name),
-      );
-
-      if (existing) {
-        throw new BadRequestException(
-          `Une caractéristique technique avec le nom "${updateTechnicalCharacteristicDto.name}" existe déjà`,
-        );
-      }
-    }
-
     const hasFamilies =
       updateTechnicalCharacteristicDto.familyIds &&
       updateTechnicalCharacteristicDto.familyIds.length > 0;
     const hasVariants =
       updateTechnicalCharacteristicDto.variantIds &&
       updateTechnicalCharacteristicDto.variantIds.length > 0;
+
+    // Si le nom est modifié, vérifier qu'il n'existe pas déjà dans les familles spécifiées (insensible à la casse et aux accents)
+    if (
+      updateTechnicalCharacteristicDto.name &&
+      normalizeString(updateTechnicalCharacteristicDto.name) !==
+        normalizeString(technicalCharacteristic.name)
+    ) {
+      // Utiliser les familles fournies dans la mise à jour, sinon les familles actuelles
+      const familyIdsToCheck = hasFamilies
+        ? updateTechnicalCharacteristicDto.familyIds!
+        : technicalCharacteristic.families.map((f: any) => f.familyId);
+
+      if (familyIdsToCheck.length > 0) {
+        // Récupérer toutes les caractéristiques techniques associées aux familles spécifiées (sauf la caractéristique actuelle)
+        const existingCharacteristics =
+          await this.prisma.technicalCharacteristic.findMany({
+            where: {
+              id: { not: id },
+              families: {
+                some: {
+                  familyId: { in: familyIdsToCheck },
+                },
+              },
+            },
+            include: {
+              families: true,
+            },
+          });
+
+        // Vérifier pour chaque famille si le nom existe déjà
+        for (const familyId of familyIdsToCheck) {
+          const characteristicsInFamily = existingCharacteristics.filter((tc) =>
+            tc.families.some((f: any) => f.familyId === familyId),
+          );
+
+          const existing = characteristicsInFamily.find(
+            (tc) =>
+              normalizeString(tc.name) ===
+              normalizeString(updateTechnicalCharacteristicDto.name),
+          );
+
+          if (existing) {
+            const family = await this.prisma.family.findUnique({
+              where: { id: familyId },
+            });
+            throw new BadRequestException(
+              `Une caractéristique technique avec le nom "${updateTechnicalCharacteristicDto.name}" existe déjà dans la famille "${family?.name || familyId}"`,
+            );
+          }
+        }
+      }
+    }
 
     // Vérifier que les familles existent
     if (hasFamilies) {
@@ -611,26 +661,41 @@ export class TechnicalCharacteristicsService {
     }
 
     // Si le type est "enum" et que les options sont modifiées, synchroniser les valeurs
-    if (finalType === 'enum' && updateTechnicalCharacteristicDto.enumOptions !== undefined) {
-      const oldEnumOptions = (technicalCharacteristic.enumOptions as string[] | null) || [];
-      const newEnumOptions = updateTechnicalCharacteristicDto.enumOptions.filter(
-        (opt) => opt.trim().length > 0,
-      );
-      
+    if (
+      finalType === 'enum' &&
+      updateTechnicalCharacteristicDto.enumOptions !== undefined
+    ) {
+      const oldEnumOptions =
+        (technicalCharacteristic.enumOptions as string[] | null) || [];
+      const newEnumOptions =
+        updateTechnicalCharacteristicDto.enumOptions.filter(
+          (opt) => opt.trim().length > 0,
+        );
+
       // Normaliser les options pour la comparaison
-      const normalizedOldOptions = oldEnumOptions.map(opt => normalizeStringForStorage(opt));
-      const normalizedNewOptions = newEnumOptions.map(opt => normalizeStringForStorage(opt));
-      
+      const normalizedOldOptions = oldEnumOptions.map((opt) =>
+        normalizeStringForStorage(opt),
+      );
+      const normalizedNewOptions = newEnumOptions.map((opt) =>
+        normalizeStringForStorage(opt),
+      );
+
       // Créer un Set des nouvelles options pour vérifier rapidement si une option existe
       const newOptionsSet = new Set(normalizedNewOptions);
-      
+
       // Trouver les correspondances entre anciennes et nouvelles options par index
       const optionMapping = new Map<string, string>();
-      const maxLength = Math.max(normalizedOldOptions.length, normalizedNewOptions.length);
-      
+      const maxLength = Math.max(
+        normalizedOldOptions.length,
+        normalizedNewOptions.length,
+      );
+
       // Mapping par index : option à l'index i devient la nouvelle option à l'index i (si elle existe)
       for (let i = 0; i < maxLength; i++) {
-        if (i < normalizedOldOptions.length && i < normalizedNewOptions.length) {
+        if (
+          i < normalizedOldOptions.length &&
+          i < normalizedNewOptions.length
+        ) {
           const oldOption = normalizedOldOptions[i];
           const newOption = normalizedNewOptions[i];
           if (oldOption !== newOption) {
@@ -638,7 +703,7 @@ export class TechnicalCharacteristicsService {
           }
         }
       }
-      
+
       // Trouver les options supprimées (présentes dans l'ancienne liste mais absentes de la nouvelle)
       const deletedOptions = new Set<string>();
       for (const oldOption of normalizedOldOptions) {
@@ -650,20 +715,23 @@ export class TechnicalCharacteristicsService {
           }
         }
       }
-      
+
       // Récupérer toutes les ProductTechnicalCharacteristic pour cette caractéristique technique
-      const productTechChars = await this.prisma.productTechnicalCharacteristic.findMany({
-        where: {
-          technicalCharacteristicId: id,
-        },
-      });
-      
+      const productTechChars =
+        await this.prisma.productTechnicalCharacteristic.findMany({
+          where: {
+            technicalCharacteristicId: id,
+          },
+        });
+
       // Mettre à jour les valeurs
       for (const productTechChar of productTechChars) {
-        const normalizedValue = normalizeStringForStorage(productTechChar.value);
+        const normalizedValue = normalizeStringForStorage(
+          productTechChar.value,
+        );
         let shouldUpdate = false;
         let newValue = productTechChar.value;
-        
+
         // Si la valeur correspond à une option renommée, la mettre à jour
         if (optionMapping.has(normalizedValue)) {
           newValue = optionMapping.get(normalizedValue)!;
@@ -674,7 +742,7 @@ export class TechnicalCharacteristicsService {
           newValue = '';
           shouldUpdate = true;
         }
-        
+
         if (shouldUpdate) {
           await this.prisma.productTechnicalCharacteristic.update({
             where: { id: productTechChar.id },
