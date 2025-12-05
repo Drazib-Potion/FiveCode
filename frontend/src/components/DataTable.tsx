@@ -6,6 +6,7 @@ type Column<T> = {
   render: (item: T) => React.ReactNode;
   headerClassName?: string;
   cellClassName?: string;
+  maxWidth?: string | number;
 };
 
 type FetchParams = {
@@ -252,14 +253,28 @@ function DataTable<T>({
       <table className="w-full border-collapse">
         <thead className="bg-linear-to-r from-purple to-purple-dark text-white">
           <tr>
-            {columns.map((column, index) => (
-              <th
-                key={`header-${index}`}
-                className={column.headerClassName || defaultHeaderClass}
-              >
-                {column.header}
-              </th>
-            ))}
+            {columns.map((column, index) => {
+              const maxWidthStyle = column.maxWidth
+                ? {
+                    maxWidth:
+                      typeof column.maxWidth === 'number'
+                        ? `${column.maxWidth}px`
+                        : column.maxWidth,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap' as const,
+                  }
+                : {};
+              return (
+                <th
+                  key={`header-${index}`}
+                  className={column.headerClassName || defaultHeaderClass}
+                  style={maxWidthStyle}
+                >
+                  {column.header}
+                </th>
+              );
+            })}
             {renderActions && (
               <th className={`${defaultHeaderClass} sticky right-0 bg-linear-to-r from-purple to-purple-dark z-10`}>
                 {actionsHeader}
@@ -294,14 +309,29 @@ function DataTable<T>({
                   index % 2 === 0 ? 'bg-white' : 'bg-gray-light'
                 } hover:bg-gray-hover`}
               >
-                {columns.map((column, columnIndex) => (
-                  <td
-                    key={`cell-${columnIndex}`}
-                    className={column.cellClassName || defaultCellClass}
-                  >
-                    {column.render(item)}
-                  </td>
-                ))}
+                {columns.map((column, columnIndex) => {
+                  const maxWidthStyle = column.maxWidth
+                    ? {
+                        maxWidth:
+                          typeof column.maxWidth === 'number'
+                            ? `${column.maxWidth}px`
+                            : column.maxWidth,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap' as const,
+                      }
+                    : {};
+                  const cellContent = column.render(item);
+                  return (
+                    <td
+                      key={`cell-${columnIndex}`}
+                      className={column.cellClassName || defaultCellClass}
+                      style={maxWidthStyle}
+                    >
+                      {cellContent}
+                    </td>
+                  );
+                })}
                 {renderActions && (
                   <td className={`${actionCellClassName || defaultCellClass} sticky right-0 z-10 ${
                     index % 2 === 0 ? 'bg-white' : 'bg-gray-light'

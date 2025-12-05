@@ -262,6 +262,7 @@ const getVariantNamesByLevel = useCallback(
           const familiesList = technicalCharacteristic.families?.map((f) => f.family.name) || [];
           return <span>{familiesList.length > 0 ? familiesList.join(', ') : 'N/A'}</span>;
         },
+        maxWidth: 300,
       },
       {
         header: 'Variantes 1',
@@ -269,6 +270,7 @@ const getVariantNamesByLevel = useCallback(
           const names = getVariantNamesByLevel(technicalCharacteristic, 'FIRST');
           return <span>{names.join(', ')}</span>;
         },
+        maxWidth: 300,
       },
       {
         header: 'Variantes 2',
@@ -276,6 +278,7 @@ const getVariantNamesByLevel = useCallback(
           const names = getVariantNamesByLevel(technicalCharacteristic, 'SECOND');
           return <span>{names.join(', ')}</span>;
         },
+        maxWidth: 300,
       },
     ],
     [getVariantNamesByLevel],
