@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { productGeneratedInfoService } from '../services/api';
+import { productGeneratedInfoService, technicalCharacteristicsService } from '../services/api';
 import { useModal } from '../contexts/ModalContext';
 import * as XLSX from 'xlsx';
 import excelIcon from '../media/excel-icon.png';
-import { ProductGeneratedInfo } from '../utils/types';
+import { ProductGeneratedInfo, TechnicalCharacteristic } from '../utils/types';
 import DataTable from '../components/DataTable';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -30,6 +30,7 @@ export default function GeneratedCodesPage() {
   const [editingInfo, setEditingInfo] = useState<ProductGeneratedInfo | null>(null);
   const [editingValues, setEditingValues] = useState<Record<string, any>>({});
   const [editingErrors, setEditingErrors] = useState<Record<string, string>>({});
+  const [applicableTechnicalCharacteristics, setApplicableTechnicalCharacteristics] = useState<TechnicalCharacteristic[]>([]);
   const [savingEdit, setSavingEdit] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -232,19 +233,52 @@ export default function GeneratedCodesPage() {
     }
   };
 
+  const initializeEditingValues = (
+    technicalCharacteristics: TechnicalCharacteristic[],
+    existingValues: ProductGeneratedInfo['technicalCharacteristics'],
+  ): Record<string, any> => {
+    const initialValues: Record<string, any> = {};
+
+    technicalCharacteristics.forEach((tech) => {
+      const existingValue = existingValues.find(
+        (tc) => tc.technicalCharacteristic.id === tech.id,
+      );
+
+      if (existingValue) {
+        let parsedValue: any = existingValue.value ?? '';
+        if (tech.type === 'boolean') {
+          parsedValue = existingValue.value === 'true';
+        }
+        initialValues[tech.id] = parsedValue;
+      } else {
+        initialValues[tech.id] = tech.type === 'boolean' ? false : '';
+      }
+    });
+
+    return initialValues;
+  };
+
+  const loadApplicableTechnicalCharacteristics = async (
+    familyId: string,
+    variantIds: string[],
+  ): Promise<TechnicalCharacteristic[]> => {
+    const variantIdsParam = variantIds.length > 0 ? variantIds.join(',') : '';
+    const response = await technicalCharacteristicsService.getAll(
+      familyId,
+      variantIdsParam,
+      0,
+      1000,
+    );
+
+    const data = Array.isArray(response) ? response : response.data || [];
+    return Array.from(
+      new Map(data.map((tc: any) => [tc.id, tc])).values(),
+    ) as TechnicalCharacteristic[];
+  };
+
   const handleStartEditing = (info: ProductGeneratedInfo) => {
     if (!canEditContent) return;
     setEditingInfo(info);
-    const initialValues: Record<string, any> = {};
-    info.technicalCharacteristics.forEach((tech) => {
-      const char = tech.technicalCharacteristic;
-      let parsedValue: any = tech.value ?? '';
-      if (char.type === 'boolean') {
-        parsedValue = tech.value === 'true';
-      }
-      initialValues[tech.technicalCharacteristic.id] = parsedValue;
-    });
-    setEditingValues(initialValues);
     setEditingErrors({});
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -254,8 +288,52 @@ export default function GeneratedCodesPage() {
       setEditingInfo(null);
       setEditingValues({});
       setEditingErrors({});
+      setApplicableTechnicalCharacteristics([]);
     }
   }, [canEditContent]);
+
+  useEffect(() => {
+    if (!editingInfo) {
+      setApplicableTechnicalCharacteristics([]);
+      setEditingValues({});
+      return;
+    }
+
+    const loadCharacteristics = async () => {
+      const variantIds = [
+        editingInfo.variant1?.id,
+        editingInfo.variant2?.id,
+      ].filter((id) => !!id) as string[];
+
+      try {
+        const characteristics = await loadApplicableTechnicalCharacteristics(
+          editingInfo.product.family.id,
+          variantIds,
+        );
+        setApplicableTechnicalCharacteristics(characteristics);
+
+        const initialValues = initializeEditingValues(
+          characteristics,
+          editingInfo.technicalCharacteristics,
+        );
+        setEditingValues(initialValues);
+      } catch (error) {
+        console.error('Error loading technical characteristics:', error);
+        const fallbackCharacteristics = editingInfo.technicalCharacteristics.map(
+          (tc) => tc.technicalCharacteristic,
+        );
+        setApplicableTechnicalCharacteristics(fallbackCharacteristics);
+
+        const fallbackValues = initializeEditingValues(
+          fallbackCharacteristics,
+          editingInfo.technicalCharacteristics,
+        );
+        setEditingValues(fallbackValues);
+      }
+    };
+
+    loadCharacteristics();
+  }, [editingInfo]);
 
   const handleEditValueChange = (technicalCharacteristicId: string, value: any) => {
     if (typeof value === 'string') {
@@ -279,6 +357,7 @@ export default function GeneratedCodesPage() {
     setEditingInfo(null);
     setEditingValues({});
     setEditingErrors({});
+    setApplicableTechnicalCharacteristics([]);
   };
 
   const handleSaveEdit = async () => {
@@ -293,6 +372,7 @@ export default function GeneratedCodesPage() {
       await showAlert('Les caractéristiques techniques ont été mises à jour', 'success');
       setEditingInfo(null);
       setEditingValues({});
+      setApplicableTechnicalCharacteristics([]);
       setReloadKey((prev) => prev + 1);
     } catch (error: any) {
       console.error('Error updating generated info:', error);
@@ -305,8 +385,8 @@ export default function GeneratedCodesPage() {
     }
   };
 
-  const renderEditingCharacteristicInput = (tech: ProductGeneratedInfo['technicalCharacteristics'][number]) => {
-    const char = tech.technicalCharacteristic as any;
+  const renderEditingCharacteristicInput = (tech: TechnicalCharacteristic) => {
+    const char = tech as any;
     const value = editingValues[char.id];
 
     switch (char.type) {
@@ -512,12 +592,12 @@ export default function GeneratedCodesPage() {
               </button>
             </div>
             <div className="grid gap-4 mt-6">
-              {editingInfo.technicalCharacteristics.length === 0 ? (
+              {applicableTechnicalCharacteristics.length === 0 ? (
                 <p className="text-sm text-gray-500 italic">Aucune caractéristique technique à modifier pour cette combinaison</p>
               ) : (
-                editingInfo.technicalCharacteristics.map((tech) => (
-                  <div key={tech.technicalCharacteristic.id} className="flex flex-col text-sm text-gray-700">
-                    <span className="font-semibold mb-1">{tech.technicalCharacteristic.name}</span>
+                applicableTechnicalCharacteristics.map((tech) => (
+                  <div key={tech.id} className="flex flex-col text-sm text-gray-700">
+                    <span className="font-semibold mb-1">{tech.name}</span>
                     {renderEditingCharacteristicInput(tech)}
                   </div>
                 ))
