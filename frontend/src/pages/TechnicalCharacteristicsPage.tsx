@@ -16,6 +16,7 @@ const createInitialFormData = (): FormDataState => ({
   type: 'string',
   enumOptions: [],
   enumMultiple: false,
+  uniqueInItself: false,
   familyIds: [],
   variantIdsFirst: [],
   variantIdsSecond: [],
@@ -462,6 +463,7 @@ const getVariantNamesByLevel = useCallback(
         submitData.enumOptions = formData.enumOptions.filter(opt => opt.trim().length > 0);
         submitData.enumMultiple = formData.enumMultiple;
       }
+      submitData.uniqueInItself = formData.uniqueInItself;
       if (formData.familyIds.length > 0) submitData.familyIds = formData.familyIds;
       const combinedVariantIds = getAllSelectedVariantIds();
       if (combinedVariantIds.length > 0) submitData.variantIds = combinedVariantIds;
@@ -513,6 +515,7 @@ const getVariantNamesByLevel = useCallback(
       type: technicalCharacteristic.type,
       enumOptions: technicalCharacteristic.enumOptions || [],
       enumMultiple: technicalCharacteristic.enumMultiple ?? false,
+      uniqueInItself: technicalCharacteristic.uniqueInItself ?? false,
       familyIds: technicalCharacteristic.families?.map(f => f.family.id) || [],
       variantIdsFirst,
       variantIdsSecond,
@@ -673,6 +676,20 @@ const getVariantNamesByLevel = useCallback(
               </div>
               </>
             )}
+            <div className="mb-5">
+              <label className="flex items-center gap-2 mb-2.5 text-gray-dark font-semibold text-sm uppercase tracking-wide">
+                <input
+                  type="checkbox"
+                  checked={formData.uniqueInItself}
+                  onChange={(e) => setFormData({ ...formData, uniqueInItself: e.target.checked })}
+                  className="w-4 h-4 cursor-pointer"
+                />
+                <span>Valeur unique globale</span>
+              </label>
+              <p className="text-xs text-gray-600 mt-1 ml-6">
+                Si coché, la valeur de cette caractéristique technique doit être unique dans tous les codes générés, indépendamment des autres caractéristiques ou variantes.
+              </p>
+            </div>
             <SearchableSelectPanel
               className="mb-5"
               label="Familles"

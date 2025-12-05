@@ -146,6 +146,7 @@ export class TechnicalCharacteristicsService {
           createTechnicalCharacteristicDto.type === 'enum'
             ? (createTechnicalCharacteristicDto.enumMultiple ?? false)
             : null,
+        uniqueInItself: createTechnicalCharacteristicDto.uniqueInItself ?? false,
         families: hasFamilies
           ? {
               create: createTechnicalCharacteristicDto.familyIds!.map(
@@ -634,6 +635,10 @@ export class TechnicalCharacteristicsService {
     ) {
       // Si on change le type vers autre chose que enum, supprimer enumMultiple
       updateData.enumMultiple = null;
+    }
+
+    if (updateTechnicalCharacteristicDto.uniqueInItself !== undefined) {
+      updateData.uniqueInItself = updateTechnicalCharacteristicDto.uniqueInItself;
     }
 
     // Mettre à jour les familles si fournies

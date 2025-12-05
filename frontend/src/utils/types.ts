@@ -16,6 +16,7 @@ export type FormDataState = {
   type: string;
   enumOptions: string[];
   enumMultiple: boolean;
+  uniqueInItself: boolean;
   familyIds: string[];
   variantIdsFirst: string[];
   variantIdsSecond: string[];
@@ -81,6 +82,7 @@ export interface TechnicalCharacteristic {
   type: string;
   enumOptions?: string[] | null;
   enumMultiple?: boolean | null;
+  uniqueInItself?: boolean | null;
   families?: Array<{ family: { id: string; name: string } }>;
   variants?: Array<{ variant: { id: string; name: string; variantLevel?: 'FIRST' | 'SECOND' } }>;
 }

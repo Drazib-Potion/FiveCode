@@ -81,6 +81,7 @@ model TechnicalCharacteristic {
   type         String // "string" | "number" | "boolean" | "enum"
   enumOptions  Json?    // Tableau de strings pour les options enum
   enumMultiple Boolean? @default(false) // true = sélection multiple, false = sélection unique
+  uniqueInItself Boolean? @default(false) // true = la valeur doit être unique globalement pour cette caractéristique
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

@@ -25,6 +25,10 @@ export class CreateTechnicalCharacteristicDto {
   @IsOptional()
   enumMultiple?: boolean; // true = sélection multiple, false = sélection unique
 
+  @IsBoolean()
+  @IsOptional()
+  uniqueInItself?: boolean; // true = la valeur doit être unique globalement pour cette caractéristique
+
   @IsArray()
   @IsUUID(undefined, { each: true })
   @IsOptional()

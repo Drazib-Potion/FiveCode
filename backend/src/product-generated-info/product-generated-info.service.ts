@@ -322,6 +322,50 @@ export class ProductGeneratedInfoService {
       }
     }
 
+    // Vérifier l'unicité pour les caractéristiques techniques avec uniqueInItself=true
+    if (
+      uniqueTechnicalCharacteristics.length > 0 &&
+      createDto.values &&
+      Object.keys(createDto.values).length > 0
+    ) {
+      for (const technicalCharacteristic of uniqueTechnicalCharacteristics) {
+        const uniqueInItself = (technicalCharacteristic as any).uniqueInItself;
+        if (uniqueInItself) {
+          const technicalCharacteristicId = (technicalCharacteristic as any).id;
+          const value = createDto.values[technicalCharacteristicId];
+          
+          if (value !== undefined && value !== null && value !== '') {
+            const normalizedValue = this.normalizeTechValue(value);
+            const normalizedValueForSearch = normalizeString(normalizedValue.trim());
+            
+            // Récupérer toutes les valeurs existantes pour cette caractéristique technique
+            const existingProductTechChars = await this.prisma.productTechnicalCharacteristic.findMany({
+              where: {
+                technicalCharacteristicId,
+              },
+              include: {
+                generatedInfo: {
+                  include: {
+                    product: true,
+                  },
+                },
+              },
+            });
+
+            // Vérifier manuellement avec normalizeString car Prisma ne supporte pas directement la normalisation
+            for (const existingProductTechChar of existingProductTechChars) {
+              const existingNormalizedValue = normalizeString(existingProductTechChar.value.trim());
+              if (existingNormalizedValue === normalizedValueForSearch) {
+                throw new BadRequestException(
+                  `La valeur "${value}" pour la caractéristique technique "${(technicalCharacteristic as any).name}" est déjà utilisée dans un autre code généré (${existingProductTechChar.generatedInfo.generatedCode}). Cette caractéristique doit avoir une valeur unique.`,
+                );
+              }
+            }
+          }
+        }
+      }
+    }
+
     // Créer la ProductGeneratedInfo avec la variante
     const generatedInfo = await this.prisma.productGeneratedInfo.create({
       data: {
@@ -578,6 +622,54 @@ export class ProductGeneratedInfoService {
             throw new BadRequestException(
               'Un code généré identique existe déjà pour ce produit avec les mêmes variantes et les mêmes valeurs de caractéristiques techniques.',
             );
+          }
+        }
+      }
+    }
+
+    // Vérifier l'unicité pour les caractéristiques techniques avec uniqueInItself=true avant la mise à jour
+    if (updateDto.values) {
+      // Récupérer les caractéristiques techniques pour vérifier lesquelles ont uniqueInItself=true
+      const technicalCharacteristicIds = Object.keys(updateDto.values);
+      if (technicalCharacteristicIds.length > 0) {
+        const technicalCharacteristics = await this.prisma.technicalCharacteristic.findMany({
+          where: {
+            id: { in: technicalCharacteristicIds },
+            uniqueInItself: true,
+          },
+        });
+
+        for (const technicalCharacteristic of technicalCharacteristics) {
+          const value = updateDto.values[technicalCharacteristic.id];
+          
+          if (value !== undefined && value !== null && value !== '') {
+            const normalizedValue = this.normalizeTechValue(value);
+            const normalizedValueForSearch = normalizeString(normalizedValue.trim());
+            
+            // Chercher si cette valeur existe déjà pour cette caractéristique technique dans un AUTRE code généré
+            const existingProductTechChars = await this.prisma.productTechnicalCharacteristic.findMany({
+              where: {
+                technicalCharacteristicId: technicalCharacteristic.id,
+                generatedInfoId: { not: id }, // Exclure le code généré actuel
+              },
+              include: {
+                generatedInfo: {
+                  include: {
+                    product: true,
+                  },
+                },
+              },
+            });
+
+            // Vérifier manuellement avec normalizeString
+            for (const existingProductTechChar of existingProductTechChars) {
+              const existingNormalizedValue = normalizeString(existingProductTechChar.value.trim());
+              if (existingNormalizedValue === normalizedValueForSearch) {
+                throw new BadRequestException(
+                  `La valeur "${value}" pour la caractéristique technique "${technicalCharacteristic.name}" est déjà utilisée dans un autre code généré (${existingProductTechChar.generatedInfo.generatedCode}). Cette caractéristique doit avoir une valeur unique.`,
+                );
+              }
+            }
           }
         }
       }
