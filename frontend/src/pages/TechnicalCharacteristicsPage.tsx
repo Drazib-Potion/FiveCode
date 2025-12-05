@@ -323,6 +323,48 @@ const getVariantNamesByLevel = useCallback(
     }
   };
 
+  const handleToggleAllFamilies = async (visibleKeys: string[], searchTerm?: string) => {
+    if (visibleKeys.length === 0) return;
+    const allSelected = visibleKeys.every((familyId) => formData.familyIds.includes(familyId));
+
+    if (allSelected) {
+      // Désélectionner toutes les familles visibles et retirer leurs variantes
+      const newFamilyIds = formData.familyIds.filter((id) => !visibleKeys.includes(id));
+      const filterVariantIds = (variantIds: string[]) =>
+        variantIds.filter((variantId) => {
+          const variant = variants.find((v) => v.id === variantId);
+          return variant && !visibleKeys.includes(variant.familyId);
+        });
+      setFormData({
+        ...formData,
+        familyIds: newFamilyIds,
+        variantIdsFirst: filterVariantIds(formData.variantIdsFirst),
+        variantIdsSecond: filterVariantIds(formData.variantIdsSecond),
+      });
+    } else {
+      try {
+        const response = await familiesService.getAll(
+          0,
+          10000,
+          searchTerm?.trim() || undefined,
+        );
+        const allFamilies: Family[] = Array.isArray(response)
+          ? response
+          : response.data || [];
+        const allFamilyIds = allFamilies.map((family) => family.id);
+
+        // Sélectionner toutes les familles disponibles
+        const updatedFamilyIds = [...new Set([...formData.familyIds, ...allFamilyIds])];
+        setFormData({ ...formData, familyIds: updatedFamilyIds });
+      } catch (error) {
+        console.error('Error loading all families:', error);
+        // Fallback: sélectionner seulement les familles visibles
+        const updatedFamilyIds = [...new Set([...formData.familyIds, ...visibleKeys])];
+        setFormData({ ...formData, familyIds: updatedFamilyIds });
+      }
+    }
+  };
+
   const handleVariantToggle = (variantId: string, level: 'FIRST' | 'SECOND') => {
     const currentList =
       level === 'FIRST' ? formData.variantIdsFirst : formData.variantIdsSecond;
@@ -335,8 +377,6 @@ const getVariantNamesByLevel = useCallback(
       ...formData,
       variantIdsFirst: level === 'FIRST' ? updatedList : formData.variantIdsFirst,
       variantIdsSecond: level === 'SECOND' ? updatedList : formData.variantIdsSecond,
-      sansVariantFirst: level === 'FIRST' ? false : formData.sansVariantFirst,
-      sansVariantSecond: level === 'SECOND' ? false : formData.sansVariantSecond,
     });
   };
 
@@ -349,13 +389,14 @@ const getVariantNamesByLevel = useCallback(
       ? currentList.filter((variantId) => !visibleKeys.includes(variantId))
       : [...new Set([...currentList, ...visibleKeys])];
 
-      setFormData({
-        ...formData,
-        variantIdsFirst: level === 'FIRST' ? updatedList : formData.variantIdsFirst,
-        variantIdsSecond: level === 'SECOND' ? updatedList : formData.variantIdsSecond,
-        sansVariantFirst: level === 'FIRST' ? false : formData.sansVariantFirst,
-        sansVariantSecond: level === 'SECOND' ? false : formData.sansVariantSecond,
-      });
+    // Si on coche tout, cocher aussi "Sans variant". Si on décoche tout, décocher aussi "Sans variant"
+    setFormData({
+      ...formData,
+      variantIdsFirst: level === 'FIRST' ? updatedList : formData.variantIdsFirst,
+      variantIdsSecond: level === 'SECOND' ? updatedList : formData.variantIdsSecond,
+      sansVariantFirst: level === 'FIRST' ? !allSelected : formData.sansVariantFirst,
+      sansVariantSecond: level === 'SECOND' ? !allSelected : formData.sansVariantSecond,
+    });
   };
 
   const handleAddEnumOption = () => {
@@ -385,8 +426,6 @@ const getVariantNamesByLevel = useCallback(
 
     setFormData({
       ...formData,
-      variantIdsFirst: isFirst && !isActive ? [] : formData.variantIdsFirst,
-      variantIdsSecond: !isFirst && !isActive ? [] : formData.variantIdsSecond,
       sansVariantFirst: isFirst ? !isActive : formData.sansVariantFirst,
       sansVariantSecond: isFirst ? formData.sansVariantSecond : !isActive,
     });
@@ -638,6 +677,9 @@ const getVariantNamesByLevel = useCallback(
               limit={30}
               selectedKeys={formData.familyIds}
               onToggle={(key) => handleFamilyToggle(key)}
+              showSelectAll={true}
+              selectAllLabel="TOUT COCHER / TOUT DECOCHER"
+              onToggleAll={handleToggleAllFamilies}
               placeholder="🔍 Rechercher une famille..."
               footer={
                 <small className="text-xs text-gray-500">

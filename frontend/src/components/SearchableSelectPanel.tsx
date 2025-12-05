@@ -30,7 +30,7 @@ export interface SearchableSelectPanelProps<T> {
   initialItems?: SearchableSelectItem<T>[];
   showSelectAll?: boolean;
   selectAllLabel?: string;
-  onToggleAll?: (visibleKeys: string[]) => void;
+  onToggleAll?: (visibleKeys: string[], searchTerm?: string) => void;
   extraSlot?: React.ReactNode;
   mode?: 'single' | 'multiple';
 }
@@ -213,7 +213,7 @@ export default function SearchableSelectPanel<T>({
               filteredItems.length > 0 &&
               filteredItems.every((item) => selectedKeys.includes(item.key))
             }
-            onChange={() => onToggleAll?.(filteredItems.map((item) => item.key))}
+            onChange={() => onToggleAll?.(filteredItems.map((item) => item.key), debouncedSearch)}
             className="h-4 w-4 cursor-pointer"
           />
           <span>{selectAllLabel}</span>
